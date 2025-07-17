@@ -6,7 +6,11 @@ OK Une base de données performante
 OK Un moteur de filtre full texte, par tags pertinents (eg: statuts)
 OK Liste de résultats sur la même page
 OK Une interface sympa avec bon UI, look and feel, simple
-Une carte pour chercher sur la localisation
+OK Une carte pour chercher sur la localisation
+
 Une possibilité depuis liste de resultats de faire une selection sur plusieurs clients avec des cases à cocher et d'envoyer un email simple ou à plusieurs destinataires 
+im^port excel (csv?)
+anniversaire avec notifications dashboard
+Mise à jour Linkedin avec mon lien agilevizion
 
 

@@ -23,7 +23,9 @@ import {
   CardContent,
   InputAdornment,
   ListSubheader,
-  Tooltip
+  Tooltip,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -49,6 +51,7 @@ interface Prospect {
   linkedin?: string;
   interets?: string;
   historique?: string;
+  etape_suivi?: string;
   date_creation: string;
 }
 
@@ -60,6 +63,11 @@ const ProspectsList = () => {
   const [regionFilter, setRegionFilter] = useState<string>('');
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -143,6 +151,51 @@ const ProspectsList = () => {
   const handleStatusMenuClose = () => {
     setStatusMenuAnchor(null);
     setSelectedProspectId(null);
+  };
+
+  // Gestion des actions (etape_suivi)
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
+  const [selectedActionProspectId, setSelectedActionProspectId] = useState<number | null>(null);
+
+  const handleActionClick = (event: React.MouseEvent<HTMLElement>, prospectId: number) => {
+    setActionMenuAnchor(event.currentTarget);
+    setSelectedActionProspectId(prospectId);
+  };
+
+  const handleActionChange = async (newAction: string) => {
+    if (!selectedActionProspectId) return;
+    
+    try {
+      const prospect = prospects.find(p => p.id === selectedActionProspectId);
+      if (!prospect) return;
+
+      const response = await fetch(`http://localhost:3001/api/prospects/${selectedActionProspectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...prospect,
+          etape_suivi: newAction
+        }),
+      });
+
+      if (response.ok) {
+        setProspects(prospects.map(p => 
+          p.id === selectedActionProspectId ? { ...p, etape_suivi: newAction } : p
+        ));
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'action:', error);
+    } finally {
+      setActionMenuAnchor(null);
+      setSelectedActionProspectId(null);
+    }
+  };
+
+  const handleActionMenuClose = () => {
+    setActionMenuAnchor(null);
+    setSelectedActionProspectId(null);
   };
 
   // Extraction des valeurs uniques pour les filtres
@@ -278,12 +331,14 @@ const ProspectsList = () => {
                       size="small"
                       sx={{
                         backgroundColor: 
-                          status === 'prospect' ? '#e3f2fd' :
-                          status === 'client' ? '#e8f5e8' :
+                          status === 'Prospects' ? '#fff3e0' :
+                          status === 'Clients' ? '#e8f5e8' :
+                          status === 'N/A' ? '#f5f5f5' :
                           '#fff3e0',
                         color: 
-                          status === 'prospect' ? '#1976d2' :
-                          status === 'client' ? '#2e7d32' :
+                          status === 'Prospects' ? '#f57c00' :
+                          status === 'Clients' ? '#2e7d32' :
+                          status === 'N/A' ? '#757575' :
                           '#f57c00',
                       }}
                     />
@@ -387,6 +442,7 @@ const ProspectsList = () => {
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Intérêts</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Historique</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 100 }}>Statut</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Étapes</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 80 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -399,7 +455,17 @@ const ProspectsList = () => {
               </TableRow>
             ) : (
               filteredProspects.map((prospect) => (
-                <TableRow key={prospect.id} hover>
+                <TableRow 
+                  key={prospect.id} 
+                  hover
+                  onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
+                  sx={{ 
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                    }
+                  }}
+                >
                   <TableCell>
                     <Box>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -446,6 +512,7 @@ const ProspectsList = () => {
                           href={prospect.linkedin} 
                           target="_blank" 
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           style={{ color: '#0077b5', textDecoration: 'none', fontSize: '0.75rem' }}
                         >
                           LinkedIn
@@ -485,7 +552,7 @@ const ProspectsList = () => {
                       </Typography>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Box
                       onClick={(e) => handleStatusClick(e, prospect.id)}
                       sx={{
@@ -493,10 +560,12 @@ const ProspectsList = () => {
                         py: 0.5,
                         borderRadius: 1,
                         backgroundColor: 
-                          prospect.statut === 'Client' ? '#e8f5e8' :
+                          prospect.statut === 'Clients' ? '#e8f5e8' :
+                          prospect.statut === 'N/A' ? '#f5f5f5' :
                           '#fff3e0',
                         color: 
-                          prospect.statut === 'Client' ? '#2e7d32' :
+                          prospect.statut === 'Clients' ? '#2e7d32' :
+                          prospect.statut === 'N/A' ? '#757575' :
                           '#f57c00',
                         fontSize: '0.875rem',
                         fontWeight: 500,
@@ -517,7 +586,47 @@ const ProspectsList = () => {
                       <ArrowDropDownIcon sx={{ fontSize: 16 }} />
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Box
+                      onClick={(e) => handleActionClick(e, prospect.id)}
+                      sx={{
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 1,
+                        backgroundColor: 
+                          prospect.etape_suivi === 'OK' ? '#e8f5e8' :
+                          prospect.etape_suivi === 'KO' ? '#ffebee' :
+                          prospect.etape_suivi === 'entretien 1' || prospect.etape_suivi === 'entretien 2' || prospect.etape_suivi === 'entretien 3' ? '#e3f2fd' :
+                          prospect.etape_suivi === 'call effectué' ? '#fff8e1' :
+                          prospect.etape_suivi === 'email envoyé' || prospect.etape_suivi === 'linkedin envoyé' ? '#f3e5f5' :
+                          '#f5f5f5',
+                        color: 
+                          prospect.etape_suivi === 'OK' ? '#2e7d32' :
+                          prospect.etape_suivi === 'KO' ? '#c62828' :
+                          prospect.etape_suivi === 'entretien 1' || prospect.etape_suivi === 'entretien 2' || prospect.etape_suivi === 'entretien 3' ? '#1565c0' :
+                          prospect.etape_suivi === 'call effectué' ? '#f57f17' :
+                          prospect.etape_suivi === 'email envoyé' || prospect.etape_suivi === 'linkedin envoyé' ? '#7b1fa2' :
+                          '#757575',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 0.5,
+                        '&:hover': {
+                          opacity: 0.8,
+                          transform: 'scale(1.02)'
+                        },
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {prospect.etape_suivi || 'à contacter'}
+                      <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+                    </Box>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <IconButton
                       size="small"
                       onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
@@ -554,9 +663,9 @@ const ProspectsList = () => {
           horizontal: 'left',
         }}
       >
-        <MenuItem onClick={() => handleStatusChange('À contacter')}>
-          <Chip 
-            label="À contacter" 
+                        <MenuItem onClick={() => handleStatusChange('Prospects')}>
+                  <Chip
+                    label="Prospects" 
             size="small"
             sx={{
               backgroundColor: '#fff3e0',
@@ -564,9 +673,19 @@ const ProspectsList = () => {
             }}
           />
         </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Client')}>
+        <MenuItem onClick={() => handleStatusChange('N/A')}>
           <Chip 
-            label="Client" 
+            label="N/A" 
+            size="small"
+            sx={{
+              backgroundColor: '#f5f5f5',
+              color: '#757575',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleStatusChange('Clients')}>
+          <Chip 
+            label="Clients" 
             size="small"
             sx={{
               backgroundColor: '#e8f5e8',
@@ -575,6 +694,118 @@ const ProspectsList = () => {
           />
         </MenuItem>
       </Menu>
+
+      {/* Menu déroulant pour changer les actions */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleActionMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <MenuItem onClick={() => handleActionChange('à contacter')}>
+          <Chip
+            label="à contacter" 
+            size="small"
+            sx={{
+              backgroundColor: '#f5f5f5',
+              color: '#757575',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('linkedin envoyé')}>
+          <Chip 
+            label="linkedin envoyé" 
+            size="small"
+            sx={{
+              backgroundColor: '#f3e5f5',
+              color: '#7b1fa2',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('email envoyé')}>
+          <Chip 
+            label="email envoyé" 
+            size="small"
+            sx={{
+              backgroundColor: '#f3e5f5',
+              color: '#7b1fa2',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('call effectué')}>
+          <Chip 
+            label="call effectué" 
+            size="small"
+            sx={{
+              backgroundColor: '#fff8e1',
+              color: '#f57f17',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('entretien 1')}>
+          <Chip 
+            label="entretien 1" 
+            size="small"
+            sx={{
+              backgroundColor: '#e3f2fd',
+              color: '#1565c0',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('entretien 2')}>
+          <Chip 
+            label="entretien 2" 
+            size="small"
+            sx={{
+              backgroundColor: '#e3f2fd',
+              color: '#1565c0',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('entretien 3')}>
+          <Chip 
+            label="entretien 3" 
+            size="small"
+            sx={{
+              backgroundColor: '#e3f2fd',
+              color: '#1565c0',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('OK')}>
+          <Chip 
+            label="OK" 
+            size="small"
+            sx={{
+              backgroundColor: '#e8f5e8',
+              color: '#2e7d32',
+            }}
+          />
+        </MenuItem>
+        <MenuItem onClick={() => handleActionChange('KO')}>
+          <Chip 
+            label="KO" 
+            size="small"
+            sx={{
+              backgroundColor: '#ffebee',
+              color: '#c62828',
+            }}
+          />
+        </MenuItem>
+      </Menu>
+
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

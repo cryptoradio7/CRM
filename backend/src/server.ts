@@ -63,15 +63,15 @@ app.get('/api/prospects/:id', async (req, res) => {
 // POST - Créer un nouveau prospect
 app.post('/api/prospects', async (req, res) => {
   try {
-    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique } = req.body;
+    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi } = req.body;
 
     if (!nom) {
       return res.status(400).json({ error: 'Le nom est requis' });
     }
 
     const result = await pool.query(
-      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, type_entreprise, role, ville, region, statut, linkedin, interets, historique) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
-      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut || 'À contacter', linkedin, interets, historique]
+      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, type_entreprise, role, ville, region, statut, linkedin, interets, historique, etape_suivi) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
+              [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut || 'Prospects', linkedin, interets, historique, etapeSuivi || 'à contacter']
     );
 
     res.status(201).json(result.rows[0]);
@@ -85,11 +85,11 @@ app.post('/api/prospects', async (req, res) => {
 app.put('/api/prospects/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique } = req.body;
+    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi } = req.body;
 
     const result = await pool.query(
-      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, region = $9, statut = $10, linkedin = $11, interets = $12, historique = $13 WHERE id = $14 RETURNING *',
-      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, id]
+      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, region = $9, statut = $10, linkedin = $11, interets = $12, historique = $13, etape_suivi = $14 WHERE id = $15 RETURNING *',
+      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi, id]
     );
 
     if (result.rows.length === 0) {
@@ -128,16 +128,23 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const currentMonth = currentDate.getMonth() + 1; // 1-12
     const currentYear = currentDate.getFullYear();
     
-    // 1. Total Prospects (tous les contacts)
+    // 1. Total Prospects (tous les prospects)
     const totalProspectsResult = await pool.query('SELECT COUNT(*) as total FROM prospects');
     const totalProspects = parseInt(totalProspectsResult.rows[0].total);
     
-    // 2. Prospects Actifs (statut = "À contacter")
+    // 2. Prospects Actifs (statut = "Prospects")
     const activeProspectsResult = await pool.query(
       'SELECT COUNT(*) as total FROM prospects WHERE statut = $1',
-      ['À contacter']
+      ['Prospects']
     );
     const activeProspects = parseInt(activeProspectsResult.rows[0].total);
+    
+    // 2.5. Contacts N/A
+    const naResult = await pool.query(
+      'SELECT COUNT(*) as total FROM prospects WHERE statut = $1',
+      ['N/A']
+    );
+    const totalNA = parseInt(naResult.rows[0].total);
     
     // 3. Nouveaux ce mois (créés dans le mois en cours)
     const newThisMonthResult = await pool.query(
@@ -146,10 +153,10 @@ app.get('/api/dashboard/stats', async (req, res) => {
     );
     const newThisMonth = parseInt(newThisMonthResult.rows[0].total);
     
-    // 4. Taux de conversion (Clients / Total Prospects * 100)
+    // 4. Taux de conversion (Clients / Total Contacts * 100)
     const clientsResult = await pool.query(
       'SELECT COUNT(*) as total FROM prospects WHERE statut = $1',
-      ['Client']
+      ['Clients']
     );
     const totalClients = parseInt(clientsResult.rows[0].total);
     const conversionRate = totalProspects > 0 ? Math.round((totalClients / totalProspects) * 100) : 0;
@@ -188,6 +195,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
         newThisMonth,
         conversionRate,
         totalClients,
+        totalNA,
         growthRate
       },
       recentActivity: recentActivityResult.rows,
@@ -220,8 +228,14 @@ app.post('/api/fix-database', async (req, res) => {
       WHERE region IS NULL OR region = ''
     `);
     
+    // Mettre à jour les statuts "Client" vers "Clients"
+    await pool.query("UPDATE prospects SET statut = 'Clients' WHERE statut = 'Client'");
+    
+    // Mettre à jour les statuts "Prospects à contacter" vers "Prospects"
+    await pool.query("UPDATE prospects SET statut = 'Prospects' WHERE statut = 'Prospects à contacter'");
+    
     // Récupérer les données mises à jour
-    const result = await pool.query('SELECT id, nom, prenom, ville, region FROM prospects');
+    const result = await pool.query('SELECT id, nom, prenom, ville, region, statut FROM prospects');
     
     res.json({ 
       message: 'Base de données corrigée avec succès',

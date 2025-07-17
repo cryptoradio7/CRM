@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Typography, 
   Box, 
@@ -15,7 +16,8 @@ import {
   Divider,
   Alert,
   IconButton,
-  Tooltip
+  Tooltip,
+  Snackbar
 } from '@mui/material';
 import { 
   LocationOn as LocationIcon,
@@ -85,10 +87,16 @@ interface RegionData {
 }
 
 const ProspectsMap = () => {
+  const navigate = useNavigate();
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedRegion, setSelectedRegion] = useState<RegionData | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
   useEffect(() => {
     fetchProspects();
@@ -255,8 +263,10 @@ const ProspectsMap = () => {
     };
   }).filter(region => region.prospects.length > 0);
 
-  const totalProspects = prospects.filter(p => p.statut === 'À contacter').length;
-  const totalClients = prospects.filter(p => p.statut === 'Client').length;
+  const totalContacts = prospects.length;
+  const totalNA = prospects.filter(p => p.statut === 'N/A').length;
+      const totalProspects = prospects.filter(p => p.statut === 'Prospects').length;
+  const totalClients = prospects.filter(p => p.statut === 'Clients').length;
 
   if (loading) {
     return <Typography>Chargement de la carte...</Typography>;
@@ -269,22 +279,30 @@ const ProspectsMap = () => {
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Carte des Prospects et Clients
+        Carte des Contacts
       </Typography>
 
       {/* Statistiques globales */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ flex: 1, minWidth: 200, textAlign: 'center' }}>
+            <Box sx={{ flex: 1, minWidth: 150, textAlign: 'center' }}>
                 <Typography variant="h4" color="primary">
-                  {prospects.length}
+                  {totalContacts}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Total Contacts
                 </Typography>
               </Box>
-            <Box sx={{ flex: 1, minWidth: 200, textAlign: 'center' }}>
+            <Box sx={{ flex: 1, minWidth: 150, textAlign: 'center' }}>
+                <Typography variant="h4" color="text.secondary">
+                  {totalNA}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  N/A
+                </Typography>
+              </Box>
+            <Box sx={{ flex: 1, minWidth: 150, textAlign: 'center' }}>
                 <Typography variant="h4" color="warning.main">
                   {totalProspects}
                 </Typography>
@@ -292,7 +310,7 @@ const ProspectsMap = () => {
                   Prospects
                 </Typography>
               </Box>
-            <Box sx={{ flex: 1, minWidth: 200, textAlign: 'center' }}>
+            <Box sx={{ flex: 1, minWidth: 150, textAlign: 'center' }}>
                 <Typography variant="h4" color="success.main">
                   {totalClients}
                 </Typography>
@@ -321,15 +339,31 @@ const ProspectsMap = () => {
               />
               
               {regionsWithProspects.map((region) => {
-                const prospectsCount = region.prospects.filter(p => p.statut === 'À contacter').length;
-                const clientsCount = region.prospects.filter(p => p.statut === 'Client').length;
+                const prospectsCount = region.prospects.filter(p => p.statut === 'Prospects').length;
+                const clientsCount = region.prospects.filter(p => p.statut === 'Clients').length;
+                const naCount = region.prospects.filter(p => p.statut === 'N/A').length;
                 
-                // Déterminer la couleur du marqueur basée sur le type dominant
+                // Déterminer la couleur du marqueur basée sur les statuts présents
                 let markerColor = '#ff9800'; // Orange par défaut (prospects)
-                if (clientsCount > prospectsCount) {
-                  markerColor = '#4caf50'; // Vert pour les clients
-                } else if (clientsCount === prospectsCount && clientsCount > 0) {
-                  markerColor = '#2196f3'; // Bleu pour mixte
+                
+                // Compter les types de statuts différents
+                const statusTypes = [];
+                if (prospectsCount > 0) statusTypes.push('prospects');
+                if (clientsCount > 0) statusTypes.push('clients');
+                if (naCount > 0) statusTypes.push('na');
+                
+                if (statusTypes.length > 1) {
+                  // Plusieurs types de statuts -> Bleu
+                  markerColor = '#2196f3';
+                } else if (statusTypes.length === 1) {
+                  // Un seul type de statut
+                  if (statusTypes[0] === 'clients') {
+                    markerColor = '#4caf50'; // Vert pour clients uniquement
+                  } else if (statusTypes[0] === 'prospects') {
+                    markerColor = '#ff9800'; // Orange pour prospects uniquement
+                  } else if (statusTypes[0] === 'na') {
+                    markerColor = '#9e9e9e'; // Gris pour N/A uniquement
+                  }
                 }
                 
                 return (
@@ -347,13 +381,16 @@ const ProspectsMap = () => {
                           {region.name}
                         </Typography>
                         <Typography variant="body2">
-                          {region.prospects.length} contact(s)
+                          {region.prospects.length} prospect(s)
                         </Typography>
                         <Typography variant="body2">
                           Prospects: {prospectsCount}
                         </Typography>
                         <Typography variant="body2">
                           Clients: {clientsCount}
+                        </Typography>
+                        <Typography variant="body2">
+                          N/A: {naCount}
                         </Typography>
                       </Box>
                     </Popup>
@@ -389,15 +426,21 @@ const ProspectsMap = () => {
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       <Box sx={{ flex: 1, textAlign: 'center' }}>
                                                   <Typography variant="h5" color="warning.main">
-                          {selectedRegion.prospects.filter(p => p.statut === 'À contacter').length}
+                          {selectedRegion.prospects.filter(p => p.statut === 'Prospects').length}
                         </Typography>
                           <Typography variant="body2">Prospects</Typography>
                         </Box>
                       <Box sx={{ flex: 1, textAlign: 'center' }}>
                           <Typography variant="h5" color="success.main">
-                          {selectedRegion.prospects.filter(p => p.statut === 'Client').length}
+                          {selectedRegion.prospects.filter(p => p.statut === 'Clients').length}
                           </Typography>
                           <Typography variant="body2">Clients</Typography>
+                        </Box>
+                      <Box sx={{ flex: 1, textAlign: 'center' }}>
+                          <Typography variant="h5" color="text.secondary">
+                          {selectedRegion.prospects.filter(p => p.statut === 'N/A').length}
+                          </Typography>
+                          <Typography variant="body2">N/A</Typography>
                         </Box>
                     </Box>
                   </Box>
@@ -405,15 +448,28 @@ const ProspectsMap = () => {
                   <Divider sx={{ mb: 2 }} />
 
                   <Typography variant="subtitle2" gutterBottom>
-                    Contacts dans cette région
+                    Prospects dans cette région
                   </Typography>
                   
                   <List sx={{ maxHeight: 400, overflow: 'auto' }}>
                     {selectedRegion.prospects.map((prospect) => (
-                      <ListItem key={prospect.id} dense>
+                      <ListItem 
+                        key={prospect.id} 
+                        dense
+                        onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': {
+                            backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                            borderRadius: 1,
+                          },
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
                         <ListItemAvatar>
                           <Avatar sx={{ 
-                            bgcolor: prospect.statut === 'Client' ? 'success.main' : 'warning.main',
+                            bgcolor: prospect.statut === 'Clients' ? 'success.main' : 
+                                     prospect.statut === 'Prospects' ? 'warning.main' : 'text.secondary',
                             width: 32,
                             height: 32
                           }}>
@@ -434,8 +490,10 @@ const ProspectsMap = () => {
                                 label={prospect.statut} 
                                 size="small"
                                 sx={{ 
-                                  bgcolor: prospect.statut === 'Client' ? 'success.light' : 'warning.light',
-                                  color: prospect.statut === 'Client' ? 'success.dark' : 'warning.dark',
+                                  bgcolor: prospect.statut === 'Clients' ? 'success.light' : 
+                                           prospect.statut === 'Prospects' ? 'warning.light' : 'grey.300',
+                                  color: prospect.statut === 'Clients' ? 'success.dark' : 
+                                                                                    prospect.statut === 'Prospects' ? 'warning.dark' : 'grey.700',
                                   mt: 0.5
                                 }}
                               />
@@ -453,7 +511,7 @@ const ProspectsMap = () => {
                     Sélectionnez une région
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Cliquez sur un marqueur pour voir les détails des contacts dans cette région
+                    Cliquez sur un marqueur pour voir les détails des prospects dans cette région
                   </Typography>
                 </Box>
               )}
@@ -461,6 +519,17 @@ const ProspectsMap = () => {
           </Card>
         </Box>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

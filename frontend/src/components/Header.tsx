@@ -123,7 +123,7 @@ const Header = () => {
             sx={location.pathname === '/prospects' ? activeButtonStyle : baseButtonStyle}
             disableRipple={false}
           >
-            Prospects
+            Contacts
           </Button>
           <Button 
             component={RouterLink} 

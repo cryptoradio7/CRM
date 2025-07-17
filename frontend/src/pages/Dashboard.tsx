@@ -6,6 +6,7 @@ import BusinessIcon from '@mui/icons-material/Business';
 import StarIcon from '@mui/icons-material/Star';
 import PersonIcon from '@mui/icons-material/Person';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { useNavigate } from 'react-router-dom';
 
 interface DashboardStats {
@@ -15,6 +16,7 @@ interface DashboardStats {
     newThisMonth: number;
     conversionRate: number;
     totalClients: number;
+    totalNA: number;
     growthRate: number;
   };
   recentActivity: Array<{
@@ -84,12 +86,12 @@ const Dashboard = () => {
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
-      case 'Client':
+      case 'Clients':
         return 'success';
-      case 'À contacter':
+              case 'Prospects':
         return 'warning';
-      case 'Prospect qualifié':
-        return 'info';
+      case 'N/A':
+        return 'default';
       default:
         return 'default';
     }
@@ -126,7 +128,7 @@ const Dashboard = () => {
     {
       icon: <PeopleIcon sx={{ fontSize: 40, color: '#4CAF50' }} />,
       value: `${stats.metrics.totalClients} / ${stats.metrics.totalProspects}`,
-      label: "Clients / Contacts",
+      label: "Clients / Total",
       color: "#4CAF50",
       trend: null
     },
@@ -134,10 +136,10 @@ const Dashboard = () => {
       icon: <TrendingUpIcon sx={{ fontSize: 40, color: '#FF9800' }} />,
       value: (() => {
         const value = stats.metrics.activeProspects.toString();
-        console.log('🎯 Valeur affichée pour "À contacter":', value);
+        console.log('🎯 Valeur affichée pour "Prospects":', value);
         return value;
       })(),
-      label: "À contacter",
+              label: "Prospects",
       color: "#FF9800",
       trend: null
     },
@@ -146,6 +148,13 @@ const Dashboard = () => {
       value: stats.metrics.totalClients.toString(),
       label: "Clients",
       color: "#2196F3",
+      trend: null
+    },
+    {
+      icon: <CancelIcon sx={{ fontSize: 40, color: '#9E9E9E' }} />,
+      value: stats.metrics.totalNA.toString(),
+      label: "N/A",
+      color: "#9E9E9E",
       trend: null
     },
     {
@@ -189,7 +198,7 @@ const Dashboard = () => {
       {/* Cartes de statistiques */}
       <Box sx={{ 
         display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' },
         gap: 4, 
         mb: 6 
       }}>
@@ -197,10 +206,10 @@ const Dashboard = () => {
           <Card 
             key={index}
             onClick={() => {
-              if (stat.label === "Clients") {
-                handleCardClick('status', 'Client');
-              } else if (stat.label === "À contacter") {
-                handleCardClick('status', 'À contacter');
+                      if (stat.label === "Clients") {
+          handleCardClick('status', 'Clients');
+                    } else if (stat.label === "Prospects") {
+        handleCardClick('status', 'Prospects');
               }
             }}
             sx={{ 
@@ -208,13 +217,13 @@ const Dashboard = () => {
               borderRadius: 3,
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
               transition: 'all 0.3s ease',
-              cursor: (stat.label === "Clients" || stat.label === "À contacter") ? 'pointer' : 'default',
+              cursor: (stat.label === "Clients" || stat.label === "Prospects") ? 'pointer' : 'default',
               '&:hover': {
                 transform: 'translateY(-8px)',
                 boxShadow: stat.label === "Clients"
                   ? '0 8px 30px rgba(33, 150, 243, 0.25)' // Blue for Clients
-                  : stat.label === "À contacter"
-                    ? '0 8px 30px rgba(255, 152, 0, 0.25)' // Orange for À contacter
+                          : stat.label === "Prospects"
+        ? '0 8px 30px rgba(255, 152, 0, 0.25)' // Orange for Prospects
                     : '0 8px 30px rgba(0,0,0,0.15)', // Default for non-clickable cards
               }
             }}

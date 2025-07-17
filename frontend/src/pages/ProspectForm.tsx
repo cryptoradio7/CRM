@@ -11,7 +11,10 @@ import {
   MenuItem,
   Alert,
   Divider,
-  ListSubheader
+  ListSubheader,
+  IconButton,
+  InputAdornment,
+  Snackbar
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -23,12 +26,13 @@ interface Prospect {
   entreprise?: string;
   typeEntreprise?: string;
   role?: string;
-  ville?: string;
-  region?: string;
+  ville: string;
+  region: string;
   statut: string;
   linkedin?: string;
   interets?: string;
   historique?: string;
+  etape_suivi?: string;
 }
 
 const ProspectForm = () => {
@@ -37,6 +41,11 @@ const ProspectForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   
   const [formData, setFormData] = useState<Prospect>({
     nom: '',
@@ -48,10 +57,11 @@ const ProspectForm = () => {
     role: '',
     ville: '',
     region: '',
-    statut: 'À contacter',
+    statut: 'Prospects',
     linkedin: '',
     interets: '',
-    historique: ''
+    historique: '',
+    etape_suivi: ''
   });
 
   useEffect(() => {
@@ -87,6 +97,19 @@ const ProspectForm = () => {
     setError('');
     setSuccess('');
 
+    // Validation des champs obligatoires
+    if (!formData.ville.trim()) {
+      setError('Le champ Ville est obligatoire');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.region.trim()) {
+      setError('Le champ Région est obligatoire');
+      setLoading(false);
+      return;
+    }
+
     try {
       const url = id 
         ? `http://localhost:3001/api/prospects/${id}`
@@ -115,6 +138,10 @@ const ProspectForm = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -168,17 +195,18 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
-                  label="Ville"
+                  label="Ville *"
                   value={formData.ville}
                   onChange={handleChange('ville')}
                   placeholder="Ex: Paris, Genève, Luxembourg..."
+                  required
                 />
                 
-                <FormControl fullWidth>
-                  <InputLabel>Région</InputLabel>
+                <FormControl fullWidth required>
+                  <InputLabel>Région *</InputLabel>
                   <Select
                     value={formData.region}
-                    label="Région"
+                    label="Région *"
                     onChange={handleChange('region')}
                   >
                     <ListSubheader>Luxembourg</ListSubheader>
@@ -283,6 +311,38 @@ const ProspectForm = () => {
               </Typography>
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Statut</InputLabel>
+                  <Select
+                    value={formData.statut}
+                    label="Statut"
+                    onChange={handleChange('statut')}
+                  >
+                    <MenuItem value="Prospects">Prospects</MenuItem>
+                    <MenuItem value="Clients">Clients</MenuItem>
+                    <MenuItem value="N/A">N/A</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth>
+                  <InputLabel>Actions</InputLabel>
+                  <Select
+                    value={formData.etape_suivi || ''}
+                    label="Actions"
+                    onChange={handleChange('etape_suivi')}
+                  >
+                    <MenuItem value="à contacter">à contacter</MenuItem>
+                    <MenuItem value="linkedin envoyé">linkedin envoyé</MenuItem>
+                    <MenuItem value="email envoyé">email envoyé</MenuItem>
+                    <MenuItem value="call effectué">call effectué</MenuItem>
+                    <MenuItem value="entretien 1">entretien 1</MenuItem>
+                    <MenuItem value="entretien 2">entretien 2</MenuItem>
+                    <MenuItem value="entretien 3">entretien 3</MenuItem>
+                    <MenuItem value="OK">OK</MenuItem>
+                    <MenuItem value="KO">KO</MenuItem>
+                  </Select>
+                </FormControl>
+                
                 <TextField
                   fullWidth
                   label="Intérêts"
@@ -323,6 +383,17 @@ const ProspectForm = () => {
           </Box>
         </form>
       </Paper>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
