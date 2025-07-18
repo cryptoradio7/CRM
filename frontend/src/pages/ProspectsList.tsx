@@ -44,6 +44,7 @@ interface Prospect {
   email?: string;
   telephone?: string;
   entreprise?: string;
+  type_entreprise?: string;
   role?: string;
   ville?: string;
   region?: string;
@@ -61,6 +62,7 @@ const ProspectsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [regionFilter, setRegionFilter] = useState<string>('');
+  const [typeEntrepriseFilter, setTypeEntrepriseFilter] = useState<string>('');
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
@@ -205,6 +207,9 @@ const ProspectsList = () => {
   const uniqueRegions = useMemo(() => 
     [...new Set(prospects.map(p => p.region).filter(Boolean))], [prospects]
   );
+  const uniqueTypeEntreprises = useMemo(() => 
+    [...new Set(prospects.map(p => p.type_entreprise).filter(Boolean))], [prospects]
+  );
 
   // Filtrage des prospects
   const filteredProspects = useMemo(() => {
@@ -216,6 +221,7 @@ const ProspectsList = () => {
         prospect.prenom?.toLowerCase().includes(searchLower) ||
         prospect.email?.toLowerCase().includes(searchLower) ||
         prospect.entreprise?.toLowerCase().includes(searchLower) ||
+        prospect.type_entreprise?.toLowerCase().includes(searchLower) ||
         prospect.role?.toLowerCase().includes(searchLower) ||
         prospect.ville?.toLowerCase().includes(searchLower) ||
         prospect.region?.toLowerCase().includes(searchLower) ||
@@ -226,18 +232,20 @@ const ProspectsList = () => {
       // Filtres par tags
       const statusMatch = !statusFilter || prospect.statut === statusFilter;
       const regionMatch = !regionFilter || prospect.region === regionFilter;
+      const typeEntrepriseMatch = !typeEntrepriseFilter || prospect.type_entreprise === typeEntrepriseFilter;
 
-      return searchMatch && statusMatch && regionMatch;
+      return searchMatch && statusMatch && regionMatch && typeEntrepriseMatch;
     });
-  }, [prospects, searchTerm, statusFilter, regionFilter]);
+  }, [prospects, searchTerm, statusFilter, regionFilter, typeEntrepriseFilter]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setStatusFilter('');
     setRegionFilter('');
+    setTypeEntrepriseFilter('');
   };
 
-  const hasActiveFilters = searchTerm || statusFilter || regionFilter;
+  const hasActiveFilters = searchTerm || statusFilter || regionFilter || typeEntrepriseFilter;
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -381,6 +389,40 @@ const ProspectsList = () => {
               </Select>
             </FormControl>
           </Box>
+
+          {/* Filtre par type d'entreprise */}
+          <Box>
+            <FormControl fullWidth>
+              <InputLabel>Type d'Entreprise</InputLabel>
+              <Select
+                value={typeEntrepriseFilter}
+                label="Type d'Entreprise"
+                onChange={(e) => setTypeEntrepriseFilter(e.target.value)}
+              >
+                <MenuItem value="">Tous les types</MenuItem>
+                {uniqueTypeEntreprises.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    <Chip 
+                      label={type} 
+                      size="small"
+                      sx={{
+                        backgroundColor: 
+                          type === 'SME' ? '#e8f5e8' :
+                          type === 'Grande Entreprise' ? '#fff3e0' :
+                          type === 'Start-up' ? '#f3e5f5' :
+                          '#f5f5f5',
+                        color: 
+                          type === 'SME' ? '#2e7d32' :
+                          type === 'Grande Entreprise' ? '#f57c00' :
+                          type === 'Start-up' ? '#7b1fa2' :
+                          '#757575',
+                      }}
+                    />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
 
         {/* Résumé des filtres actifs */}
@@ -413,6 +455,14 @@ const ProspectsList = () => {
                 variant="outlined"
               />
             )}
+            {typeEntrepriseFilter && (
+              <Chip 
+                label={`Type: ${typeEntrepriseFilter}`} 
+                onDelete={() => setTypeEntrepriseFilter('')}
+                color="info"
+                variant="outlined"
+              />
+            )}
           </Box>
         )}
 
@@ -437,6 +487,7 @@ const ProspectsList = () => {
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 200 }}>Contact</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 150 }}>Entreprise</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Type d'Entreprise</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Localisation</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 150 }}>Contact</TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Intérêts</TableCell>
@@ -449,7 +500,7 @@ const ProspectsList = () => {
           <TableBody>
             {filteredProspects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={10} align="center">
                   {prospects.length === 0 ? 'Aucun prospect trouvé' : 'Aucun prospect ne correspond aux filtres'}
                 </TableCell>
               </TableRow>
@@ -484,15 +535,20 @@ const ProspectsList = () => {
                     </Typography>
                   </TableCell>
                   <TableCell>
+                    <Typography variant="body2">
+                      {prospect.type_entreprise || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
                     <Box>
-                      <Typography variant="body2">
-                        {prospect.ville || '-'}
-                      </Typography>
                       {prospect.region && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                           {prospect.region}
                         </Typography>
                       )}
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        {prospect.ville || '-'}
+                      </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>

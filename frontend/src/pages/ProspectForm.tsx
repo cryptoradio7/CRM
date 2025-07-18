@@ -193,15 +193,6 @@ const ProspectForm = () => {
                   onChange={handleChange('telephone')}
                 />
                 
-                <TextField
-                  fullWidth
-                  label="Ville *"
-                  value={formData.ville}
-                  onChange={handleChange('ville')}
-                  placeholder="Ex: Paris, Genève, Luxembourg..."
-                  required
-                />
-                
                 <FormControl fullWidth required>
                   <InputLabel>Région *</InputLabel>
                   <Select
@@ -252,6 +243,15 @@ const ProspectForm = () => {
                     <MenuItem value="Autre">Autre</MenuItem>
                   </Select>
                 </FormControl>
+                
+                <TextField
+                  fullWidth
+                  label="Ville *"
+                  value={formData.ville}
+                  onChange={handleChange('ville')}
+                  placeholder="Ex: Paris, Genève, Luxembourg..."
+                  required
+                />
               </Box>
             </Box>
 
@@ -282,6 +282,7 @@ const ProspectForm = () => {
                     <MenuItem value="Banque">Banque</MenuItem>
                     <MenuItem value="Comptabilité">Comptabilité</MenuItem>
                     <MenuItem value="Fonds d'investissement">Fonds d'investissement</MenuItem>
+                    <MenuItem value="SSII">SSII</MenuItem>
                   </Select>
                 </FormControl>
                 

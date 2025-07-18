@@ -179,11 +179,15 @@ cd CRM
 ```
 
 ### 2. Configuration de la base de données
+
+#### ⚠️ **Important : Configuration sans mot de passe**
+Cette application est configurée pour fonctionner avec PostgreSQL **sans mot de passe** en mode développement local.
+
 ```bash
 # Démarrer PostgreSQL
 sudo systemctl start postgresql
 
-# Se connecter à PostgreSQL
+# Se connecter à PostgreSQL (sans mot de passe)
 sudo -u postgres psql
 
 # Créer la base de données
@@ -199,6 +203,18 @@ CREATE DATABASE crm_db;
 \q
 ```
 
+#### 🔧 **Configuration des variables d'environnement**
+Le fichier `.env` du backend doit être configuré comme suit :
+
+```env
+PORT=3001
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=crm_db
+DB_PASSWORD=          # Laissez vide pour le développement local
+DB_PORT=5432
+```
+
 ### 3. Configuration du backend
 ```bash
 cd backend
@@ -208,7 +224,7 @@ npm install
 
 # Configurer les variables d'environnement
 cp .env.example .env
-# Éditer .env avec vos paramètres de base de données
+# Éditer .env avec vos paramètres de base de données (voir ci-dessus)
 ```
 
 ### 4. Configuration du frontend
@@ -229,13 +245,13 @@ npm install
 
 #### Option 2 : Démarrage manuel
 
-**Terminal 1 - Backend**
+**Terminal 1 - Backend (Développement)**
 ```bash
 cd backend
 npm run dev
 ```
 
-**Terminal 2 - Frontend**
+**Terminal 2 - Frontend (Développement)**
 ```bash
 cd frontend
 npm run dev
@@ -243,18 +259,63 @@ npm run dev
 
 ## 🌐 Accès à l'application
 
+### Environnement de Développement
 - **Frontend** : http://localhost:5173
 - **Backend API** : http://localhost:3001/api
 - **API Prospects** : http://localhost:3001/api/prospects
 
+### Environnement de Production
+- **Frontend** : Build statique servie par un serveur web
+- **Backend API** : Port configuré dans les variables d'environnement
+
 ## 📊 API Endpoints
 
-### Prospects
+### 🔗 **Endpoints Principaux**
+
+#### Prospects
 - `GET /api/prospects` - Récupérer tous les prospects
 - `GET /api/prospects/:id` - Récupérer un prospect par ID
 - `POST /api/prospects` - Créer un nouveau prospect
 - `PUT /api/prospects/:id` - Mettre à jour un prospect
 - `DELETE /api/prospects/:id` - Supprimer un prospect
+
+#### 📝 **Exemples d'utilisation**
+
+**Récupérer tous les prospects :**
+```bash
+curl http://localhost:3001/api/prospects
+```
+
+**Créer un nouveau prospect :**
+```bash
+curl -X POST http://localhost:3001/api/prospects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nom": "Jean Dupont",
+    "prenom": "Jean",
+    "email": "jean.dupont@email.com",
+    "telephone": "0123456789",
+    "entreprise": "Entreprise A",
+    "type_entreprise": "Startup",
+    "statut": "Prospects",
+    "region": "Île-de-France",
+    "etape_suivi": "à contacter",
+    "notes": "Intéressé par nos services",
+    "adresse": "123 Rue de la Paix, 75001 Paris",
+    "latitude": 48.8566,
+    "longitude": 2.3522
+  }'
+```
+
+**Mettre à jour un prospect :**
+```bash
+curl -X PUT http://localhost:3001/api/prospects/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "statut": "Clients",
+    "etape_suivi": "OK"
+  }'
+```
 
 ### Format des données Prospect
 ```json
@@ -309,14 +370,22 @@ npm run dev
 ## 🔧 Scripts disponibles
 
 ### Backend
-- `npm run dev` - Démarrer le serveur de développement
+
+#### 🛠️ **Environnement de Développement**
+- `npm run dev` - Démarrer le serveur de développement avec hot reload
+
+#### 🚀 **Environnement de Production**
 - `npm run build` - Compiler le projet TypeScript
 - `npm start` - Démarrer le serveur de production
 
 ### Frontend
-- `npm run dev` - Démarrer le serveur de développement Vite
-- `npm run build` - Construire pour la production
-- `npm run preview` - Prévisualiser la build de production
+
+#### 🛠️ **Environnement de Développement**
+- `npm run dev` - Démarrer le serveur de développement Vite avec hot reload
+
+#### 🚀 **Environnement de Production**
+- `npm run build` - Construire pour la production (génère le dossier `dist/`)
+- `npm run preview` - Prévisualiser la build de production localement
 
 ### Scripts de base de données
 - `./reset-db.sh` - Réinitialiser la base de données
@@ -331,7 +400,7 @@ PORT=3001
 DB_USER=postgres
 DB_HOST=localhost
 DB_NAME=crm_db
-DB_PASSWORD=votre_mot_de_passe
+DB_PASSWORD=          # Laissez vide pour le développement local
 DB_PORT=5432
 ```
 
