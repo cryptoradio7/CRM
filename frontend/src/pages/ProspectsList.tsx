@@ -87,7 +87,7 @@ const ProspectsList = () => {
 
   const fetchProspects = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/prospects');
+      const response = await fetch('http://localhost:3003/api/prospects');
       if (response.ok) {
         const data = await response.json();
         setProspects(data);
@@ -102,7 +102,7 @@ const ProspectsList = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce prospect ?')) {
       try {
-        const response = await fetch(`http://localhost:3001/api/prospects/${id}`, {
+        const response = await fetch(`http://localhost:3003/api/prospects/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) {
@@ -126,7 +126,7 @@ const ProspectsList = () => {
       const prospect = prospects.find(p => p.id === selectedProspectId);
       if (!prospect) return;
 
-      const response = await fetch(`http://localhost:3001/api/prospects/${selectedProspectId}`, {
+      const response = await fetch(`http://localhost:3003/api/prospects/${selectedProspectId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ const ProspectsList = () => {
       const prospect = prospects.find(p => p.id === selectedActionProspectId);
       if (!prospect) return;
 
-      const response = await fetch(`http://localhost:3001/api/prospects/${selectedActionProspectId}`, {
+      const response = await fetch(`http://localhost:3003/api/prospects/${selectedActionProspectId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

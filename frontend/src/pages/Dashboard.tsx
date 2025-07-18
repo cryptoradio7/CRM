@@ -50,7 +50,7 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       console.log('🔄 Chargement des statistiques du dashboard...');
-      const response = await fetch('http://localhost:3001/api/dashboard/stats');
+      const response = await fetch('http://localhost:3003/api/dashboard/stats');
       console.log('📡 Réponse reçue:', response.status, response.statusText);
       
       if (response.ok) {

@@ -51,7 +51,7 @@ Le CRM WIN ZE GAME suit une architecture **3-tiers** moderne avec séparation cl
 ┌─────────────────┐    HTTP/JSON    ┌─────────────────┐    SQL    ┌─────────────────┐
 │   Frontend      │ ◄─────────────► │    Backend      │ ◄────────► │   PostgreSQL    │
 │   (React)       │                 │   (Node.js)     │            │   Database      │
-│   Port: 5173    │                 │   Port: 3001    │            │   Port: 5432    │
+│   Port: 3002    │                 │   Port: 3003    │            │   Port: 5432    │
 └─────────────────┘                 └─────────────────┘            └─────────────────┘
 ```
 
@@ -207,7 +207,7 @@ CREATE DATABASE crm_db;
 Le fichier `.env` du backend doit être configuré comme suit :
 
 ```env
-PORT=3001
+PORT=3003
 DB_USER=postgres
 DB_HOST=localhost
 DB_NAME=crm_db
@@ -260,9 +260,9 @@ npm run dev
 ## 🌐 Accès à l'application
 
 ### Environnement de Développement
-- **Frontend** : http://localhost:5173
-- **Backend API** : http://localhost:3001/api
-- **API Prospects** : http://localhost:3001/api/prospects
+- **Frontend** : http://localhost:3002
+- **Backend API** : http://localhost:3003/api
+- **API Prospects** : http://localhost:3003/api/prospects
 
 ### Environnement de Production
 - **Frontend** : Build statique servie par un serveur web
@@ -283,12 +283,12 @@ npm run dev
 
 **Récupérer tous les prospects :**
 ```bash
-curl http://localhost:3001/api/prospects
+curl http://localhost:3003/api/prospects
 ```
 
 **Créer un nouveau prospect :**
 ```bash
-curl -X POST http://localhost:3001/api/prospects \
+curl -X POST http://localhost:3003/api/prospects \
   -H "Content-Type: application/json" \
   -d '{
     "nom": "Jean Dupont",
@@ -309,7 +309,7 @@ curl -X POST http://localhost:3001/api/prospects \
 
 **Mettre à jour un prospect :**
 ```bash
-curl -X PUT http://localhost:3001/api/prospects/1 \
+curl -X PUT http://localhost:3003/api/prospects/1 \
   -H "Content-Type: application/json" \
   -d '{
     "statut": "Clients",
@@ -396,7 +396,7 @@ curl -X PUT http://localhost:3001/api/prospects/1 \
 
 ### Backend (.env)
 ```env
-PORT=3001
+PORT=3003
 DB_USER=postgres
 DB_HOST=localhost
 DB_NAME=crm_db
@@ -430,8 +430,8 @@ pkill -f "ts-node"
 pkill -f "vite"
 
 # Vérifier les ports
-netstat -tulpn | grep :3001
-netstat -tulpn | grep :5173
+netstat -tulpn | grep :3003
+netstat -tulpn | grep :3002
 
 # Redémarrer PostgreSQL
 sudo systemctl restart postgresql

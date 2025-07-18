@@ -72,7 +72,7 @@ const ProspectForm = () => {
 
   const fetchProspect = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/prospects/${id}`);
+      const response = await fetch(`http://localhost:3003/api/prospects/${id}`);
       if (response.ok) {
         const data = await response.json();
         setFormData(data);
@@ -112,8 +112,8 @@ const ProspectForm = () => {
 
     try {
       const url = id 
-        ? `http://localhost:3001/api/prospects/${id}`
-        : 'http://localhost:3001/api/prospects';
+        ? `http://localhost:3003/api/prospects/${id}`
+        : 'http://localhost:3003/api/prospects';
       
       const method = id ? 'PUT' : 'POST';
       

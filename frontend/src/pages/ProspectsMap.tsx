@@ -104,7 +104,7 @@ const ProspectsMap = () => {
 
   const fetchProspects = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/prospects');
+      const response = await fetch('http://localhost:3003/api/prospects');
       if (response.ok) {
         const data = await response.json();
         console.log('Prospects chargés:', data);
