@@ -57,7 +57,7 @@ const Header = () => {
         {/* Logo et nom */}
         <Box 
           component={RouterLink}
-          to="/"
+          to="/dashboard"
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -111,8 +111,8 @@ const Header = () => {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             component={RouterLink} 
-            to="/"
-            sx={location.pathname === '/' ? activeButtonStyle : baseButtonStyle}
+            to="/dashboard"
+            sx={location.pathname === '/dashboard' ? activeButtonStyle : baseButtonStyle}
             disableRipple={false}
           >
             Dashboard
