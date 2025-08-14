@@ -1,23 +1,126 @@
 #!/bin/bash
 
-echo "🔄 Configuration de la base de données CRM..."
+# =====================================================
+# SCRIPT POUR BASE DE DONNÉES AVEC UTILISATEUR POSTGRES
+# =====================================================
+# Utilise l'utilisateur postgres par défaut
+# =====================================================
 
-# Variables de configuration
+# Configuration
 DB_NAME="crm_db"
-DB_USER="postgres"
+DB_HOST="localhost"
+DB_PORT="5432"
+DB_USER="egx"
 
-# Créer la base de données si elle n'existe pas
-echo "📊 Création de la base de données..."
-sudo -u postgres createdb $DB_NAME 2>/dev/null || echo "Base de données $DB_NAME existe déjà"
+# Couleurs
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Exécuter le script SQL
-echo "📋 Application du schéma..."
-sudo -u postgres psql -d $DB_NAME -f database.sql
+echo -e "${BLUE}[INFO]${NC} Script CRM - Utilisateur postgres"
+echo "================================================"
 
-if [ $? -eq 0 ]; then
-    echo "✅ Base de données configurée avec succès!"
-    echo "📊 Données de test insérées"
-else
-    echo "❌ Erreur lors de la configuration"
+# Vérifier PostgreSQL
+if ! command -v psql &> /dev/null; then
+    echo -e "${RED}[ERROR]${NC} PostgreSQL n'est pas installé"
     exit 1
-fi 
+fi
+
+echo -e "${GREEN}[SUCCESS]${NC} PostgreSQL détecté"
+
+# Fonction pour créer la base de données
+create_db() {
+    echo -e "${BLUE}[INFO]${NC} Création de la base de données..."
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -c "CREATE DATABASE $DB_NAME;" 2>/dev/null || echo -e "${BLUE}[INFO]${NC} Base de données existe déjà"
+}
+
+# Fonction pour exécuter le schéma
+setup_schema() {
+    echo -e "${BLUE}[INFO]${NC} Configuration du schéma..."
+    if [ -f "schema_complet.sql" ]; then
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f schema_complet.sql
+        echo -e "${GREEN}[SUCCESS]${NC} Schéma configuré"
+    else
+        echo -e "${RED}[ERROR]${NC} Fichier schema_complet.sql non trouvé"
+        exit 1
+    fi
+}
+
+# Fonction pour migrer
+migrate_db() {
+    echo -e "${BLUE}[INFO]${NC} Migration de la base de données..."
+    if [ -f "migration_unifiee.sql" ]; then
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f migration_unifiee.sql
+        echo -e "${GREEN}[SUCCESS]${NC} Migration terminée"
+    else
+        echo -e "${RED}[ERROR]${NC} Fichier migration_unifiee.sql non trouvé"
+        exit 1
+    fi
+}
+
+# Fonction pour tester
+test_db() {
+    echo -e "${BLUE}[INFO]${NC} Test de connexion..."
+    if psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" >/dev/null 2>&1; then
+        echo -e "${GREEN}[SUCCESS]${NC} Connexion réussie"
+    else
+        echo -e "${RED}[ERROR]${NC} Connexion échouée"
+        exit 1
+    fi
+}
+
+# Fonction pour afficher les stats
+show_stats() {
+    echo -e "${BLUE}[INFO]${NC} Statistiques :"
+    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+    SELECT 
+        'Total prospects' as metric, COUNT(*) as value
+    FROM prospects
+    UNION ALL
+    SELECT 
+        'Clients' as metric, COUNT(*) as value
+    FROM prospects 
+    WHERE statut = 'Client'
+    UNION ALL
+    SELECT 
+        'Prospects à contacter' as metric, COUNT(*) as value
+    FROM prospects 
+    WHERE statut = 'Prospect à contacter';"
+}
+
+# Traitement des arguments
+case "${1:-help}" in
+    "nouveau")
+        create_db
+        setup_schema
+        test_db
+        show_stats
+        ;;
+    "migration")
+        test_db
+        migrate_db
+        show_stats
+        ;;
+    "test")
+        test_db
+        ;;
+    "stats")
+        test_db
+        show_stats
+        ;;
+    "help"|*)
+        echo "Usage: $0 [COMMANDE]"
+        echo ""
+        echo "Commandes :"
+        echo "  nouveau   - Nouvelle installation"
+        echo "  migration - Migration existante"
+        echo "  test      - Test connexion"
+        echo "  stats     - Afficher statistiques"
+        echo "  help      - Cette aide"
+        echo ""
+        echo "Note : Utilise l'utilisateur 'postgres' par défaut"
+        ;;
+esac
+
+echo -e "${GREEN}[SUCCESS]${NC} Script terminé"

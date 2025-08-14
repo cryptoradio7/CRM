@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Définir le répertoire de base
-CRM_DIR="/home/egx/Bureau/APPS/CRM"
+# Définir le répertoire de base (chemin relatif depuis le script)
+CRM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Couleurs pour les messages
 RED='\033[0;31m'
