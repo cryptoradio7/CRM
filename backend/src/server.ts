@@ -63,15 +63,15 @@ app.get('/api/prospects/:id', async (req, res) => {
 // POST - Créer un nouveau prospect
 app.post('/api/prospects', async (req, res) => {
   try {
-    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi } = req.body;
+    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut, linkedin, interets, historique, etapeSuivi } = req.body;
 
     if (!nom) {
       return res.status(400).json({ error: 'Le nom est requis' });
     }
 
     const result = await pool.query(
-      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, type_entreprise, role, ville, region, statut, linkedin, interets, historique, etape_suivi) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
-              [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut || 'Prospects', linkedin, interets, historique, etapeSuivi || 'à contacter']
+      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, role, ville, statut, linkedin, interets, historique) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+              [nom, prenom, email, telephone, entreprise, role, ville, statut || "Prospects", linkedin, interets, historique]
     );
 
     res.status(201).json(result.rows[0]);
@@ -85,11 +85,11 @@ app.post('/api/prospects', async (req, res) => {
 app.put('/api/prospects/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi } = req.body;
+    const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut, linkedin, interets, historique, etapeSuivi } = req.body;
 
     const result = await pool.query(
-      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, region = $9, statut = $10, linkedin = $11, interets = $12, historique = $13, etape_suivi = $14 WHERE id = $15 RETURNING *',
-      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, region, statut, linkedin, interets, historique, etapeSuivi, id]
+      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, ville = $9, statut = $10, linkedin = $11, interets = $12, historique = $13, etape_suivi = $14 WHERE id = $15 RETURNING *',
+      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut, linkedin, interets, historique, etapeSuivi, id]
     );
 
     if (result.rows.length === 0) {
@@ -132,7 +132,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
     const totalProspectsResult = await pool.query('SELECT COUNT(*) as total FROM prospects');
     const totalProspects = parseInt(totalProspectsResult.rows[0].total);
     
-    // 2. Prospects Actifs (statut = "Prospects")
+    // 2. Prospects Actifs (statut = .Prospects.)
     const activeProspectsResult = await pool.query(
       'SELECT COUNT(*) as total FROM prospects WHERE statut = $1',
       ['Prospects']
@@ -172,8 +172,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
     );
     
     // 7. Répartition par région
-    const regionDistributionResult = await pool.query(
-      'SELECT region, COUNT(*) as count FROM prospects WHERE region IS NOT NULL GROUP BY region ORDER BY count DESC'
+    const villeDistributionResult = await pool.query(
+      'SELECT ville, COUNT(*) as count FROM prospects WHERE ville IS NOT NULL GROUP BY ville ORDER BY count DESC'
     );
     
     // 8. Tendances (comparaison avec le mois précédent)
@@ -200,7 +200,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
       },
       recentActivity: recentActivityResult.rows,
       statusDistribution: statusDistributionResult.rows,
-      regionDistribution: regionDistributionResult.rows,
+      villeDistribution: villeDistributionResult.rows,
       calculatedAt: new Date().toISOString()
     });
   } catch (err) {
@@ -212,30 +212,30 @@ app.get('/api/dashboard/stats', async (req, res) => {
 // POST - Corriger la base de données (endpoint temporaire)
 app.post('/api/fix-database', async (req, res) => {
   try {
-    // Ajouter la colonne region si elle n'existe pas
-    await pool.query('ALTER TABLE prospects ADD COLUMN IF NOT EXISTS region VARCHAR(100)');
+    // Ajouter la colonne ville si elle n'existe pas
+    await pool.query('ALTER TABLE prospects ADD COLUMN IF NOT EXISTS ville VARCHAR(100)');
     
-    // Mettre à jour les valeurs de region basées sur ville
+    // Mettre à jour les valeurs de ville basées sur ville
     await pool.query(`
       UPDATE prospects 
-      SET region = CASE 
+      SET ville = CASE 
         WHEN ville IN ('Juan les pins', 'Provence-Alpes-Côte d''Azur') THEN 'Provence-Alpes-Côte d''Azur'
         WHEN ville IN ('Paris', 'Île-de-France') THEN 'Île-de-France'
         WHEN ville IN ('Luxembourg', 'Centre', 'Sud', 'Nord', 'Est', 'Ouest') THEN 'Luxembourg'
         WHEN ville IN ('Genève', 'Vaud', 'Zurich', 'Bâle', 'Berne') THEN 'Suisse'
         ELSE 'Autre'
       END
-      WHERE region IS NULL OR region = ''
+      WHERE ville IS NULL OR ville = ''
     `);
     
     // Mettre à jour les statuts "Client" vers "Clients"
-    await pool.query("UPDATE prospects SET statut = 'Clients' WHERE statut = 'Client'");
+    await pool.query("UPDATE prospects SET statut = .Client. WHERE statut = 'Client'");
     
     // Mettre à jour les statuts "Prospects à contacter" vers "Prospects"
-    await pool.query("UPDATE prospects SET statut = 'Prospects' WHERE statut = 'Prospects à contacter'");
+    await pool.query("UPDATE prospects SET statut = .Prospects. WHERE statut = .Prospects.à contacter'");
     
     // Récupérer les données mises à jour
-    const result = await pool.query('SELECT id, nom, prenom, ville, region, statut FROM prospects');
+    const result = await pool.query('SELECT id, nom, prenom, ville, statut FROM prospects');
     
     res.json({ 
       message: 'Base de données corrigée avec succès',

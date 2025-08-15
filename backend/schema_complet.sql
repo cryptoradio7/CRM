@@ -104,3 +104,5 @@ ORDER BY nombre DESC;
 
 -- Afficher la répartition par région
 SELECT * FROM v_prospects_par_region;
+
+

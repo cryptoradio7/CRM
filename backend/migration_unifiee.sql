@@ -137,3 +137,5 @@ SELECT
     COUNT(CASE WHEN statut = 'Client' THEN 1 END) as clients,
     COUNT(CASE WHEN statut = 'Prospect à contacter' THEN 1 END) as prospects
 FROM prospects;
+
+
