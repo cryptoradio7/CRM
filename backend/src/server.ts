@@ -38,7 +38,18 @@ app.get('/api/prospects', async (req, res) => {
     const result = await pool.query('SELECT * FROM prospects ORDER BY date_creation DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error('Erreur lors de la récupération des prospects:', err);
+    console.error('Erreur lors du chargement des prospects:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Récupérer les types d'entreprise
+app.get('/api/types-entreprise', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM types_entreprise WHERE actif = true ORDER BY nom');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erreur lors du chargement des types d\'entreprise:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -70,8 +81,8 @@ app.post('/api/prospects', async (req, res) => {
     }
 
     const result = await pool.query(
-      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, role, ville, statut, linkedin, interets, historique) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-              [nom, prenom, email, telephone, entreprise, role, ville, statut || "Prospects", linkedin, interets, historique]
+      'INSERT INTO prospects (nom, prenom, email, telephone, entreprise, type_entreprise, role, ville, statut, linkedin, interets, historique, etape_suivi) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
+      [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut || "Prospects", linkedin, interets, historique, etapeSuivi]
     );
 
     res.status(201).json(result.rows[0]);
@@ -88,7 +99,7 @@ app.put('/api/prospects/:id', async (req, res) => {
     const { nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut, linkedin, interets, historique, etapeSuivi } = req.body;
 
     const result = await pool.query(
-      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, ville = $9, statut = $10, linkedin = $11, interets = $12, historique = $13, etape_suivi = $14 WHERE id = $15 RETURNING *',
+      'UPDATE prospects SET nom = $1, prenom = $2, email = $3, telephone = $4, entreprise = $5, type_entreprise = $6, role = $7, ville = $8, statut = $9, linkedin = $10, interets = $11, historique = $12, etape_suivi = $13 WHERE id = $14 RETURNING *',
       [nom, prenom, email, telephone, entreprise, typeEntreprise, role, ville, statut, linkedin, interets, historique, etapeSuivi, id]
     );
 

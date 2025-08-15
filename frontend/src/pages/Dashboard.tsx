@@ -86,14 +86,39 @@ const Dashboard = () => {
 
   const getStatusColor = (statut: string) => {
     switch (statut) {
-      case 'Clients':
+      case 'Client':
         return 'success';
-              case 'Prospects':
+      case 'Prospects':
         return 'warning';
       case 'N/A':
         return 'default';
       default:
         return 'default';
+    }
+  };
+
+  const getStatusStyle = (statut: string) => {
+    switch (statut) {
+      case 'Client':
+        return {
+          backgroundColor: '#e8f5e8',
+          color: '#2e7d32'
+        };
+      case 'Prospects':
+        return {
+          backgroundColor: '#fff3e0',
+          color: '#f57c00'
+        };
+      case 'N/A':
+        return {
+          backgroundColor: '#f5f5f5',
+          color: '#757575'
+        };
+      default:
+        return {
+          backgroundColor: '#f5f5f5',
+          color: '#757575'
+        };
     }
   };
 
@@ -144,14 +169,14 @@ const Dashboard = () => {
       trend: null
     },
     {
-      icon: <BusinessIcon sx={{ fontSize: 40, color: '#2196F3' }} />,
+      icon: <BusinessIcon sx={{ fontSize: 40, color: '#4CAF50' }} />,
       value: (() => {
         const value = stats.metrics.totalClients.toString();
         console.log('🎯 Valeur affichée pour "Clients":', value);
         return value;
       })(),
       label: "Clients",
-      color: "#2196F3",
+      color: "#4CAF50",
       trend: null
     },
     {
@@ -316,7 +341,11 @@ const Dashboard = () => {
             {stats.recentActivity.map((activity) => (
               <ListItem key={activity.id} sx={{ px: 0 }}>
                 <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: getStatusColor(activity.statut) === 'success' ? '#4CAF50' : '#FF9800' }}>
+                  <Avatar sx={{ 
+                    bgcolor: activity.statut === 'Client' ? '#4CAF50' : 
+                             activity.statut === 'Prospects' ? '#FF9800' : 
+                             activity.statut === 'N/A' ? '#9E9E9E' : '#FF9800'
+                  }}>
                     <PersonIcon />
                   </Avatar>
                 </ListItemAvatar>
@@ -330,8 +359,10 @@ const Dashboard = () => {
                       <Chip 
                         label={activity.statut} 
                         size="small"
-                        color={getStatusColor(activity.statut) as any}
-                        sx={{ mt: 0.5 }}
+                        sx={{ 
+                          mt: 0.5,
+                          ...getStatusStyle(activity.statut)
+                        }}
                       />
                     </Box>
                   }

@@ -63,6 +63,7 @@ const ProspectsList = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [regionFilter, setRegionFilter] = useState<string>('');
   const [typeEntrepriseFilter, setTypeEntrepriseFilter] = useState<string>('');
+  const [typesEntreprise, setTypesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
@@ -75,6 +76,7 @@ const ProspectsList = () => {
 
   useEffect(() => {
     fetchProspects();
+    fetchTypesEntreprise();
   }, []);
 
   // Appliquer les filtres depuis l'URL au chargement
@@ -96,6 +98,18 @@ const ProspectsList = () => {
       console.error('Erreur lors du chargement des prospects:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTypesEntreprise = async () => {
+    try {
+      const response = await fetch('http://localhost:3003/api/types-entreprise');
+      if (response.ok) {
+        const data = await response.json();
+        setTypesEntreprise(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des types d\'entreprise:', error);
     }
   };
 
@@ -206,9 +220,6 @@ const ProspectsList = () => {
   );
   const uniqueRegions = useMemo(() => 
     [...new Set(prospects.map(p => p.region).filter(Boolean))], [prospects]
-  );
-  const uniqueTypeEntreprises = useMemo(() => 
-    [...new Set(prospects.map(p => p.type_entreprise).filter(Boolean))], [prospects]
   );
 
   // Filtrage des prospects
@@ -400,21 +411,21 @@ const ProspectsList = () => {
                 onChange={(e) => setTypeEntrepriseFilter(e.target.value)}
               >
                 <MenuItem value="">Tous les types</MenuItem>
-                {uniqueTypeEntreprises.map((type) => (
-                  <MenuItem key={type} value={type}>
+                {typesEntreprise.map((type) => (
+                  <MenuItem key={type.id} value={type.nom}>
                     <Chip 
-                      label={type} 
+                      label={type.nom} 
                       size="small"
                       sx={{
                         backgroundColor: 
-                          type === 'SME' ? '#e8f5e8' :
-                          type === 'Grande Entreprise' ? '#fff3e0' :
-                          type === 'Start-up' ? '#f3e5f5' :
+                          type.nom === 'SME' ? '#e8f5e8' :
+                          type.nom === 'Grande Entreprise' ? '#fff3e0' :
+                          type.nom === 'Start-up' ? '#f3e5f5' :
                           '#f5f5f5',
                         color: 
-                          type === 'SME' ? '#2e7d32' :
-                          type === 'Grande Entreprise' ? '#f57c00' :
-                          type === 'Start-up' ? '#7b1fa2' :
+                          type.nom === 'SME' ? '#2e7d32' :
+                          type.nom === 'Grande Entreprise' ? '#f57c00' :
+                          type.nom === 'Start-up' ? '#7b1fa2' :
                           '#757575',
                       }}
                     />
@@ -739,9 +750,9 @@ const ProspectsList = () => {
             }}
           />
         </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Clients')}>
+        <MenuItem onClick={() => handleStatusChange('Client')}>
           <Chip 
-            label="Clients" 
+            label="Client" 
             size="small"
             sx={{
               backgroundColor: '#e8f5e8',

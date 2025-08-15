@@ -41,6 +41,7 @@ const ProspectForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [typesEntreprise, setTypesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
     open: false,
     message: '',
@@ -68,6 +69,7 @@ const ProspectForm = () => {
     if (id) {
       fetchProspect();
     }
+    fetchTypesEntreprise();
   }, [id]);
 
   const fetchProspect = async () => {
@@ -79,6 +81,18 @@ const ProspectForm = () => {
       }
     } catch (error) {
       setError('Erreur lors du chargement du prospect');
+    }
+  };
+
+  const fetchTypesEntreprise = async () => {
+    try {
+      const response = await fetch('http://localhost:3003/api/types-entreprise');
+      if (response.ok) {
+        const data = await response.json();
+        setTypesEntreprise(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des types d\'entreprise:', error);
     }
   };
 
@@ -278,11 +292,11 @@ const ProspectForm = () => {
                     label="Type entreprise"
                     onChange={handleChange('typeEntreprise')}
                   >
-                    <MenuItem value="Assurances Vie">Assurances Vie</MenuItem>
-                    <MenuItem value="Banque">Banque</MenuItem>
-                    <MenuItem value="Comptabilité">Comptabilité</MenuItem>
-                    <MenuItem value="Fonds d'investissement">Fonds d'investissement</MenuItem>
-                    <MenuItem value="SSII">SSII</MenuItem>
+                    {typesEntreprise.map((type) => (
+                      <MenuItem key={type.id} value={type.nom}>
+                        {type.nom}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
                 
