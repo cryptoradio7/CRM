@@ -200,6 +200,12 @@ const ProspectsMap = () => {
     
     // Luxembourg
     { 
+      name: 'Luxembourg', 
+      coordinates: [49.6116, 6.1319], 
+      color: '#10ac84',
+      prospects: []
+    },
+    { 
       name: 'Centre', 
       coordinates: [49.6116, 6.1319], 
       color: '#10ac84',
@@ -234,13 +240,7 @@ const ProspectsMap = () => {
   // Assigner les prospects aux régions
   const regionsWithProspects = regionsData.map(region => {
     const regionProspects = prospects.filter(prospect => {
-      const prospectRegion = prospect.region;
       const prospectVille = prospect.ville || '';
-      
-      // Si le prospect a une région définie, l'utiliser en priorité
-      if (prospectRegion && prospectRegion === region.name) {
-        return true;
-      }
       
       // Mapping spécifique pour les villes connues
       if (region.name === 'Île-de-France' && prospectVille.toLowerCase().includes('paris')) {
@@ -250,6 +250,12 @@ const ProspectsMap = () => {
           (prospectVille.toLowerCase().includes('juan les pins') || 
            prospectVille.toLowerCase().includes('nice') || 
            prospectVille.toLowerCase().includes('marseille'))) {
+        return true;
+      }
+      if (region.name === 'Genève' && prospectVille.toLowerCase().includes('genève')) {
+        return true;
+      }
+      if (region.name === 'Luxembourg' && prospectVille.toLowerCase().includes('luxembourg')) {
         return true;
       }
       
@@ -381,7 +387,7 @@ const ProspectsMap = () => {
                           {region.name}
                         </Typography>
                         <Typography variant="body2">
-                          {region.prospects.length} prospect(s)
+                          {region.prospects.length} contact(s)
                         </Typography>
                         <Typography variant="body2">
                           Prospects: {prospectsCount}

@@ -50,7 +50,7 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       console.log('🔄 Chargement des statistiques du dashboard...');
-      const response = await fetch('http://localhost:3003/api/dashboard/stats');
+      const response = await fetch(`http://localhost:3003/api/dashboard/stats?t=${Date.now()}`);
       console.log('📡 Réponse reçue:', response.status, response.statusText);
       
       if (response.ok) {
@@ -145,7 +145,11 @@ const Dashboard = () => {
     },
     {
       icon: <BusinessIcon sx={{ fontSize: 40, color: '#2196F3' }} />,
-      value: stats.metrics.totalClients.toString(),
+      value: (() => {
+        const value = stats.metrics.totalClients.toString();
+        console.log('🎯 Valeur affichée pour "Clients":', value);
+        return value;
+      })(),
       label: "Clients",
       color: "#2196F3",
       trend: null

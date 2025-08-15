@@ -156,7 +156,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
     // 4. Taux de conversion (Clients / Total Contacts * 100)
     const clientsResult = await pool.query(
       'SELECT COUNT(*) as total FROM prospects WHERE statut = $1',
-      ['Clients']
+      ['Client']
     );
     const totalClients = parseInt(clientsResult.rows[0].total);
     const conversionRate = totalProspects > 0 ? Math.round((totalClients / totalProspects) * 100) : 0;

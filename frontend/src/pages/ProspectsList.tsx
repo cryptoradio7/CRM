@@ -340,12 +340,12 @@ const ProspectsList = () => {
                       sx={{
                         backgroundColor: 
                           status === 'Prospects' ? '#fff3e0' :
-                          status === 'Clients' ? '#e8f5e8' :
+                          status === 'Client' ? '#e8f5e8' :
                           status === 'N/A' ? '#f5f5f5' :
                           '#fff3e0',
                         color: 
                           status === 'Prospects' ? '#f57c00' :
-                          status === 'Clients' ? '#2e7d32' :
+                          status === 'Client' ? '#2e7d32' :
                           status === 'N/A' ? '#757575' :
                           '#f57c00',
                       }}
@@ -616,11 +616,11 @@ const ProspectsList = () => {
                         py: 0.5,
                         borderRadius: 1,
                         backgroundColor: 
-                          prospect.statut === 'Clients' ? '#e8f5e8' :
+                          prospect.statut === 'Client' ? '#e8f5e8' :
                           prospect.statut === 'N/A' ? '#f5f5f5' :
                           '#fff3e0',
                         color: 
-                          prospect.statut === 'Clients' ? '#2e7d32' :
+                          prospect.statut === 'Client' ? '#2e7d32' :
                           prospect.statut === 'N/A' ? '#757575' :
                           '#f57c00',
                         fontSize: '0.875rem',
