@@ -266,7 +266,7 @@ const ProspectsMap = () => {
   const totalContacts = prospects.length;
   const totalNA = prospects.filter(p => p.statut === 'N/A').length;
       const totalProspects = prospects.filter(p => p.statut === 'Prospects').length;
-  const totalClients = prospects.filter(p => p.statut === 'Clients').length;
+  const totalClients = prospects.filter(p => p.statut === 'Client').length;
 
   if (loading) {
     return <Typography>Chargement de la carte...</Typography>;
@@ -340,7 +340,7 @@ const ProspectsMap = () => {
               
               {regionsWithProspects.map((region) => {
                 const prospectsCount = region.prospects.filter(p => p.statut === 'Prospects').length;
-                const clientsCount = region.prospects.filter(p => p.statut === 'Clients').length;
+                const clientsCount = region.prospects.filter(p => p.statut === 'Client').length;
                 const naCount = region.prospects.filter(p => p.statut === 'N/A').length;
                 
                 // Déterminer la couleur du marqueur basée sur les statuts présents
@@ -432,7 +432,7 @@ const ProspectsMap = () => {
                         </Box>
                       <Box sx={{ flex: 1, textAlign: 'center' }}>
                           <Typography variant="h5" color="success.main">
-                          {selectedRegion.prospects.filter(p => p.statut === 'Clients').length}
+                          {selectedRegion.prospects.filter(p => p.statut === 'Client').length}
                           </Typography>
                           <Typography variant="body2">Clients</Typography>
                         </Box>
@@ -468,7 +468,7 @@ const ProspectsMap = () => {
                       >
                         <ListItemAvatar>
                           <Avatar sx={{ 
-                            bgcolor: prospect.statut === 'Clients' ? 'success.main' : 
+                            bgcolor: prospect.statut === 'Client' ? 'success.main' : 
                                      prospect.statut === 'Prospects' ? 'warning.main' : 'text.secondary',
                             width: 32,
                             height: 32
@@ -490,9 +490,9 @@ const ProspectsMap = () => {
                                 label={prospect.statut} 
                                 size="small"
                                 sx={{ 
-                                  bgcolor: prospect.statut === 'Clients' ? 'success.light' : 
+                                  bgcolor: prospect.statut === 'Client' ? 'success.light' : 
                                            prospect.statut === 'Prospects' ? 'warning.light' : 'grey.300',
-                                  color: prospect.statut === 'Clients' ? 'success.dark' : 
+                                  color: prospect.statut === 'Client' ? 'success.dark' : 
                                                                                     prospect.statut === 'Prospects' ? 'warning.dark' : 'grey.700',
                                   mt: 0.5
                                 }}
