@@ -206,10 +206,12 @@ const Dashboard = () => {
           <Card 
             key={index}
             onClick={() => {
-                      if (stat.label === "Clients") {
-          handleCardClick('status', 'Clients');
-                    } else if (stat.label === "Prospects") {
-        handleCardClick('status', 'Prospects');
+              if (stat.label === "Clients") {
+                handleCardClick('status', 'Client');
+              } else if (stat.label === "Prospects") {
+                handleCardClick('status', 'Prospects');
+              } else if (stat.label === "N/A") {
+                handleCardClick('status', 'N/A');
               }
             }}
             sx={{ 
@@ -217,14 +219,16 @@ const Dashboard = () => {
               borderRadius: 3,
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
               transition: 'all 0.3s ease',
-              cursor: (stat.label === "Clients" || stat.label === "Prospects") ? 'pointer' : 'default',
+              cursor: (stat.label === "Clients" || stat.label === "Prospects" || stat.label === "N/A") ? 'pointer' : 'default',
               '&:hover': {
                 transform: 'translateY(-8px)',
                 boxShadow: stat.label === "Clients"
                   ? '0 8px 30px rgba(33, 150, 243, 0.25)' // Blue for Clients
-                          : stat.label === "Prospects"
-        ? '0 8px 30px rgba(255, 152, 0, 0.25)' // Orange for Prospects
-                    : '0 8px 30px rgba(0,0,0,0.15)', // Default for non-clickable cards
+                  : stat.label === "Prospects"
+                  ? '0 8px 30px rgba(255, 152, 0, 0.25)' // Orange for Prospects
+                  : stat.label === "N/A"
+                  ? '0 8px 30px rgba(158, 158, 158, 0.25)' // Gray for N/A
+                  : '0 8px 30px rgba(0,0,0,0.15)', // Default for non-clickable cards
               }
             }}
           >
