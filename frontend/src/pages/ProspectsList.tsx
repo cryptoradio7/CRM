@@ -377,26 +377,26 @@ const ProspectsList = () => {
                 onChange={(e) => setRegionFilter(e.target.value)}
               >
                 <MenuItem value="">Toutes les régions</MenuItem>
-                <ListSubheader>Luxembourg</ListSubheader>
-                <MenuItem value="Centre">Centre</MenuItem>
-                <MenuItem value="Sud">Sud</MenuItem>
-                <MenuItem value="Nord">Nord</MenuItem>
-                <MenuItem value="Est">Est</MenuItem>
-                <MenuItem value="Ouest">Ouest</MenuItem>
-                <ListSubheader>Suisse</ListSubheader>
-                <MenuItem value="Genève">Genève</MenuItem>
-                <MenuItem value="Vaud">Vaud</MenuItem>
-                <MenuItem value="Zurich">Zurich</MenuItem>
-                <MenuItem value="Bâle">Bâle</MenuItem>
-                <MenuItem value="Berne">Berne</MenuItem>
-                <ListSubheader>France</ListSubheader>
-                <MenuItem value="Île-de-France">Île-de-France</MenuItem>
-                <MenuItem value="Grand Est">Grand Est</MenuItem>
-                <MenuItem value="Auvergne-Rhône-Alpes">Auvergne-Rhône-Alpes</MenuItem>
-                <MenuItem value="Occitanie">Occitanie</MenuItem>
-                <MenuItem value="Provence-Alpes-Côte d'Azur">Provence-Alpes-Côte d'Azur</MenuItem>
-                <ListSubheader>Autres</ListSubheader>
-                <MenuItem value="Autre">Autre</MenuItem>
+                {uniqueRegions.map((region) => (
+                  <MenuItem key={region} value={region}>
+                    <Chip 
+                      label={region} 
+                      size="small"
+                      sx={{
+                        backgroundColor: 
+                          region === 'Centre' ? '#e8f5e8' :
+                          region === 'Genève' ? '#fff3e0' :
+                          region === 'Île-de-France' ? '#f3e5f5' :
+                          '#f5f5f5',
+                        color: 
+                          region === 'Centre' ? '#2e7d32' :
+                          region === 'Genève' ? '#f57c00' :
+                          region === 'Île-de-France' ? '#7b1fa2' :
+                          '#757575',
+                      }}
+                    />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
