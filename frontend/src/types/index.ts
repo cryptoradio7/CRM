@@ -8,7 +8,6 @@ export interface Prospect {
   taille_entreprise?: string;
   site_web?: string;
   secteur?: string;
-  mx_record_exists?: boolean;
   email?: string;
   telephone?: string;
   linkedin?: string;
@@ -28,7 +27,6 @@ export interface CreateProspectData {
   taille_entreprise?: string;
   site_web?: string;
   secteur?: string;
-  mx_record_exists?: boolean;
   email?: string;
   telephone?: string;
   linkedin?: string;

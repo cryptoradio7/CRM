@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Typography, 
   Table, 
@@ -19,7 +19,6 @@ import {
   Menu,
   Chip,
   Card,
-  CardContent,
   InputAdornment,
   Tooltip,
   Snackbar,
@@ -34,57 +33,147 @@ import {
   FilterList as FilterIcon,
   Clear as ClearIcon,
   ArrowDropDown as ArrowDropDownIcon,
-  Business as BusinessIcon,
   Person as PersonIcon,
   Email as EmailIcon,
-  Phone as PhoneIcon,
-  Language as LanguageIcon,
-  LinkedIn as LinkedInIcon,
-  LocationOn as LocationIcon,
-  Work as WorkIcon
+  LinkedIn as LinkedInIcon
 } from '@mui/icons-material';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Prospect } from '../types';
+import { useNavigate } from 'react-router-dom';
+import type { Prospect } from '../types';
+import ContactModal from '../components/ContactModal';
 
 const ProspectsList = () => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [paysFilter, setPaysFilter] = useState<string>('');
+  const [cacheLoaded, setCacheLoaded] = useState(false);
+
+  // Fonction pour capitaliser chaque mot et gérer les acronymes
+  const capitalizeWords = (text: string | undefined): string => {
+    if (!text) return '-';
+    
+    // Liste des acronymes à mettre en majuscules
+    const acronyms = ['CEO', 'CTO', 'CFO', 'COO', 'CMO', 'CPO', 'CRO', 'CHRO', 'CIO', 'CDO', 'VP', 'SVP', 'EVP', 'GM', 'PM', 'HR', 'IT', 'R&D', 'QA', 'UX', 'UI', 'API', 'CRM', 'ERP', 'SaaS', 'B2B', 'B2C', 'KPI', 'ROI', 'SEO', 'SEM', 'GDPR', 'ISO', 'AI', 'ML', 'IoT', 'AR', 'VR', 'NFT', 'IPO', 'M&A'];
+    
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => {
+        // Vérifier si le mot est un acronyme
+        const upperWord = word.toUpperCase();
+        if (acronyms.includes(upperWord)) {
+          return upperWord;
+        }
+        // Sinon, capitaliser normalement
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join(' ');
+  };
+  const [nomCompletFilter, setNomCompletFilter] = useState('');
+  const [libellePosteFilter, setLibellePosteFilter] = useState('');
+  const [nomEntrepriseFilter, setNomEntrepriseFilter] = useState('');
   const [secteurFilter, setSecteurFilter] = useState<string>('');
   const [categoriePosteFilter, setCategoriePosteFilter] = useState<string>('');
   const [tailleEntrepriseFilter, setTailleEntrepriseFilter] = useState<string>('');
   const [categoriesPoste, setCategoriesPoste] = useState<Array<{id: number, nom: string}>>([]);
   const [taillesEntreprise, setTaillesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
-  const [secteurs, setSecteurs] = useState<Array<{id: number, nom: string}>>([]);
-  const [pays, setPays] = useState<Array<{id: number, nom: string}>>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
     open: false,
     message: '',
     severity: 'info'
   });
+  const [modalOpen, setModalOpen] = useState(false);
+  const notesRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     fetchProspects();
     fetchReferenceData();
   }, []);
 
-  // Appliquer les filtres depuis l'URL au chargement
+  // Charger le contenu des notes au montage (localStorage puis DB)
   useEffect(() => {
-    const statusFromUrl = searchParams.get('status');
-    if (statusFromUrl) {
-      setStatusFilter(statusFromUrl);
+    const loadNotes = async () => {
+      if (typeof window !== 'undefined' && notesRef.current) {
+        // 1. Charger depuis localStorage (rapide)
+        const localNotes = localStorage.getItem('crm-notes');
+        if (localNotes) {
+          notesRef.current.innerHTML = localNotes;
+        }
+        
+        // 2. Charger depuis la DB (synchronisation)
+        try {
+          const response = await fetch('http://localhost:3003/api/notes');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.content && data.content !== localNotes) {
+              // Si la DB a du contenu différent, l'utiliser
+              notesRef.current.innerHTML = data.content;
+              localStorage.setItem('crm-notes', data.content);
+            }
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des notes depuis la DB:', error);
+        }
+      } else {
+        setTimeout(loadNotes, 100);
+      }
+    };
+    
+    loadNotes();
+  }, []);
+
+  // Fonction pour sauvegarder en DB
+  const saveToDatabase = async (content: string) => {
+    try {
+      await fetch('http://localhost:3003/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde en DB:', error);
     }
-  }, [searchParams]);
+  };
+
+  // Sauvegarde avant fermeture de la page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (notesRef.current) {
+        const content = notesRef.current.innerHTML;
+        localStorage.setItem('crm-notes', content);
+        // Sauvegarde immédiate en DB avant fermeture
+        navigator.sendBeacon('http://localhost:3003/api/notes', 
+          JSON.stringify({ content }));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Appliquer les filtres depuis l'URL au chargement
 
   const fetchProspects = async () => {
     try {
+      // Vérifier le cache d'abord
+      const cachedData = sessionStorage.getItem('prospects-cache');
+      if (cachedData && !cacheLoaded) {
+        const data = JSON.parse(cachedData);
+        setProspects(data);
+        setCacheLoaded(true);
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('http://localhost:3003/api/prospects');
       if (response.ok) {
         const data = await response.json();
         setProspects(data);
+        // Mettre en cache pour les prochaines fois
+        sessionStorage.setItem('prospects-cache', JSON.stringify(data));
+        setCacheLoaded(true);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des prospects:', error);
@@ -95,12 +184,10 @@ const ProspectsList = () => {
 
   const fetchReferenceData = async () => {
     try {
-      const [categoriesRes, taillesRes, secteursRes, paysRes] = await Promise.all([
-        fetch('http://localhost:3003/api/categories-poste'),
-        fetch('http://localhost:3003/api/tailles-entreprise'),
-        fetch('http://localhost:3003/api/secteurs'),
-        fetch('http://localhost:3003/api/pays')
-      ]);
+              const [categoriesRes, taillesRes] = await Promise.all([
+          fetch('http://localhost:3003/api/categories-poste'),
+          fetch('http://localhost:3003/api/tailles-entreprise')
+        ]);
 
       if (categoriesRes.ok) {
         const data = await categoriesRes.json();
@@ -109,14 +196,6 @@ const ProspectsList = () => {
       if (taillesRes.ok) {
         const data = await taillesRes.json();
         setTaillesEntreprise(data);
-      }
-      if (secteursRes.ok) {
-        const data = await secteursRes.json();
-        setSecteurs(data);
-      }
-      if (paysRes.ok) {
-        const data = await paysRes.json();
-        setPays(data);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données de référence:', error);
@@ -178,7 +257,7 @@ const ProspectsList = () => {
 
       if (response.ok) {
         setProspects(prospects.map(p => 
-          p.id === selectedActionProspectId ? { ...p, etape_suivi: newAction } : p
+          p.id === selectedActionProspectId ? { ...p, etape_suivi: newAction as Prospect['etape_suivi'] } : p
         ));
         setSnackbar({
           open: true,
@@ -204,10 +283,20 @@ const ProspectsList = () => {
     setSelectedActionProspectId(null);
   };
 
+  // Fonctions pour la modal
+  const handleModalClose = () => {
+    setModalOpen(false);
+  };
+
+  const handleModalSuccess = () => {
+    // Invalider le cache et recharger
+    sessionStorage.removeItem('prospects-cache');
+    setCacheLoaded(false);
+    fetchProspects(); // Recharger la liste des contacts
+  };
+
+
   // Extraction des valeurs uniques pour les filtres
-  const uniquePays = useMemo(() => 
-    [...new Set(prospects.map(p => p.pays).filter(Boolean))], [prospects]
-  );
   const uniqueSecteurs = useMemo(() => 
     [...new Set(prospects.map(p => p.secteur).filter(Boolean))], [prospects]
   );
@@ -215,39 +304,38 @@ const ProspectsList = () => {
   // Filtrage des prospects
   const filteredProspects = useMemo(() => {
     return prospects.filter(prospect => {
-      // Recherche full texte
-      const searchLower = searchTerm.toLowerCase();
-      const searchMatch = !searchTerm || 
-        prospect.nom_complet?.toLowerCase().includes(searchLower) ||
-        prospect.email?.toLowerCase().includes(searchLower) ||
-        prospect.entreprise?.toLowerCase().includes(searchLower) ||
-        prospect.categorie_poste?.toLowerCase().includes(searchLower) ||
-        prospect.poste_specifique?.toLowerCase().includes(searchLower) ||
-        prospect.pays?.toLowerCase().includes(searchLower) ||
-        prospect.secteur?.toLowerCase().includes(searchLower) ||
-        prospect.telephone?.toLowerCase().includes(searchLower) ||
-        prospect.interets?.toLowerCase().includes(searchLower) ||
-        prospect.historique?.toLowerCase().includes(searchLower);
+      // Recherche multicritère
+      const nomCompletMatch = !nomCompletFilter || 
+        prospect.nom_complet?.toLowerCase().includes(nomCompletFilter.toLowerCase());
+      
+      const libellePosteMatch = !libellePosteFilter || 
+        prospect.poste_specifique?.toLowerCase().includes(libellePosteFilter.toLowerCase());
+      
+      const nomEntrepriseMatch = !nomEntrepriseFilter || 
+        prospect.entreprise?.toLowerCase().includes(nomEntrepriseFilter.toLowerCase());
 
-      // Filtres par tags
-      const paysMatch = !paysFilter || prospect.pays === paysFilter;
-      const secteurMatch = !secteurFilter || prospect.secteur === secteurFilter;
+      // Filtres par dropdowns
       const categoriePosteMatch = !categoriePosteFilter || prospect.categorie_poste === categoriePosteFilter;
       const tailleEntrepriseMatch = !tailleEntrepriseFilter || prospect.taille_entreprise === tailleEntrepriseFilter;
+      const secteurMatch = !secteurFilter || prospect.secteur === secteurFilter;
 
-      return searchMatch && paysMatch && secteurMatch && categoriePosteMatch && tailleEntrepriseMatch;
+      return nomCompletMatch && libellePosteMatch && nomEntrepriseMatch && 
+             categoriePosteMatch && tailleEntrepriseMatch && secteurMatch;
     });
-  }, [prospects, searchTerm, paysFilter, secteurFilter, categoriePosteFilter, tailleEntrepriseFilter]);
+  }, [prospects, nomCompletFilter, libellePosteFilter, nomEntrepriseFilter, 
+      categoriePosteFilter, tailleEntrepriseFilter, secteurFilter]);
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setPaysFilter('');
-    setSecteurFilter('');
+    setNomCompletFilter('');
+    setLibellePosteFilter('');
+    setNomEntrepriseFilter('');
     setCategoriePosteFilter('');
     setTailleEntrepriseFilter('');
+    setSecteurFilter('');
   };
 
-  const hasActiveFilters = searchTerm || paysFilter || secteurFilter || categoriePosteFilter || tailleEntrepriseFilter;
+  const hasActiveFilters = nomCompletFilter || libellePosteFilter || nomEntrepriseFilter || 
+                          categoriePosteFilter || tailleEntrepriseFilter || secteurFilter;
 
 
   const getActionColor = (action: string) => {
@@ -274,219 +362,199 @@ const ProspectsList = () => {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#4CAF50' }}>
-          📋 Contacts
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => navigate('/prospects/new')}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#4CAF50', display: 'flex', alignItems: 'center' }}>
+          📋 Contacts ({filteredProspects.length}/{prospects.length})
+          {cacheLoaded && (
+            <Typography component="span" sx={{ fontSize: '0.7rem', color: '#666', ml: 1 }}>
+              (cache)
+            </Typography>
+          )}
+          <IconButton
+            onClick={() => setModalOpen(true)}
           sx={{
-            px: 3,
-            py: 1.5,
-            fontSize: '1rem',
-            fontWeight: 600,
-            borderRadius: 2,
+              ml: 2,
             backgroundColor: '#4CAF50',
             color: 'white',
-            textTransform: 'none',
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+              width: 32,
+              height: 32,
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
             '&:hover': {
               backgroundColor: '#45a049',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 6px 16px rgba(76, 175, 80, 0.4)',
+                transform: 'scale(1.1)',
             }
           }}
         >
-          ➕ Nouveau Contact
-        </Button>
+            +
+          </IconButton>
+        </Typography>
       </Box>
 
-      {/* Section de filtres améliorée */}
-      <Card sx={{ mb: 3, p: 3, borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <FilterIcon sx={{ mr: 1, color: '#4CAF50', fontSize: 28 }} />
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            🔍 Filtres et Recherche
+      {/* 4 Blocs de recherche */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr 2fr' }, gap: 3, mb: 1 }}>
+        
+        {/* Bloc de gauche - Tous les critères de recherche */}
+        <Card sx={{ 
+          p: 2, 
+          pb: 1, // Réduction du padding bottom
+          borderRadius: 2, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          height: 'fit-content', // Ajustement automatique à la hauteur du contenu
+          maxHeight: '300px', // Hauteur maximale réduite
+          '& .MuiTextField-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
+          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+          '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
+          '& .MuiFormControl-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
+          '& .MuiSelect-select': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
+          '& .MuiMenuItem-root': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '24px' },
+          '& .MuiTypography-h6': { fontSize: '0.8rem' },
+          '& .MuiButton-root': { fontSize: '0.65rem', py: 0.25, display: 'flex', alignItems: 'center', height: '31px' },
+          '& .MuiChip-root': { fontSize: '0.6rem', height: '20px' },
+          '& .MuiChip-label': { fontSize: '0.6rem', px: 0.5 }
+        }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
+            <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+              🔍 Critères
           </Typography>
           {hasActiveFilters && (
             <Button
-              startIcon={<ClearIcon />}
+                startIcon={<ClearIcon sx={{ fontSize: 14 }} />}
               onClick={clearFilters}
               variant="outlined"
               size="small"
               color="secondary"
-              sx={{ borderRadius: 2 }}
+                sx={{ borderRadius: 1, minWidth: 'auto', px: 1 }}
             >
-              Effacer les filtres
+                Effacer
             </Button>
           )}
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
-          {/* Recherche full texte */}
-          <Box sx={{ gridColumn: { xs: '1', md: '1 / 2' } }}>
+          {/* Ligne 1 - Nom complet et Nom entreprise */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
             <TextField
               fullWidth
-              label="🔍 Recherche complète"
-              placeholder="Nom, entreprise, email, secteur..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
+              label="👤 Nom complet"
+              placeholder="Jean Dupont..."
+              value={nomCompletFilter}
+              onChange={(e) => setNomCompletFilter(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon />
+                    <SearchIcon sx={{ fontSize: 14 }} />
                   </InputAdornment>
                 ),
               }}
-              sx={{ borderRadius: 2 }}
+            />
+            
+            <TextField
+              fullWidth
+                      size="small"
+              label="🏢 Nom entreprise"
+              placeholder="Société Générale..."
+              value={nomEntrepriseFilter}
+              onChange={(e) => setNomEntrepriseFilter(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 14 }} />
+                  </InputAdornment>
+                ),
+              }}
             />
           </Box>
 
-
-          {/* Filtre par pays */}
-          <Box>
-            <FormControl fullWidth>
-              <InputLabel>🌍 Pays</InputLabel>
-              <Select
-                value={paysFilter}
-                label="🌍 Pays"
-                onChange={(e) => setPaysFilter(e.target.value)}
-              >
-                <MenuItem value="">Tous les pays</MenuItem>
-                {uniquePays.map((pays) => (
-                  <MenuItem key={pays} value={pays}>
-                    <Chip 
-                      label={pays} 
-                      size="small"
-                      sx={{
-                        backgroundColor: pays === 'Luxembourg' ? '#e8f5e8' : '#fff3e0',
-                        color: pays === 'Luxembourg' ? '#2e7d32' : '#f57c00',
-                      }}
-                    />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
-          {/* Filtre par secteur */}
-          <Box>
-            <FormControl fullWidth>
-              <InputLabel>🏢 Secteur</InputLabel>
-              <Select
-                value={secteurFilter}
-                label="🏢 Secteur"
-                onChange={(e) => setSecteurFilter(e.target.value)}
-              >
-                <MenuItem value="">Tous les secteurs</MenuItem>
-                {uniqueSecteurs.map((secteur) => (
-                  <MenuItem key={secteur} value={secteur}>
-                    <Chip 
-                      label={secteur} 
-                      size="small"
-                      sx={{
-                        backgroundColor: secteur === 'Technology' ? '#e3f2fd' : '#f5f5f5',
-                        color: secteur === 'Technology' ? '#1565c0' : '#757575',
-                      }}
-                    />
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {/* Filtre par catégorie de poste */}
-          <Box>
-            <FormControl fullWidth>
+          {/* Ligne 2 - Catégorie de poste et Libellé de poste */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
+            <FormControl fullWidth size="small">
               <InputLabel>💼 Catégorie de poste</InputLabel>
               <Select
                 value={categoriePosteFilter}
-                label="💼 Catégorie de poste"
+                label="Catégorie de poste"
                 onChange={(e) => setCategoriePosteFilter(e.target.value)}
               >
                 <MenuItem value="">Toutes les catégories</MenuItem>
                 {categoriesPoste.map((categorie) => (
                   <MenuItem key={categorie.id} value={categorie.nom}>
-                    <Chip 
-                      label={categorie.nom} 
-                      size="small"
-                      sx={{
-                        backgroundColor: categorie.nom === 'Direction' ? '#e8f5e8' : '#f5f5f5',
-                        color: categorie.nom === 'Direction' ? '#2e7d32' : '#757575',
-                      }}
-                    />
+                    {categorie.nom}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
+            
+            <TextField
+              fullWidth
+                      size="small"
+              label="📋 Libellé de poste"
+              placeholder="CEO, Directeur..."
+              value={libellePosteFilter}
+              onChange={(e) => setLibellePosteFilter(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 14 }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Box>
 
-          {/* Filtre par taille d'entreprise */}
-          <Box>
-            <FormControl fullWidth>
-              <InputLabel>📏 Taille d'entreprise</InputLabel>
+          {/* Ligne 3 - Taille entreprise et Secteur */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>📊 Taille entreprise</InputLabel>
               <Select
                 value={tailleEntrepriseFilter}
-                label="📏 Taille d'entreprise"
+                label="Taille entreprise"
                 onChange={(e) => setTailleEntrepriseFilter(e.target.value)}
               >
                 <MenuItem value="">Toutes les tailles</MenuItem>
                 {taillesEntreprise.map((taille) => (
                   <MenuItem key={taille.id} value={taille.nom}>
-                    <Chip 
-                      label={taille.nom} 
-                      size="small"
-                      sx={{
-                        backgroundColor: taille.nom === '51-200' ? '#fff3e0' : '#f5f5f5',
-                        color: taille.nom === '51-200' ? '#f57c00' : '#757575',
-                      }}
-                    />
+                    {taille.nom}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          </Box>
+            
+            <FormControl fullWidth size="small">
+              <InputLabel>🏭 Secteur</InputLabel>
+              <Select
+                value={secteurFilter}
+                label="Secteur"
+                onChange={(e) => setSecteurFilter(e.target.value)}
+              >
+                <MenuItem value="">Tous les secteurs</MenuItem>
+                {uniqueSecteurs.map((secteur) => (
+                  <MenuItem key={secteur} value={secteur}>
+                    {secteur}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
         </Box>
 
-        {/* Résumé des filtres actifs */}
-        {hasActiveFilters && (
-          <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            <Typography variant="body2" sx={{ mr: 1, alignSelf: 'center', fontWeight: 500 }}>
-              Filtres actifs:
-            </Typography>
-            {searchTerm && (
+          {/* Chips des filtres actifs */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1, mb: 0 }}>
+            {nomCompletFilter && (
               <Chip 
-                label={`🔍 "${searchTerm}"`} 
-                onDelete={() => setSearchTerm('')}
+                label={`👤 ${nomCompletFilter}`} 
+                onDelete={() => setNomCompletFilter('')}
                 color="primary"
                 variant="outlined"
+                size="small"
               />
             )}
-            {statusFilter && (
+            {nomEntrepriseFilter && (
               <Chip 
-                label={`📊 ${statusFilter}`} 
-                onDelete={() => setStatusFilter('')}
-                color="secondary"
-                variant="outlined"
-              />
-            )}
-            {paysFilter && (
-              <Chip 
-                label={`🌍 ${paysFilter}`} 
-                onDelete={() => setPaysFilter('')}
-                color="warning"
-                variant="outlined"
-              />
-            )}
-            {secteurFilter && (
-              <Chip 
-                label={`🏢 ${secteurFilter}`} 
-                onDelete={() => setSecteurFilter('')}
+                label={`🏢 ${nomEntrepriseFilter}`} 
+                onDelete={() => setNomEntrepriseFilter('')}
                 color="info"
                 variant="outlined"
+                size="small"
               />
             )}
             {categoriePosteFilter && (
@@ -495,41 +563,286 @@ const ProspectsList = () => {
                 onDelete={() => setCategoriePosteFilter('')}
                 color="success"
                 variant="outlined"
+                size="small"
+              />
+            )}
+            {libellePosteFilter && (
+              <Chip 
+                label={`📋 ${libellePosteFilter}`} 
+                onDelete={() => setLibellePosteFilter('')}
+                color="secondary"
+                variant="outlined"
+                size="small"
               />
             )}
             {tailleEntrepriseFilter && (
-              <Chip 
-                label={`📏 ${tailleEntrepriseFilter}`} 
+          <Chip 
+                label={`📊 ${tailleEntrepriseFilter}`} 
                 onDelete={() => setTailleEntrepriseFilter('')}
-                color="default"
-                variant="outlined"
-              />
+                color="warning"
+            variant="outlined"
+                size="small"
+          />
             )}
+            {secteurFilter && (
+          <Chip 
+                label={`🏭 ${secteurFilter}`} 
+                onDelete={() => setSecteurFilter('')}
+                color="default"
+            variant="outlined"
+                size="small"
+          />
+            )}
+        </Box>
+              </Card>
+
+        {/* Bloc 2 - À remplir */}
+        <Card sx={{ 
+          p: 2, 
+          pb: 1,
+          borderRadius: 2, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          height: 'fit-content',
+          maxHeight: '300px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          minHeight: '300px'
+        }}>
+          <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: '0.8rem' }}>
+              📊 Bloc 2
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
+              À remplir
+            </Typography>
           </Box>
-        )}
+        </Card>
 
-      </Card>
+        {/* Bloc 3 - À remplir */}
+        <Card sx={{ 
+          p: 2, 
+          pb: 1,
+          borderRadius: 2, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          height: 'fit-content',
+          maxHeight: '300px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          minHeight: '300px'
+        }}>
+          <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: '0.8rem' }}>
+              🎯 Bloc 3
+            </Typography>
+            <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
+              À remplir
+            </Typography>
+          </Box>
+        </Card>
 
-      <TableContainer component={Paper} sx={{ maxHeight: '80vh', overflow: 'auto', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        {/* Bloc Notes - Éditeur de texte riche */}
+        <Card sx={{ 
+          p: 2, 
+          borderRadius: 2, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+          minHeight: '300px',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            mb: 2,
+            pb: 1,
+            borderBottom: '1px solid #e0e0e0'
+          }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+              📝 Bloc Notes
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('bold')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                title="Gras (Ctrl+B)"
+              >
+                <strong>B</strong>
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('italic')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                title="Italique (Ctrl+I)"
+              >
+                <em>I</em>
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('underline')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                title="Souligné (Ctrl+U)"
+              >
+                <u>U</u>
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('foreColor', false, '#ff0000')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#ff0000' }}
+                title="Rouge (1)"
+              >
+                1
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('foreColor', false, '#00ff00')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#00ff00' }}
+                title="Vert (2)"
+              >
+                2
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('foreColor', false, '#0000ff')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#0000ff' }}
+                title="Bleu (3)"
+              >
+                3
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => document.execCommand('foreColor', false, '#000000')}
+                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                title="Noir (0)"
+              >
+                0
+              </Button>
+            </Box>
+          </Box>
+          <Box
+            ref={notesRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={(e) => {
+              const content = e.currentTarget.innerHTML;
+              // Sauvegarde immédiate dans localStorage
+              localStorage.setItem('crm-notes', content);
+              
+              // Sauvegarde en DB avec debouncing (500ms)
+              if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+              }
+              saveTimeoutRef.current = window.setTimeout(() => {
+                saveToDatabase(content);
+              }, 500);
+            }}
+            onBlur={(e) => {
+              const content = e.currentTarget.innerHTML;
+              // Sauvegarde immédiate dans localStorage
+              localStorage.setItem('crm-notes', content);
+              // Sauvegarde immédiate en DB quand on quitte le champ
+              saveToDatabase(content);
+            }}
+            onKeyDown={(e) => {
+              // Raccourcis clavier
+              if (e.ctrlKey) {
+                switch (e.key.toLowerCase()) {
+                  case 'b':
+                    e.preventDefault();
+                    document.execCommand('bold');
+                    break;
+                  case 'i':
+                    e.preventDefault();
+                    document.execCommand('italic');
+                    break;
+                  case 'u':
+                    e.preventDefault();
+                    document.execCommand('underline');
+                    break;
+                }
+              }
+              // Couleurs avec clavier numérique
+              if (e.key >= '0' && e.key <= '3') {
+                e.preventDefault();
+                const colors = ['#000000', '#ff0000', '#00ff00', '#0000ff'];
+                document.execCommand('foreColor', false, colors[parseInt(e.key)]);
+              }
+            }}
+            sx={{
+              flex: 1,
+              minHeight: '200px',
+              maxHeight: '400px',
+              overflow: 'auto',
+              border: '1px solid #e0e0e0',
+              borderRadius: 1,
+              p: 2,
+              fontSize: '0.8rem',
+              lineHeight: 1.5,
+              outline: 'none',
+              direction: 'ltr',
+              textAlign: 'left',
+              '&:focus': {
+                borderColor: '#1976d2',
+                boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+              },
+              '&:empty:before': {
+                content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
+                color: '#999',
+                fontStyle: 'italic'
+              }
+            }}
+          />
+        </Card>
+
+      </Box>
+
+      {/* Indicateur de chargement optimisé */}
+      {loading && !cacheLoaded && (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          py: 4,
+          mt: 3,
+          backgroundColor: '#f5f5f5',
+          borderRadius: 2
+        }}>
+          <Typography variant="h6" sx={{ color: '#666' }}>
+            🚀 Chargement des {prospects.length > 0 ? prospects.length : '8000'} contacts... 
+            {cacheLoaded ? ' (depuis le cache)' : ' (première fois)'}
+          </Typography>
+        </Box>
+      )}
+
+      <TableContainer component={Paper} sx={{ maxHeight: '80vh', overflow: 'auto', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', mt: 3 }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 200, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 200, py: 0.5, fontSize: '0.65rem' }}>
                 👤 Contact
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.65rem' }}>
                 🏢 Entreprise
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
                 💼 Poste
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
                 📞 Contact
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.65rem' }}>
                 🎯 Étape
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 80, py: 0.5, fontSize: '0.75rem' }}>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 80, py: 0.5, fontSize: '0.65rem' }}>
                 ⚙️ Actions
               </TableCell>
             </TableRow>
@@ -562,8 +875,8 @@ const ProspectsList = () => {
                       <Avatar sx={{ bgcolor: '#4CAF50', width: 20, height: 20 }}>
                         <PersonIcon sx={{ fontSize: 12 }} />
                       </Avatar>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.1 }}>
-                        {prospect.nom_complet || '-'}
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.65rem', lineHeight: 1.1 }}>
+                        {capitalizeWords(prospect.nom_complet)}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -571,8 +884,8 @@ const ProspectsList = () => {
                   {/* Entreprise */}
                   <TableCell sx={{ py: 0.5 }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.7rem', lineHeight: 1.1 }}>
-                        {prospect.entreprise || '-'}
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {capitalizeWords(prospect.entreprise)}
                       </Typography>
                       {prospect.site_web && (
                         <Link 
@@ -580,7 +893,7 @@ const ProspectsList = () => {
                           target="_blank" 
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          sx={{ fontSize: '0.65rem', color: '#1976d2', textDecoration: 'none', display: 'block', mt: 0.25, lineHeight: 1.1 }}
+                          sx={{ fontSize: '0.55rem', color: '#1976d2', textDecoration: 'none', display: 'block', mt: 0.25, lineHeight: 1.1 }}
                         >
                           {prospect.site_web}
                         </Link>
@@ -591,8 +904,8 @@ const ProspectsList = () => {
                   {/* Poste */}
                   <TableCell sx={{ py: 0.5 }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.7rem', lineHeight: 1.1 }}>
-                        {prospect.poste_specifique || '-'}
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {capitalizeWords(prospect.poste_specifique)}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -604,22 +917,22 @@ const ProspectsList = () => {
                       {prospect.email && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.25 }}>
                           <EmailIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
-                          <Typography variant="body2" sx={{ fontSize: '0.65rem', lineHeight: 1.1 }}>
-                            {prospect.email}
-                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
+                          {prospect.email}
+                        </Typography>
                         </Box>
                       )}
                       {prospect.linkedin && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                           <LinkedInIcon sx={{ fontSize: 10, color: '#0077b5' }} />
                           <Link 
-                            href={prospect.linkedin} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{ fontSize: '0.65rem', color: '#0077b5' }}
-                          >
-                            LinkedIn
+                          href={prospect.linkedin} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                            sx={{ fontSize: '0.55rem', color: '#0077b5' }}
+                        >
+                          LinkedIn
                           </Link>
                         </Box>
                       )}
@@ -637,7 +950,7 @@ const ProspectsList = () => {
                         borderRadius: 1,
                         backgroundColor: getActionColor(prospect.etape_suivi || '').bg,
                         color: getActionColor(prospect.etape_suivi || '').color,
-                        fontSize: '0.65rem',
+                        fontSize: '0.55rem',
                         fontWeight: 600,
                         textAlign: 'center',
                         cursor: 'pointer',
@@ -661,30 +974,30 @@ const ProspectsList = () => {
                   <TableCell sx={{ py: 0.5 }} onClick={(e) => e.stopPropagation()}>
                     <Box sx={{ display: 'flex', gap: 0.25 }}>
                       <Tooltip title="Modifier">
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
+                    <IconButton
+                      size="small"
+                      onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
                           sx={{ 
                             color: '#1976d2',
                             padding: 0.25,
                             '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
                           }}
                         >
-                          <EditIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
+                          <EditIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
                       </Tooltip>
                       <Tooltip title="Supprimer">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(prospect.id)}
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(prospect.id)}
                           sx={{ 
                             color: '#d32f2f',
                             padding: 0.25,
                             '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
                           }}
                         >
-                          <DeleteIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
+                          <DeleteIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
                       </Tooltip>
                     </Box>
                   </TableCell>
@@ -807,6 +1120,13 @@ const ProspectsList = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Modal pour créer un nouveau contact */}
+      <ContactModal
+        open={modalOpen}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
+      />
     </Box>
   );
 };

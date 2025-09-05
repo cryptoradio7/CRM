@@ -282,6 +282,31 @@ const SystemDashboard = () => {
       exampleRequest: 'curl -X POST http://localhost:3003/api/fix-database',
       exampleResponse: '{"message":"Base de données corrigée avec succès","data":[...]}',
       useCase: 'Maintenance et correction des données en cas de problème'
+    },
+    {
+      method: 'GET',
+      path: '/api/notes',
+      fullUrl: 'http://localhost:3003/api/notes',
+      description: 'Récupérer le contenu du bloc notes depuis la base de données',
+      response: '{ "content": "string" } - Contenu HTML du bloc notes',
+      exampleRequest: 'curl http://localhost:3003/api/notes',
+      exampleResponse: '{"content":"<span style=\\"font-size: 12.8px;\\">je suis tres heureux car cela marche</span>"}',
+      useCase: 'Synchronisation du bloc notes au chargement de la page'
+    },
+    {
+      method: 'POST',
+      path: '/api/notes',
+      fullUrl: 'http://localhost:3003/api/notes',
+      description: 'Sauvegarder le contenu du bloc notes en base de données',
+      parameters: [
+        'content (required) - Contenu HTML du bloc notes à sauvegarder'
+      ],
+      response: '{ "success": true } | 400 si contenu vide | 500 en cas d\'erreur',
+      exampleRequest: `curl -X POST http://localhost:3003/api/notes \\
+  -H "Content-Type: application/json" \\
+  -d '{"content":"<span style=\\"font-size: 12.8px;\\">Nouveau contenu du bloc notes</span>"}'`,
+      exampleResponse: '{"success":true}',
+      useCase: 'Sauvegarde automatique du bloc notes (système hybride localStorage + DB)'
     }
   ];
 
@@ -403,7 +428,7 @@ ORDER BY date_creation ASC;`,
             
             <Alert severity="success" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Table principale :</strong> prospects (PostgreSQL) - {databaseColumns.length} colonnes
+                <strong>Tables :</strong> prospects ({databaseColumns.length} colonnes) + notes (4 colonnes) - PostgreSQL
               </Typography>
             </Alert>
 
@@ -462,6 +487,176 @@ ORDER BY date_creation ASC;`,
               <Typography variant="body2" color="text.secondary">
                 <strong>Fonctionnalités automatiques :</strong> ID auto-incrémenté, calcul automatique de la région, 
                 horodatage automatique, validation des contraintes.
+              </Typography>
+            </Box>
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* Table Notes */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#4CAF50' }}>
+                📝 Table Notes (Bloc Notes)
+              </Typography>
+            </Box>
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Table :</strong> notes - Stockage du contenu du bloc notes avec système hybride localStorage + DB
+              </Typography>
+            </Alert>
+
+            <TableContainer component={Paper} sx={{ maxHeight: 200 }}>
+              <Table stickyHeader size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Colonne</strong></TableCell>
+                    <TableCell><strong>Type</strong></TableCell>
+                    <TableCell><strong>Nullable</strong></TableCell>
+                    <TableCell><strong>Défaut</strong></TableCell>
+                    <TableCell><strong>Description</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                        id
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="SERIAL PRIMARY KEY" 
+                        size="small" 
+                        color="warning"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="Non" 
+                        size="small" 
+                        color="error"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        AUTO_INCREMENT
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Identifiant unique de la note
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                        content
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="TEXT" 
+                        size="small" 
+                        color="secondary"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="Oui" 
+                        size="small" 
+                        color="default"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        null
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Contenu HTML du bloc notes
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                        created_at
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="TIMESTAMP WITH TIME ZONE" 
+                        size="small" 
+                        color="info"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="Oui" 
+                        size="small" 
+                        color="default"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        CURRENT_TIMESTAMP
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Date de création de la note
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                        updated_at
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="TIMESTAMP WITH TIME ZONE" 
+                        size="small" 
+                        color="info"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label="Oui" 
+                        size="small" 
+                        color="default"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                        CURRENT_TIMESTAMP
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                        Date de dernière modification
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Box sx={{ mt: 2, p: 2, backgroundColor: '#e8f5e8', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Système hybride :</strong> Sauvegarde automatique localStorage (instantané) + base de données (persistance), 
+                synchronisation au chargement, récupération en cas de perte du cache.
               </Typography>
             </Box>
           </CardContent>
@@ -806,7 +1001,7 @@ ORDER BY date_creation ASC;`,
               </Alert>
               <Alert severity="info" sx={{ flex: 1 }}>
                 <Typography variant="body2">
-                  <strong>🔌 API REST complète :</strong> 9 endpoints avec URLs complètes, exemples de requêtes et documentation détaillée.
+                  <strong>🔌 API REST complète :</strong> {apiEndpoints.length} endpoints avec URLs complètes, exemples de requêtes et documentation détaillée.
                 </Typography>
               </Alert>
             </Box>

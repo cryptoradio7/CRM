@@ -1,5 +1,73 @@
+EVOLUTIONS
+-pop up formulaire pas une page
+-Formulaire épuré
+-booster moteur recherche selon ce que je veux sortir
+-moteur de recherche : forme créer blocs
+-moteur recherche export
+-import suppr mx record false
+-import fichier test
+-liste resultats actionw en masse
+-liste resultat email pro envoyer
+
+-------------------------------
+recherche en 3 blocs
+
+recherche multicritere
+nom complet
+categorie de poste
+libellé de poste
+nom entreprise
+taille entreprise
+secteur
+
+-------------------------------
+SSII
+banques
+partner, founder, decideurs
+PME -> IT guy
+-------------------------------
+Dans formulaire:
+Supprime MX record existe
+
+change libellés et ordre formulaire partout où requis (formulaire, database, api, liste resultats, moteur...)
+
+Contact
+  Nom complet
+  Email 
+  Téléphone
+  Catégorie de poste
+  Libellé de poste
+  Url Linkedin
+  
+Entreprise
+  Nom entreprise
+  Pays
+  Taille entreprise
+  Secteur
+  Site web
+
+Informations complémentaires
+  Etapes de suivi
+  Intérêts
+  Historique
+
+
+
+
+-------------------------------
+IMPORT
 -Email: concataine 10 emails, separe les avec ";"
 
+-------------------------------
+Partout où applicable, potentiellement dans la database, api, formulaire, liste de resultat, moteur de recherche, enleves XXXXXXXXX
+
+
+
+-------------------------------
+-sans rien casser, je veux que tu modifies le schema de base de données, les API, les champs du formulaire contact en prenant en compte ces informations et la liste de resultats du moteur de recherche:
+
+
+TYPE DE DONNÉES:
 Nom complet 
 Entreprise 
 Catégorie de poste 	
@@ -11,7 +79,7 @@ Secteur	MX_Record_Exists
 Email
 
 
-Pour les listes: 
+ITEMS LISTES: 
 -Catégorie de poste:
 Académique
 Administratif

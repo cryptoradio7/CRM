@@ -11,13 +11,10 @@ import {
   MenuItem,
   Alert,
   Divider,
-  ListSubheader,
-  Snackbar,
-  FormControlLabel,
-  Checkbox
+  Snackbar
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Prospect, CreateProspectData } from '../types';
+import type { CreateProspectData } from '../types';
 
 const ProspectForm = () => {
   const { id } = useParams();
@@ -44,7 +41,6 @@ const ProspectForm = () => {
     taille_entreprise: '',
     site_web: '',
     secteur: '',
-    mx_record_exists: false,
     email: '',
     telephone: '',
     linkedin: '',
@@ -111,14 +107,6 @@ const ProspectForm = () => {
     });
   };
 
-  const handleCheckboxChange = (field: keyof CreateProspectData) => (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData({
-      ...formData,
-      [field]: event.target.checked
-    });
-  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -169,25 +157,23 @@ const ProspectForm = () => {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        {id ? 'Modifier le Prospect' : 'Nouveau Prospect'}
-      </Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {error && <Alert severity="error" sx={{ mb: 2, fontSize: '0.75rem' }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2, fontSize: '0.75rem' }}>{success}</Alert>}
 
-      <Paper sx={{ p: 4, maxWidth: 600, mx: 'auto' }}>
+      <Paper sx={{ p: 2, maxWidth: 600, mx: 'auto', '& .MuiTextField-root': { fontSize: '0.75rem', '& .MuiInputBase-root': { height: '32px' } }, '& .MuiInputLabel-root': { fontSize: '0.75rem' }, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5, display: 'flex', alignItems: 'center', height: '100%' }, '& .MuiFormControl-root': { fontSize: '0.75rem', '& .MuiInputBase-root': { height: '32px' } }, '& .MuiSelect-select': { fontSize: '0.75rem', py: 0.5, display: 'flex', alignItems: 'center', height: '100%' }, '& .MuiMenuItem-root': { fontSize: '0.75rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '28px' }, '& .MuiTypography-h6': { fontSize: '0.9rem' }, '& .MuiButton-root': { fontSize: '0.75rem', py: 0.5, display: 'flex', alignItems: 'center', height: '32px' } }}>
         <form onSubmit={handleSubmit}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Informations personnelles */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Contact */}
             <Box>
-              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 2 }}>
-                Informations personnelles
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 1 }}>
+                Contact
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <TextField
                   fullWidth
+                  size="small"
                   label="Nom complet *"
                   value={formData.nom_complet}
                   onChange={handleChange('nom_complet')}
@@ -197,6 +183,7 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
+                  size="small"
                   label="Email"
                   type="email"
                   value={formData.email}
@@ -206,50 +193,14 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
+                  size="small"
                   label="Téléphone"
                   value={formData.telephone}
                   onChange={handleChange('telephone')}
                   placeholder="+352 123 456 789"
                 />
                 
-                <TextField
-                  fullWidth
-                  label="Site web"
-                  value={formData.site_web}
-                  onChange={handleChange('site_web')}
-                  placeholder="https://www.entreprise.com"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.mx_record_exists || false}
-                      onChange={handleCheckboxChange('mx_record_exists')}
-                    />
-                  }
-                  label="MX Record Exists"
-                />
-              </Box>
-            </Box>
-
-            <Divider />
-
-            {/* Informations professionnelles */}
-            <Box>
-              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 2 }}>
-                Informations professionnelles
-              </Typography>
-              
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Entreprise"
-                  value={formData.entreprise}
-                  onChange={handleChange('entreprise')}
-                  placeholder="Nom de l'entreprise"
-                />
-                
-                <FormControl fullWidth>
+                <FormControl fullWidth size="small">
                   <InputLabel>Catégorie de poste</InputLabel>
                   <Select
                     value={formData.categorie_poste || ''}
@@ -266,13 +217,43 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
-                  label="Poste spécifique"
+                  size="small"
+                  label="Libellé de poste"
                   value={formData.poste_specifique}
                   onChange={handleChange('poste_specifique')}
                   placeholder="Ex: CEO, Directeur Marketing, Développeur Senior..."
                 />
                 
-                <FormControl fullWidth>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="URL LinkedIn"
+                  value={formData.linkedin}
+                  onChange={handleChange('linkedin')}
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </Box>
+            </Box>
+
+            <Divider />
+
+            {/* Entreprise */}
+            <Box>
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 1 }}>
+                Entreprise
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Nom entreprise"
+                  value={formData.entreprise}
+                  onChange={handleChange('entreprise')}
+                  placeholder="Nom de l'entreprise"
+                />
+                
+                <FormControl fullWidth size="small">
                   <InputLabel>Pays</InputLabel>
                   <Select
                     value={formData.pays || 'Luxembourg'}
@@ -287,11 +268,11 @@ const ProspectForm = () => {
                   </Select>
                 </FormControl>
                 
-                <FormControl fullWidth>
-                  <InputLabel>Taille de l'entreprise</InputLabel>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Taille entreprise</InputLabel>
                   <Select
                     value={formData.taille_entreprise || ''}
-                    label="Taille de l'entreprise"
+                    label="Taille entreprise"
                     onChange={handleChange('taille_entreprise')}
                   >
                     {taillesEntreprise.map((taille) => (
@@ -302,7 +283,7 @@ const ProspectForm = () => {
                   </Select>
                 </FormControl>
                 
-                <FormControl fullWidth>
+                <FormControl fullWidth size="small">
                   <InputLabel>Secteur</InputLabel>
                   <Select
                     value={formData.secteur || ''}
@@ -319,28 +300,29 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
-                  label="Lien LinkedIn"
-                  value={formData.linkedin}
-                  onChange={handleChange('linkedin')}
-                  placeholder="https://linkedin.com/in/..."
+                  size="small"
+                  label="Site web"
+                  value={formData.site_web}
+                  onChange={handleChange('site_web')}
+                  placeholder="https://www.entreprise.com"
                 />
               </Box>
             </Box>
 
             <Divider />
 
-            {/* Informations supplémentaires */}
+            {/* Informations complémentaires */}
             <Box>
-              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 2 }}>
-                Informations supplémentaires
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', mb: 1 }}>
+                Informations complémentaires
               </Typography>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Étape de suivi</InputLabel>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Étapes de suivi</InputLabel>
                   <Select
                     value={formData.etape_suivi || 'à contacter'}
-                    label="Étape de suivi"
+                    label="Étapes de suivi"
                     onChange={handleChange('etape_suivi')}
                   >
                     <MenuItem value="à contacter">à contacter</MenuItem>
@@ -357,29 +339,34 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
+                  size="small"
                   label="Intérêts"
                   multiline
-                  rows={3}
+                  rows={2}
                   value={formData.interets}
                   onChange={handleChange('interets')}
                   placeholder="Centres d'intérêt, domaines d'expertise..."
+                  sx={{ '& .MuiInputBase-root': { height: 'auto', minHeight: '48px' } }}
                 />
                 
                 <TextField
                   fullWidth
+                  size="small"
                   label="Historique"
                   multiline
-                  rows={4}
+                  rows={2}
                   value={formData.historique}
                   onChange={handleChange('historique')}
                   placeholder="Historique des interactions, notes importantes..."
+                  sx={{ '& .MuiInputBase-root': { height: 'auto', minHeight: '48px' } }}
                 />
               </Box>
             </Box>
             
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', mt: 2 }}>
               <Button
                 variant="outlined"
+                size="small"
                 onClick={() => navigate('/prospects')}
               >
                 Annuler
@@ -387,6 +374,7 @@ const ProspectForm = () => {
               <Button
                 type="submit"
                 variant="contained"
+                size="small"
                 disabled={loading}
               >
                 {loading ? 'Sauvegarde...' : (id ? 'Mettre à jour' : 'Créer')}
@@ -402,7 +390,7 @@ const ProspectForm = () => {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%', fontSize: '0.75rem' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

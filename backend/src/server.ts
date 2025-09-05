@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3003;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 
 const pool = new Pool({
   user: process.env.DB_USER || 'egx',
@@ -116,7 +118,6 @@ app.post('/api/prospects', async (req, res) => {
       taille_entreprise, 
       site_web, 
       secteur, 
-      mx_record_exists, 
       email, 
       telephone, 
       linkedin, 
@@ -132,12 +133,12 @@ app.post('/api/prospects', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO prospects (
         nom_complet, entreprise, categorie_poste, poste_specifique, pays, 
-        taille_entreprise, site_web, secteur, mx_record_exists, email, 
+        taille_entreprise, site_web, secteur, email, 
         telephone, linkedin, interets, historique, etape_suivi
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
       [
         nom_complet, entreprise, categorie_poste, poste_specifique, pays || 'Luxembourg',
-        taille_entreprise, site_web, secteur, mx_record_exists || false, email,
+        taille_entreprise, site_web, secteur, email,
         telephone, linkedin, interets, historique, etape_suivi || 'à contacter'
       ]
     );
@@ -162,7 +163,6 @@ app.put('/api/prospects/:id', async (req, res) => {
       taille_entreprise, 
       site_web, 
       secteur, 
-      mx_record_exists, 
       email, 
       telephone, 
       linkedin, 
@@ -175,12 +175,12 @@ app.put('/api/prospects/:id', async (req, res) => {
       `UPDATE prospects SET 
         nom_complet = $1, entreprise = $2, categorie_poste = $3, poste_specifique = $4, 
         pays = $5, taille_entreprise = $6, site_web = $7, secteur = $8, 
-        mx_record_exists = $9, email = $10, telephone = $11, linkedin = $12, 
-        interets = $13, historique = $14, etape_suivi = $15
-      WHERE id = $16 RETURNING *`,
+        email = $9, telephone = $10, linkedin = $11, 
+        interets = $12, historique = $13, etape_suivi = $14
+      WHERE id = $15 RETURNING *`,
       [
         nom_complet, entreprise, categorie_poste, poste_specifique, pays,
-        taille_entreprise, site_web, secteur, mx_record_exists, email,
+        taille_entreprise, site_web, secteur, email,
         telephone, linkedin, interets, historique, etape_suivi, id
       ]
     );
@@ -226,6 +226,62 @@ app.post('/api/fix-database', async (req, res) => {
     });
   } catch (err) {
     console.error('Erreur lors de la vérification de la base de données:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Endpoint pour récupérer les notes
+app.get('/api/notes', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT content FROM notes ORDER BY updated_at DESC LIMIT 1');
+    if (result.rows.length > 0) {
+      res.json({ content: result.rows[0].content });
+    } else {
+      res.json({ content: '' });
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération des notes:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Endpoint pour sauvegarder les notes
+app.post('/api/notes', async (req, res) => {
+  try {
+    // Gérer les deux formats : JSON et FormData
+    let content;
+    if (req.body.content) {
+      // Format JSON
+      content = req.body.content;
+    } else if (req.body && typeof req.body === 'object') {
+      // Format FormData
+      content = Object.values(req.body)[0] as string;
+    } else {
+      console.error('❌ Format de données non reconnu:', req.body);
+      return res.status(400).json({ error: 'Format de données invalide' });
+    }
+    
+    if (!content) {
+      console.error('❌ Contenu vide reçu');
+      return res.status(400).json({ error: 'Contenu vide' });
+    }
+    
+    // Vérifier s'il existe déjà une note
+    const existingNote = await pool.query('SELECT id FROM notes ORDER BY updated_at DESC LIMIT 1');
+    
+    if (existingNote.rows.length > 0) {
+      // Mettre à jour la note existante
+      await pool.query('UPDATE notes SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', 
+        [content, existingNote.rows[0].id]);
+    } else {
+      // Créer une nouvelle note
+      await pool.query('INSERT INTO notes (content) VALUES ($1)', [content]);
+    }
+    
+    console.log('✅ Notes sauvegardées en base de données:', content.substring(0, 50) + '...');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde des notes:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
