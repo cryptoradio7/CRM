@@ -150,6 +150,87 @@ app.post('/api/prospects', async (req, res) => {
   }
 });
 
+// POST - Import en lot de prospects
+app.post('/api/prospects/bulk', async (req, res) => {
+  try {
+    const prospects = req.body;
+    
+    if (!Array.isArray(prospects) || prospects.length === 0) {
+      return res.status(400).json({ error: 'Un tableau de prospects est requis' });
+    }
+
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      
+      const results = [];
+      
+      for (const prospect of prospects) {
+        const { 
+          nom_complet, 
+          entreprise, 
+          categorie_poste, 
+          poste_specifique, 
+          pays, 
+          taille_entreprise, 
+          site_web, 
+          secteur, 
+          email
+        } = prospect;
+
+        if (!nom_complet) {
+          console.warn('Prospect ignoré - nom complet manquant:', prospect);
+          continue;
+        }
+
+        const result = await client.query(
+          `INSERT INTO prospects (
+            nom_complet, entreprise, categorie_poste, poste_specifique, pays, 
+            taille_entreprise, site_web, secteur, email, 
+            telephone, linkedin, interets, historique, etape_suivi
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+          [
+            nom_complet, 
+            entreprise, 
+            categorie_poste, 
+            poste_specifique, 
+            pays || 'Luxembourg',
+            taille_entreprise, 
+            site_web, 
+            secteur, 
+            email, // Tous les emails concaténés avec ';'
+            null, // telephone - pas importé
+            null, // linkedin - pas importé
+            null, // interets - pas importé
+            null, // historique - pas importé
+            'à contacter' // etape_suivi - valeur par défaut
+          ]
+        );
+        
+        results.push(result.rows[0]);
+      }
+      
+      await client.query('COMMIT');
+      res.status(201).json({ 
+        message: `${results.length} prospects importés avec succès`,
+        count: results.length,
+        prospects: results
+      });
+      
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    
+  } catch (err) {
+    console.error('Erreur lors de l\'import en lot:', err);
+    res.status(500).json({ error: 'Erreur serveur lors de l\'import' });
+  }
+});
+
 // PUT - Mettre à jour un prospect
 app.put('/api/prospects/:id', async (req, res) => {
   try {
@@ -220,7 +301,7 @@ app.post('/api/fix-database', async (req, res) => {
     // Récupérer les données actuelles
     const result = await pool.query('SELECT id, nom_complet, entreprise, etape_suivi FROM prospects');
     
-    res.json({ 
+    res.json({
       message: 'Base de données vérifiée avec succès',
       data: result.rows 
     });
@@ -289,4 +370,4 @@ app.post('/api/notes', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   console.log(`📊 API disponible sur http://localhost:${PORT}/api`);
-});
+}); 

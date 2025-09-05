@@ -18,14 +18,15 @@ import {
   MenuItem,
   Menu,
   Chip,
+  LinearProgress,
   Card,
   InputAdornment,
-  Tooltip,
   Snackbar,
   Alert,
   Avatar,
   Link,
-  Checkbox
+  Checkbox,
+  Tooltip
 } from '@mui/material';
 import { 
   Delete as DeleteIcon,
@@ -37,6 +38,7 @@ import {
   Email as EmailIcon,
   LinkedIn as LinkedInIcon,
   Download as DownloadIcon,
+  Upload as UploadIcon,
   Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -48,6 +50,12 @@ const ProspectsList = () => {
   const [loading, setLoading] = useState(true);
   const [cacheLoaded, setCacheLoaded] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+  
+  // États pour l'import CSV
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importMessage, setImportMessage] = useState('');
 
   // Fonctions de gestion de la sélection multiple
   const handleSelectAll = () => {
@@ -101,6 +109,15 @@ const ProspectsList = () => {
     }
   };
 
+  // Fonction pour vider le cache (utile pour le debug)
+  const clearCache = () => {
+    sessionStorage.removeItem('prospects-cache');
+    sessionStorage.removeItem('categories-cache');
+    sessionStorage.removeItem('tailles-cache');
+    setCacheLoaded(false);
+    console.log('🗑️ Cache vidé');
+  };
+
   // Fonction d'export CSV
   const exportToCSV = () => {
     if (filteredProspects.length === 0) {
@@ -118,7 +135,6 @@ const ProspectsList = () => {
       'Catégorie de poste',
       'Libellé du poste',
       'Email',
-      'Téléphone',
       'LinkedIn',
       'Entreprise', 
       'Taille entreprise',
@@ -135,7 +151,6 @@ const ProspectsList = () => {
       prospect.categorie_poste || '',
       prospect.poste_specifique || '',
       prospect.email || '',
-      prospect.telephone || '',
       prospect.linkedin || '',
       prospect.entreprise || '',
       prospect.taille_entreprise || '',
@@ -227,15 +242,15 @@ const ProspectsList = () => {
         // 2. Charger depuis la DB (synchronisation)
         try {
           const response = await fetch('http://localhost:3003/api/notes');
-          if (response.ok) {
-            const data = await response.json();
+      if (response.ok) {
+        const data = await response.json();
             if (data.content && data.content !== localNotes) {
               // Si la DB a du contenu différent, l'utiliser
               notesRef.current.innerHTML = data.content;
               localStorage.setItem('crm-notes', data.content);
             }
-          }
-        } catch (error) {
+      }
+    } catch (error) {
           console.error('Erreur lors du chargement des notes depuis la DB:', error);
         }
       } else {
@@ -256,7 +271,7 @@ const ProspectsList = () => {
         },
         body: JSON.stringify({ content }),
       });
-    } catch (error) {
+      } catch (error) {
       console.error('Erreur lors de la sauvegarde en DB:', error);
     }
   };
@@ -283,14 +298,16 @@ const ProspectsList = () => {
     try {
       // Vérifier le cache d'abord
       const cachedData = sessionStorage.getItem('prospects-cache');
-      if (cachedData && !cacheLoaded) {
+      if (cachedData) {
         const data = JSON.parse(cachedData);
         setProspects(data);
         setCacheLoaded(true);
         setLoading(false);
+        console.log('✅ Données chargées depuis le cache');
         return;
       }
 
+      console.log('🔄 Chargement depuis l\'API...');
       const response = await fetch('http://localhost:3003/api/prospects');
       if (response.ok) {
         const data = await response.json();
@@ -298,6 +315,7 @@ const ProspectsList = () => {
         // Mettre en cache pour les prochaines fois
         sessionStorage.setItem('prospects-cache', JSON.stringify(data));
         setCacheLoaded(true);
+        console.log('✅ Données chargées depuis l\'API et mises en cache');
       }
     } catch (error) {
       console.error('Erreur lors du chargement des prospects:', error);
@@ -308,48 +326,39 @@ const ProspectsList = () => {
 
   const fetchReferenceData = async () => {
     try {
-              const [categoriesRes, taillesRes] = await Promise.all([
-          fetch('http://localhost:3003/api/categories-poste'),
-          fetch('http://localhost:3003/api/tailles-entreprise')
-        ]);
+      // Vérifier le cache pour les données de référence
+      const cachedCategories = sessionStorage.getItem('categories-cache');
+      const cachedTailles = sessionStorage.getItem('tailles-cache');
+      
+      if (cachedCategories && cachedTailles) {
+        setCategoriesPoste(JSON.parse(cachedCategories));
+        setTaillesEntreprise(JSON.parse(cachedTailles));
+        console.log('✅ Données de référence chargées depuis le cache');
+        return;
+      }
+
+      console.log('🔄 Chargement des données de référence depuis l\'API...');
+      const [categoriesRes, taillesRes] = await Promise.all([
+        fetch('http://localhost:3003/api/categories-poste'),
+        fetch('http://localhost:3003/api/tailles-entreprise')
+      ]);
 
       if (categoriesRes.ok) {
         const data = await categoriesRes.json();
         setCategoriesPoste(data);
+        sessionStorage.setItem('categories-cache', JSON.stringify(data));
       }
       if (taillesRes.ok) {
         const data = await taillesRes.json();
         setTaillesEntreprise(data);
+        sessionStorage.setItem('tailles-cache', JSON.stringify(data));
       }
+      console.log('✅ Données de référence chargées depuis l\'API et mises en cache');
     } catch (error) {
       console.error('Erreur lors du chargement des données de référence:', error);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
-      try {
-        const response = await fetch(`http://localhost:3003/api/prospects/${id}`, {
-          method: 'DELETE',
-        });
-        if (response.ok) {
-          setProspects(prospects.filter(p => p.id !== id));
-          setSnackbar({
-            open: true,
-            message: 'Contact supprimé avec succès',
-            severity: 'success'
-          });
-        }
-      } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        setSnackbar({
-          open: true,
-          message: 'Erreur lors de la suppression',
-          severity: 'error'
-        });
-      }
-    }
-  };
 
 
   // Gestion des actions (etape_suivi)
@@ -417,6 +426,164 @@ const ProspectsList = () => {
     sessionStorage.removeItem('prospects-cache');
     setCacheLoaded(false);
     fetchProspects(); // Recharger la liste des contacts
+  };
+
+  // Fonctions d'import CSV
+  const parseCSV = (csvText: string) => {
+    const lines = csvText.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      if (values.length === headers.length) {
+        const row: any = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        data.push(row);
+      }
+    }
+    
+    return data;
+  };
+
+  const mapCSVToProspect = (csvRow: any): Partial<Prospect> => {
+    // Mapper les colonnes CSV vers les champs de la base de données
+    const emails = [];
+    
+    // Noms exacts des colonnes email selon votre spécification
+    const emailColumns = [
+      'Email_1_75', 'Email_2_70', 'Email_3_67', 'Email_4_63', 'Email_5_61',
+      'Email_6_59', 'Email_7_60', 'Email_8_57', 'Email_9_57', 'Email_10_55', 'Email_11_52'
+    ];
+    
+    for (const columnName of emailColumns) {
+      const email = csvRow[columnName];
+      if (email && email.trim()) {
+        emails.push(email.trim());
+      }
+    }
+    
+    // Concaténer tous les emails avec des points-virgules
+    const allEmails = emails.join(';');
+    
+    return {
+      nom_complet: csvRow['Nom complet'] || '',
+      entreprise: csvRow['Entreprise'] || '',
+      categorie_poste: csvRow['Catégorie de poste'] || '',
+      poste_specifique: csvRow['Poste spécifique'] || '',
+      pays: csvRow['Pays'] || '',
+      taille_entreprise: csvRow['Taille de l\'entreprise'] || '',
+      site_web: csvRow['Site web'] || '',
+      secteur: csvRow['Secteur'] || '',
+      email: allEmails, // Tous les emails concaténés avec ';'
+      interets: '' // Pas besoin de stocker les emails dans les intérêts
+    };
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.name.endsWith('.csv')) {
+      setSnackbar({
+        open: true,
+        message: 'Veuillez sélectionner un fichier CSV',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    setImportProgress(0);
+    setImportMessage('Lecture du fichier...');
+
+    try {
+      const text = await file.text();
+      const csvData = parseCSV(text);
+      
+      if (csvData.length === 0) {
+        throw new Error('Aucune donnée valide trouvée dans le fichier CSV');
+      }
+
+      setImportMessage(`Import de ${csvData.length} contacts...`);
+      
+      // Traiter par lots de 50 contacts
+      const batchSize = 50;
+      let imported = 0;
+      
+      for (let i = 0; i < csvData.length; i += batchSize) {
+        const batch = csvData.slice(i, i + batchSize);
+        const prospects = batch.map(mapCSVToProspect);
+        
+        // Envoyer le lot au serveur
+        const response = await fetch('http://localhost:3003/api/prospects/bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(prospects)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur lors de l'import du lot ${Math.floor(i/batchSize) + 1}`);
+        }
+        
+        imported += batch.length;
+        setImportProgress((imported / csvData.length) * 100);
+        setImportMessage(`Importé ${imported}/${csvData.length} contacts...`);
+      }
+      
+      setSnackbar({
+        open: true,
+        message: `Import réussi ! ${imported} contacts ajoutés`,
+        severity: 'success'
+      });
+      
+      // Recharger la liste
+      sessionStorage.removeItem('prospects-cache');
+      setCacheLoaded(false);
+      fetchProspects();
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      setSnackbar({
+        open: true,
+        message: `Erreur lors de l'import: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        severity: 'error'
+      });
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+      setImportMessage('');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileUpload(files[0]);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileUpload(files[0]);
+    }
   };
 
 
@@ -511,30 +678,32 @@ const ProspectsList = () => {
         </Typography>
       </Box>
 
-      {/* 4 Blocs de recherche */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr' }, gap: 3, mb: 1 }}>
+      {/* Mise en page 3 colonnes : Moteur (30%) + Export (20%) + Notes (50%) */}
+      <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
         
-        {/* Bloc de gauche - Tous les critères de recherche */}
-        <Card sx={{ 
-          p: 2, 
-          pb: 1, // Réduction du padding bottom
-          borderRadius: 2, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          height: 'fit-content', // Ajustement automatique à la hauteur du contenu
-          maxHeight: '300px', // Hauteur maximale réduite
-          '& .MuiTextField-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
-          '& .MuiInputLabel-root': { fontSize: '0.7rem' },
-          '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
-          '& .MuiFormControl-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
-          '& .MuiSelect-select': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
-          '& .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '20px' },
-          '& .MuiPaper-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
-          '& .MuiPopover-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
-          '& .MuiTypography-h6': { fontSize: '0.8rem' },
-          '& .MuiButton-root': { fontSize: '0.65rem', py: 0.25, display: 'flex', alignItems: 'center', height: '31px' },
-          '& .MuiChip-root': { fontSize: '0.6rem', height: '20px' },
-          '& .MuiChip-label': { fontSize: '0.6rem', px: 0.5 }
-        }}>
+        {/* Colonne 1 - Moteur de recherche (30%) */}
+        <Box sx={{ width: '30%' }}>
+          {/* Moteur de recherche */}
+          <Card sx={{ 
+            p: 2, 
+            pb: 1, // Réduction du padding bottom
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            height: 'fit-content', // Ajustement automatique à la hauteur du contenu
+            maxHeight: '300px', // Hauteur maximale réduite
+            '& .MuiTextField-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
+            '& .MuiInputLabel-root': { fontSize: '0.7rem' },
+            '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
+            '& .MuiFormControl-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
+            '& .MuiSelect-select': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
+            '& .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '20px' },
+            '& .MuiPaper-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
+            '& .MuiPopover-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
+            '& .MuiTypography-h6': { fontSize: '0.8rem' },
+            '& .MuiButton-root': { fontSize: '0.65rem', py: 0.25, display: 'flex', alignItems: 'center', height: '31px' },
+            '& .MuiChip-root': { fontSize: '0.6rem', height: '20px' },
+            '& .MuiChip-label': { fontSize: '0.6rem', px: 0.5 }
+          }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
             <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600, fontSize: '0.8rem' }}>
@@ -754,63 +923,133 @@ const ProspectsList = () => {
         </Box>
       </Card>
 
-        {/* Bloc 2 - Export CSV */}
-        <Card sx={{ 
-          p: 2, 
-          pb: 1,
-          borderRadius: 2, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          height: 'fit-content',
-          maxHeight: '300px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          minHeight: '300px'
-        }}>
-          <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: '0.8rem' }}>
-              📊 Export CSV
+        </Box>
+
+        {/* Colonne 2 - Import/Export CSV (20%) */}
+        <Box sx={{ width: '20%' }}>
+          {/* Import CSV */}
+          <Card sx={{ 
+            p: 2, 
+            pb: 1,
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            height: 'fit-content',
+            maxHeight: '140px',
+            mb: 1,
+            display: 'flex', 
+            flexDirection: 'column',
+            minHeight: '140px'
+          }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, fontSize: '0.8rem', textAlign: 'center' }}>
+              📥 Import CSV
             </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.7rem', mb: 2 }}>
-              Exporter les contacts filtrés
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={exportToCSV}
-              disabled={filteredProspects.length === 0}
+            
+            <Box
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               sx={{
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                fontSize: '0.7rem',
-                py: 1,
-                px: 2,
-                '&:hover': {
-                  backgroundColor: '#45a049',
-                },
-                '&:disabled': {
-                  backgroundColor: '#ccc',
-                  color: '#666'
-                }
+                border: isDragOver ? '2px dashed #1976d2' : '2px dashed #ccc',
+                borderRadius: 1,
+                p: 2,
+                textAlign: 'center',
+                backgroundColor: isDragOver ? '#f0f8ff' : '#fafafa',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center'
               }}
             >
-              Exporter ({filteredProspects.length})
-            </Button>
-          </Box>
-        </Card>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileInput}
+                style={{ display: 'none' }}
+                id="csv-upload"
+              />
+              <label htmlFor="csv-upload" style={{ cursor: 'pointer', width: '100%' }}>
+                <UploadIcon sx={{ fontSize: '1.5rem', mb: 1, color: '#666' }} />
+                <Typography variant="body2" sx={{ fontSize: '0.7rem', color: '#666' }}>
+                  Glisser-déposer ou cliquer
+                </Typography>
+              </label>
+              
+              {isImporting && (
+                <Box sx={{ mt: 1 }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={importProgress} 
+                    sx={{ mb: 1, height: 4, borderRadius: 2 }}
+                  />
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: '#666' }}>
+                    {importMessage}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Card>
 
-      </Box>
+          {/* Export CSV */}
+          <Card sx={{ 
+            p: 2, 
+            pb: 1,
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            height: 'fit-content',
+            maxHeight: '140px',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '140px'
+          }}>
+            <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
+              <Typography variant="h6" sx={{ mb: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+                📊 Export CSV
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.7rem', mb: 2 }}>
+                Exporter les contacts filtrés
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={exportToCSV}
+                disabled={filteredProspects.length === 0}
+                sx={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  fontSize: '0.7rem',
+                  py: 1,
+                  px: 2,
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  },
+                  '&:disabled': {
+                    backgroundColor: '#ccc',
+                    color: '#666'
+                  }
+                }}
+              >
+                Exporter ({filteredProspects.length})
+              </Button>
+            </Box>
+          </Card>
+        </Box>
 
-      {/* Bloc Notes - Éditeur de texte riche - Pleine largeur */}
-      <Card sx={{ 
-        p: 2, 
-        borderRadius: 2, 
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-        minHeight: '300px',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%'
-      }}>
+        {/* Colonne 3 - Bloc Notes (50%) */}
+        <Box sx={{ width: '50%' }}>
+          <Card sx={{ 
+            p: 2, 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+            height: 'fit-content',
+            maxHeight: '300px',
+            minHeight: '300px',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%'
+          }}>
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -937,31 +1176,31 @@ const ProspectsList = () => {
               document.execCommand('foreColor', false, colors[parseInt(e.key)]);
             }
           }}
-          sx={{
-            flex: 1,
-            minHeight: '200px',
-            maxHeight: '400px',
-            overflow: 'auto',
-            border: '1px solid #e0e0e0',
-            borderRadius: 1,
-            p: 2,
-            fontSize: '0.8rem',
-            lineHeight: 1.5,
-            outline: 'none',
-            direction: 'ltr',
-            textAlign: 'left',
-            '&:focus': {
-              borderColor: '#1976d2',
-              boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
-            },
-            '&:empty:before': {
-              content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
-              color: '#999',
-              fontStyle: 'italic'
-            }
-          }}
+                        sx={{
+                flex: 1, // Prend tout l'espace disponible dans le Card
+                overflow: 'auto', // Barre d'ascenseur verticale
+                border: '1px solid #e0e0e0',
+                borderRadius: 1,
+                p: 2,
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                outline: 'none',
+                direction: 'ltr',
+                textAlign: 'left',
+                '&:focus': {
+                  borderColor: '#1976d2',
+                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                },
+                '&:empty:before': {
+                  content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
+                  color: '#999',
+                  fontStyle: 'italic'
+                }
+              }}
         />
-      </Card>
+          </Card>
+        </Box>
+      </Box>
 
       {/* Total des contacts */}
       <Box sx={{ 
@@ -1073,9 +1312,6 @@ const ProspectsList = () => {
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 250, py: 0.5, fontSize: '0.65rem' }}>
                 📧 Email
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
-                📞 Téléphone
-              </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.65rem' }}>
                 🏢 Entreprise
               </TableCell>
@@ -1157,41 +1393,43 @@ const ProspectsList = () => {
                       {prospect.email && (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                           <EmailIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
-                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
-                          {prospect.email}
-                        </Typography>
+                          <Tooltip 
+                            title={prospect.email} 
+                            placement="top"
+                            arrow
+                            sx={{
+                              '& .MuiTooltip-tooltip': {
+                                fontSize: '0.75rem',
+                                maxWidth: '400px',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-all'
+                              }
+                            }}
+                          >
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontSize: '0.55rem', 
+                                lineHeight: 1.1,
+                                cursor: 'help',
+                                '&:hover': {
+                                  textDecoration: 'underline'
+                                }
+                              }}
+                            >
+                              {prospect.email.split(';')[0]}
+                              {prospect.email.split(';').length > 1 && (
+                                <span style={{ color: '#666', fontSize: '0.5rem' }}>
+                                  {' '}(+{prospect.email.split(';').length - 1})
+                                </span>
+                              )}
+                            </Typography>
+                          </Tooltip>
                         </Box>
                       )}
                     </Box>
                   </TableCell>
 
-                  {/* Téléphone */}
-                  <TableCell sx={{ py: 0.5 }}>
-                    <Box>
-                      {prospect.telephone && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.25 }}>
-                          <PhoneIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
-                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
-                          {prospect.telephone}
-                        </Typography>
-                        </Box>
-                      )}
-                      {prospect.linkedin && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                          <LinkedInIcon sx={{ fontSize: 10, color: '#0077b5' }} />
-                          <Link 
-                          href={prospect.linkedin} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                            sx={{ fontSize: '0.55rem', color: '#0077b5' }}
-                        >
-                          LinkedIn
-                          </Link>
-                        </Box>
-                      )}
-                    </Box>
-                  </TableCell>
 
                   {/* Entreprise */}
                   <TableCell sx={{ py: 0.5 }}>
