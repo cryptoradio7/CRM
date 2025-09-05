@@ -70,9 +70,9 @@ const ProspectsList = () => {
   const [nomCompletFilter, setNomCompletFilter] = useState('');
   const [libellePosteFilter, setLibellePosteFilter] = useState('');
   const [nomEntrepriseFilter, setNomEntrepriseFilter] = useState('');
-  const [secteurFilter, setSecteurFilter] = useState<string>('');
-  const [categoriePosteFilter, setCategoriePosteFilter] = useState<string>('');
-  const [tailleEntrepriseFilter, setTailleEntrepriseFilter] = useState<string>('');
+  const [secteurFilter, setSecteurFilter] = useState<string[]>([]);
+  const [categoriePosteFilter, setCategoriePosteFilter] = useState<string[]>([]);
+  const [tailleEntrepriseFilter, setTailleEntrepriseFilter] = useState<string[]>([]);
   const [categoriesPoste, setCategoriesPoste] = useState<Array<{id: number, nom: string}>>([]);
   const [taillesEntreprise, setTaillesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
@@ -314,10 +314,11 @@ const ProspectsList = () => {
       const nomEntrepriseMatch = !nomEntrepriseFilter || 
         prospect.entreprise?.toLowerCase().includes(nomEntrepriseFilter.toLowerCase());
 
-      // Filtres par dropdowns
-      const categoriePosteMatch = !categoriePosteFilter || prospect.categorie_poste === categoriePosteFilter;
-      const tailleEntrepriseMatch = !tailleEntrepriseFilter || prospect.taille_entreprise === tailleEntrepriseFilter;
-      const secteurMatch = !secteurFilter || prospect.secteur === secteurFilter;
+      // Filtres par dropdowns (sélection multiple)
+      const categoriePosteMatch = categoriePosteFilter.length === 0 || categoriePosteFilter.includes(prospect.categorie_poste || '');
+      const tailleEntrepriseMatch = tailleEntrepriseFilter.length === 0 || tailleEntrepriseFilter.includes(prospect.taille_entreprise || '');
+      const secteurMatch = secteurFilter.length === 0 || secteurFilter.includes(prospect.secteur || '');
+
 
       return nomCompletMatch && libellePosteMatch && nomEntrepriseMatch && 
              categoriePosteMatch && tailleEntrepriseMatch && secteurMatch;
@@ -329,13 +330,13 @@ const ProspectsList = () => {
     setNomCompletFilter('');
     setLibellePosteFilter('');
     setNomEntrepriseFilter('');
-    setCategoriePosteFilter('');
-    setTailleEntrepriseFilter('');
-    setSecteurFilter('');
+    setCategoriePosteFilter([]);
+    setTailleEntrepriseFilter([]);
+    setSecteurFilter([]);
   };
 
   const hasActiveFilters = nomCompletFilter || libellePosteFilter || nomEntrepriseFilter || 
-                          categoriePosteFilter || tailleEntrepriseFilter || secteurFilter;
+                          categoriePosteFilter.length > 0 || tailleEntrepriseFilter.length > 0 || secteurFilter.length > 0;
 
 
   const getActionColor = (action: string) => {
@@ -364,12 +365,7 @@ const ProspectsList = () => {
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#4CAF50', display: 'flex', alignItems: 'center' }}>
-          📋 Contacts ({filteredProspects.length}/{prospects.length})
-          {cacheLoaded && (
-            <Typography component="span" sx={{ fontSize: '0.7rem', color: '#666', ml: 1 }}>
-              (cache)
-            </Typography>
-          )}
+          📋 Contacts
           <IconButton
             onClick={() => setModalOpen(true)}
           sx={{
@@ -407,7 +403,9 @@ const ProspectsList = () => {
           '& .MuiInputBase-input': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
           '& .MuiFormControl-root': { fontSize: '0.7rem', '& .MuiInputBase-root': { height: '31px' } },
           '& .MuiSelect-select': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', height: '100%' },
-          '& .MuiMenuItem-root': { fontSize: '0.7rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '24px' },
+          '& .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, display: 'flex', alignItems: 'center', minHeight: '20px' },
+          '& .MuiPaper-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
+          '& .MuiPopover-root .MuiMenuItem-root': { fontSize: '0.55rem', py: 0.25, minHeight: '20px' },
           '& .MuiTypography-h6': { fontSize: '0.8rem' },
           '& .MuiButton-root': { fontSize: '0.65rem', py: 0.25, display: 'flex', alignItems: 'center', height: '31px' },
           '& .MuiChip-root': { fontSize: '0.6rem', height: '20px' },
@@ -416,7 +414,7 @@ const ProspectsList = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
             <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600, fontSize: '0.8rem' }}>
-              🔍 Critères
+              🔍 Moteur de recherche
           </Typography>
           {hasActiveFilters && (
             <Button
@@ -472,11 +470,22 @@ const ProspectsList = () => {
             <FormControl fullWidth size="small">
               <InputLabel>💼 Catégorie de poste</InputLabel>
               <Select
+                multiple
                 value={categoriePosteFilter}
                 label="Catégorie de poste"
-                onChange={(e) => setCategoriePosteFilter(e.target.value)}
+                onChange={(e) => setCategoriePosteFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      '& .MuiMenuItem-root': {
+                        fontSize: '0.65rem',
+                        py: 0.25,
+                        minHeight: '22px'
+                      }
+                    }
+                  }
+                }}
               >
-                <MenuItem value="">Toutes les catégories</MenuItem>
                 {categoriesPoste.map((categorie) => (
                   <MenuItem key={categorie.id} value={categorie.nom}>
                     {categorie.nom}
@@ -507,11 +516,22 @@ const ProspectsList = () => {
             <FormControl fullWidth size="small">
               <InputLabel>📊 Taille entreprise</InputLabel>
               <Select
+                multiple
                 value={tailleEntrepriseFilter}
                 label="Taille entreprise"
-                onChange={(e) => setTailleEntrepriseFilter(e.target.value)}
+                onChange={(e) => setTailleEntrepriseFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      '& .MuiMenuItem-root': {
+                        fontSize: '0.65rem',
+                        py: 0.25,
+                        minHeight: '22px'
+                      }
+                    }
+                  }
+                }}
               >
-                <MenuItem value="">Toutes les tailles</MenuItem>
                 {taillesEntreprise.map((taille) => (
                   <MenuItem key={taille.id} value={taille.nom}>
                     {taille.nom}
@@ -523,11 +543,22 @@ const ProspectsList = () => {
             <FormControl fullWidth size="small">
               <InputLabel>🏭 Secteur</InputLabel>
               <Select
+                multiple
                 value={secteurFilter}
                 label="Secteur"
-                onChange={(e) => setSecteurFilter(e.target.value)}
+                onChange={(e) => setSecteurFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      '& .MuiMenuItem-root': {
+                        fontSize: '0.65rem',
+                        py: 0.25,
+                        minHeight: '22px'
+                      }
+                    }
+                  }
+                }}
               >
-                <MenuItem value="">Tous les secteurs</MenuItem>
                 {uniqueSecteurs.map((secteur) => (
                   <MenuItem key={secteur} value={secteur}>
                     {secteur}
@@ -557,15 +588,16 @@ const ProspectsList = () => {
                 size="small"
               />
             )}
-            {categoriePosteFilter && (
+            {categoriePosteFilter.map((categorie) => (
               <Chip 
-                label={`💼 ${categoriePosteFilter}`} 
-                onDelete={() => setCategoriePosteFilter('')}
+                key={categorie}
+                label={`💼 ${categorie}`} 
+                onDelete={() => setCategoriePosteFilter(categoriePosteFilter.filter(c => c !== categorie))}
                 color="success"
                 variant="outlined"
                 size="small"
               />
-            )}
+            ))}
             {libellePosteFilter && (
               <Chip 
                 label={`📋 ${libellePosteFilter}`} 
@@ -575,26 +607,28 @@ const ProspectsList = () => {
                 size="small"
               />
             )}
-            {tailleEntrepriseFilter && (
-          <Chip 
-                label={`📊 ${tailleEntrepriseFilter}`} 
-                onDelete={() => setTailleEntrepriseFilter('')}
+            {tailleEntrepriseFilter.map((taille) => (
+              <Chip 
+                key={taille}
+                label={`📊 ${taille}`} 
+                onDelete={() => setTailleEntrepriseFilter(tailleEntrepriseFilter.filter(t => t !== taille))}
                 color="warning"
-            variant="outlined"
+                variant="outlined"
                 size="small"
-          />
-            )}
-            {secteurFilter && (
-          <Chip 
-                label={`🏭 ${secteurFilter}`} 
-                onDelete={() => setSecteurFilter('')}
+              />
+            ))}
+            {secteurFilter.map((secteur) => (
+              <Chip 
+                key={secteur}
+                label={`🏭 ${secteur}`} 
+                onDelete={() => setSecteurFilter(secteurFilter.filter(s => s !== secteur))}
                 color="default"
-            variant="outlined"
+                variant="outlined"
                 size="small"
-          />
-            )}
+              />
+            ))}
         </Box>
-              </Card>
+      </Card>
 
         {/* Bloc 2 - À remplir */}
         <Card sx={{ 
@@ -805,6 +839,31 @@ const ProspectsList = () => {
 
       </Box>
 
+      {/* Total des contacts */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        py: 1,
+        mb: 2,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 2,
+        border: '1px solid #e0e0e0'
+      }}>
+        <Typography variant="body1" sx={{ 
+          fontWeight: 600, 
+          color: '#4CAF50',
+          fontSize: '0.9rem'
+        }}>
+          📊 {filteredProspects.length} contact{filteredProspects.length > 1 ? 's' : ''} affiché{filteredProspects.length > 1 ? 's' : ''} sur {prospects.length} total
+          {cacheLoaded && (
+            <Typography component="span" sx={{ fontSize: '0.7rem', color: '#666', ml: 1 }}>
+              (depuis le cache)
+            </Typography>
+          )}
+        </Typography>
+      </Box>
+
       {/* Indicateur de chargement optimisé */}
       {loading && !cacheLoaded && (
         <Box sx={{ 
@@ -834,7 +893,16 @@ const ProspectsList = () => {
                 🏢 Entreprise
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
-                💼 Poste
+                💼 Libellé du poste
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 120, py: 0.5, fontSize: '0.65rem' }}>
+                📋 Catégorie
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.65rem' }}>
+                📊 Taille
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 120, py: 0.5, fontSize: '0.65rem' }}>
+                🏭 Secteur
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
                 📞 Contact
@@ -850,7 +918,7 @@ const ProspectsList = () => {
           <TableBody>
             {filteredProspects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <Typography variant="h6" color="text.secondary">
                     {prospects.length === 0 ? '📭 Aucun contact trouvé' : '🔍 Aucun contact ne correspond aux filtres'}
                   </Typography>
@@ -901,7 +969,7 @@ const ProspectsList = () => {
                     </Box>
                   </TableCell>
 
-                  {/* Poste */}
+                  {/* Libellé du poste */}
                   <TableCell sx={{ py: 0.5 }}>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
@@ -910,6 +978,32 @@ const ProspectsList = () => {
                     </Box>
                   </TableCell>
 
+                  {/* Catégorie de poste */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {prospect.categorie_poste || '-'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+
+                  {/* Taille entreprise */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {prospect.taille_entreprise || '-'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+
+                  {/* Secteur */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {prospect.secteur || '-'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
 
                   {/* Contact */}
                   <TableCell sx={{ py: 0.5 }}>
