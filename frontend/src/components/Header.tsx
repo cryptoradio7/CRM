@@ -57,7 +57,7 @@ const Header = () => {
         {/* Logo et nom */}
         <Box 
           component={RouterLink}
-          to="/dashboard"
+          to="/prospects"
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 

@@ -24,10 +24,10 @@ import {
   Snackbar,
   Alert,
   Avatar,
-  Link
+  Link,
+  Checkbox
 } from '@mui/material';
 import { 
-  Edit as EditIcon, 
   Delete as DeleteIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
@@ -35,7 +35,9 @@ import {
   ArrowDropDown as ArrowDropDownIcon,
   Person as PersonIcon,
   Email as EmailIcon,
-  LinkedIn as LinkedInIcon
+  LinkedIn as LinkedInIcon,
+  Download as DownloadIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { Prospect } from '../types';
@@ -45,6 +47,128 @@ const ProspectsList = () => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [cacheLoaded, setCacheLoaded] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
+
+  // Fonctions de gestion de la sélection multiple
+  const handleSelectAll = () => {
+    if (selectedContacts.length === filteredProspects.length) {
+      setSelectedContacts([]);
+    } else {
+      setSelectedContacts(filteredProspects.map(prospect => prospect.id));
+    }
+  };
+
+  const handleSelectContact = (contactId: number) => {
+    setSelectedContacts(prev => 
+      prev.includes(contactId) 
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedContacts.length === 0) return;
+    
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${selectedContacts.length} contact(s) ?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      // Supprimer tous les contacts sélectionnés
+      const deletePromises = selectedContacts.map(id => 
+        fetch(`http://localhost:3003/api/prospects/${id}`, {
+          method: 'DELETE',
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      
+      // Mettre à jour la liste des contacts
+      setProspects(prospects.filter(p => !selectedContacts.includes(p.id)));
+      setSelectedContacts([]);
+      
+      setSnackbar({
+        open: true,
+        message: `${selectedContacts.length} contact(s) supprimé(s) avec succès`,
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression en masse:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de la suppression en masse',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Fonction d'export CSV
+  const exportToCSV = () => {
+    if (filteredProspects.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Aucun contact à exporter',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // En-têtes CSV
+    const headers = [
+      'Nom complet',
+      'Catégorie de poste',
+      'Libellé du poste',
+      'Email',
+      'Téléphone',
+      'LinkedIn',
+      'Entreprise', 
+      'Taille entreprise',
+      'Secteur',
+      'Étape de suivi',
+      'Intérêts',
+      'Historique',
+      'Date création'
+    ];
+
+    // Données CSV
+    const csvData = filteredProspects.map(prospect => [
+      prospect.nom_complet || '',
+      prospect.categorie_poste || '',
+      prospect.poste_specifique || '',
+      prospect.email || '',
+      prospect.telephone || '',
+      prospect.linkedin || '',
+      prospect.entreprise || '',
+      prospect.taille_entreprise || '',
+      prospect.secteur || '',
+      prospect.etape_suivi || '',
+      prospect.interets || '',
+      prospect.historique || '',
+      prospect.date_creation ? new Date(prospect.date_creation).toLocaleDateString('fr-FR') : ''
+    ]);
+
+    // Créer le contenu CSV
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    // Créer et télécharger le fichier
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `contacts_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setSnackbar({
+      open: true,
+      message: `${filteredProspects.length} contact(s) exporté(s) avec succès`,
+      severity: 'success'
+    });
+  };
 
   // Fonction pour capitaliser chaque mot et gérer les acronymes
   const capitalizeWords = (text: string | undefined): string => {
@@ -388,7 +512,7 @@ const ProspectsList = () => {
       </Box>
 
       {/* 4 Blocs de recherche */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr 2fr' }, gap: 3, mb: 1 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr' }, gap: 3, mb: 1 }}>
         
         {/* Bloc de gauche - Tous les critères de recherche */}
         <Card sx={{ 
@@ -608,29 +732,29 @@ const ProspectsList = () => {
               />
             )}
             {tailleEntrepriseFilter.map((taille) => (
-              <Chip 
+          <Chip 
                 key={taille}
                 label={`📊 ${taille}`} 
                 onDelete={() => setTailleEntrepriseFilter(tailleEntrepriseFilter.filter(t => t !== taille))}
                 color="warning"
-                variant="outlined"
+            variant="outlined"
                 size="small"
-              />
+          />
             ))}
             {secteurFilter.map((secteur) => (
-              <Chip 
+          <Chip 
                 key={secteur}
                 label={`🏭 ${secteur}`} 
                 onDelete={() => setSecteurFilter(secteurFilter.filter(s => s !== secteur))}
                 color="default"
-                variant="outlined"
+            variant="outlined"
                 size="small"
-              />
+          />
             ))}
         </Box>
       </Card>
 
-        {/* Bloc 2 - À remplir */}
+        {/* Bloc 2 - Export CSV */}
         <Card sx={{ 
           p: 2, 
           pb: 1,
@@ -645,210 +769,207 @@ const ProspectsList = () => {
         }}>
           <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: '0.8rem' }}>
-              📊 Bloc 2
+              📊 Export CSV
             </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-              À remplir
+            <Typography variant="body2" sx={{ fontSize: '0.7rem', mb: 2 }}>
+              Exporter les contacts filtrés
             </Typography>
-          </Box>
-        </Card>
-
-        {/* Bloc 3 - À remplir */}
-        <Card sx={{ 
-          p: 2, 
-          pb: 1,
-          borderRadius: 2, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          height: 'fit-content',
-          maxHeight: '300px',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          minHeight: '300px'
-        }}>
-          <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: '0.8rem' }}>
-              🎯 Bloc 3
-            </Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.7rem' }}>
-              À remplir
-            </Typography>
-          </Box>
-        </Card>
-
-        {/* Bloc Notes - Éditeur de texte riche */}
-        <Card sx={{ 
-          p: 2, 
-          borderRadius: 2, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-          minHeight: '300px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            mb: 2,
-            pb: 1,
-            borderBottom: '1px solid #e0e0e0'
-          }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
-              📝 Bloc Notes
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('bold')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
-                title="Gras (Ctrl+B)"
-              >
-                <strong>B</strong>
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('italic')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
-                title="Italique (Ctrl+I)"
-              >
-                <em>I</em>
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('underline')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
-                title="Souligné (Ctrl+U)"
-              >
-                <u>U</u>
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('foreColor', false, '#ff0000')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#ff0000' }}
-                title="Rouge (1)"
-              >
-                1
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('foreColor', false, '#00ff00')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#00ff00' }}
-                title="Vert (2)"
-              >
-                2
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('foreColor', false, '#0000ff')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#0000ff' }}
-                title="Bleu (3)"
-              >
-                3
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => document.execCommand('foreColor', false, '#000000')}
-                sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
-                title="Noir (0)"
-              >
-                0
-              </Button>
-            </Box>
-          </Box>
-          <Box
-            ref={notesRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={(e) => {
-              const content = e.currentTarget.innerHTML;
-              // Sauvegarde immédiate dans localStorage
-              localStorage.setItem('crm-notes', content);
-              
-              // Sauvegarde en DB avec debouncing (500ms)
-              if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-              }
-              saveTimeoutRef.current = window.setTimeout(() => {
-                saveToDatabase(content);
-              }, 500);
-            }}
-            onBlur={(e) => {
-              const content = e.currentTarget.innerHTML;
-              // Sauvegarde immédiate dans localStorage
-              localStorage.setItem('crm-notes', content);
-              // Sauvegarde immédiate en DB quand on quitte le champ
-              saveToDatabase(content);
-            }}
-            onKeyDown={(e) => {
-              // Raccourcis clavier
-              if (e.ctrlKey) {
-                switch (e.key.toLowerCase()) {
-                  case 'b':
-                    e.preventDefault();
-                    document.execCommand('bold');
-                    break;
-                  case 'i':
-                    e.preventDefault();
-                    document.execCommand('italic');
-                    break;
-                  case 'u':
-                    e.preventDefault();
-                    document.execCommand('underline');
-                    break;
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={exportToCSV}
+              disabled={filteredProspects.length === 0}
+              sx={{
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                fontSize: '0.7rem',
+                py: 1,
+                px: 2,
+                '&:hover': {
+                  backgroundColor: '#45a049',
+                },
+                '&:disabled': {
+                  backgroundColor: '#ccc',
+                  color: '#666'
                 }
-              }
-              // Couleurs avec clavier numérique
-              if (e.key >= '0' && e.key <= '3') {
-                e.preventDefault();
-                const colors = ['#000000', '#ff0000', '#00ff00', '#0000ff'];
-                document.execCommand('foreColor', false, colors[parseInt(e.key)]);
-              }
-            }}
-            sx={{
-              flex: 1,
-              minHeight: '200px',
-              maxHeight: '400px',
-              overflow: 'auto',
-              border: '1px solid #e0e0e0',
-              borderRadius: 1,
-              p: 2,
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              outline: 'none',
-              direction: 'ltr',
-              textAlign: 'left',
-              '&:focus': {
-                borderColor: '#1976d2',
-                boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
-              },
-              '&:empty:before': {
-                content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
-                color: '#999',
-                fontStyle: 'italic'
-              }
-            }}
-          />
+              }}
+            >
+              Exporter ({filteredProspects.length})
+            </Button>
+          </Box>
         </Card>
 
       </Box>
 
+      {/* Bloc Notes - Éditeur de texte riche - Pleine largeur */}
+      <Card sx={{ 
+        p: 2, 
+        borderRadius: 2, 
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+        minHeight: '300px',
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%'
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          mb: 2,
+          pb: 1,
+          borderBottom: '1px solid #e0e0e0'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+            📝 Bloc Notes
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('bold')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Gras (Ctrl+B)"
+            >
+              <strong>B</strong>
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('italic')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Italique (Ctrl+I)"
+            >
+              <em>I</em>
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('underline')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Souligné (Ctrl+U)"
+            >
+              <u>U</u>
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#ff0000')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#ff0000' }}
+              title="Rouge (1)"
+            >
+              1
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#00ff00')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#00ff00' }}
+              title="Vert (2)"
+            >
+              2
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#0000ff')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#0000ff' }}
+              title="Bleu (3)"
+            >
+              3
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#000000')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Noir (0)"
+            >
+              0
+            </Button>
+          </Box>
+        </Box>
+        <Box
+          ref={notesRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={(e) => {
+            const content = e.currentTarget.innerHTML;
+            // Sauvegarde immédiate dans localStorage
+            localStorage.setItem('crm-notes', content);
+            
+            // Sauvegarde en DB avec debouncing (500ms)
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = window.setTimeout(() => {
+              saveToDatabase(content);
+            }, 500);
+          }}
+          onBlur={(e) => {
+            const content = e.currentTarget.innerHTML;
+            // Sauvegarde immédiate dans localStorage
+            localStorage.setItem('crm-notes', content);
+            // Sauvegarde immédiate en DB quand on quitte le champ
+            saveToDatabase(content);
+          }}
+          onKeyDown={(e) => {
+            // Raccourcis clavier
+            if (e.ctrlKey) {
+              switch (e.key.toLowerCase()) {
+                case 'b':
+                  e.preventDefault();
+                  document.execCommand('bold');
+                  break;
+                case 'i':
+                  e.preventDefault();
+                  document.execCommand('italic');
+                  break;
+                case 'u':
+                  e.preventDefault();
+                  document.execCommand('underline');
+                  break;
+              }
+            }
+            // Couleurs avec clavier numérique
+            if (e.key >= '0' && e.key <= '3') {
+              e.preventDefault();
+              const colors = ['#000000', '#ff0000', '#00ff00', '#0000ff'];
+              document.execCommand('foreColor', false, colors[parseInt(e.key)]);
+            }
+          }}
+          sx={{
+            flex: 1,
+            minHeight: '200px',
+            maxHeight: '400px',
+            overflow: 'auto',
+            border: '1px solid #e0e0e0',
+            borderRadius: 1,
+            p: 2,
+            fontSize: '0.8rem',
+            lineHeight: 1.5,
+            outline: 'none',
+            direction: 'ltr',
+            textAlign: 'left',
+            '&:focus': {
+              borderColor: '#1976d2',
+              boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+            },
+            '&:empty:before': {
+              content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
+              color: '#999',
+              fontStyle: 'italic'
+            }
+          }}
+        />
+      </Card>
+
       {/* Total des contacts */}
       <Box sx={{ 
         display: 'flex', 
-        justifyContent: 'center', 
+        justifyContent: 'flex-start', 
         alignItems: 'center', 
         py: 1,
-        mb: 2,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 2,
-        border: '1px solid #e0e0e0'
+        mb: 2
       }}>
         <Typography variant="body1" sx={{ 
           fontWeight: 600, 
@@ -856,13 +977,59 @@ const ProspectsList = () => {
           fontSize: '0.9rem'
         }}>
           📊 {filteredProspects.length} contact{filteredProspects.length > 1 ? 's' : ''} affiché{filteredProspects.length > 1 ? 's' : ''} sur {prospects.length} total
-          {cacheLoaded && (
-            <Typography component="span" sx={{ fontSize: '0.7rem', color: '#666', ml: 1 }}>
-              (depuis le cache)
-            </Typography>
-          )}
         </Typography>
       </Box>
+
+      {/* Barre d'actions en masse */}
+      {selectedContacts.length > 0 && (
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          py: 1.5,
+          px: 2,
+          mb: 2,
+          backgroundColor: '#fff3e0',
+          borderRadius: 2,
+          border: '1px solid #ffb74d'
+        }}>
+          <Typography variant="body2" sx={{ 
+            fontWeight: 600, 
+            color: '#e65100',
+            fontSize: '0.85rem'
+          }}>
+            📋 {selectedContacts.length} contact{selectedContacts.length > 1 ? 's' : ''} sélectionné{selectedContacts.length > 1 ? 's' : ''}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setSelectedContacts([])}
+              sx={{ 
+                fontSize: '0.75rem',
+                py: 0.5,
+                px: 1.5
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<DeleteIcon />}
+              onClick={handleBulkDelete}
+              sx={{ 
+                fontSize: '0.75rem',
+                py: 0.5,
+                px: 1.5
+              }}
+            >
+              Supprimer ({selectedContacts.length})
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {/* Indicateur de chargement optimisé */}
       {loading && !cacheLoaded && (
@@ -886,17 +1053,31 @@ const ProspectsList = () => {
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 200, py: 0.5, fontSize: '0.65rem' }}>
-                👤 Contact
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 50, py: 0.5, fontSize: '0.65rem' }}>
+                <Checkbox
+                  checked={selectedContacts.length === filteredProspects.length && filteredProspects.length > 0}
+                  indeterminate={selectedContacts.length > 0 && selectedContacts.length < filteredProspects.length}
+                  onChange={handleSelectAll}
+                  size="small"
+                />
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.65rem' }}>
-                🏢 Entreprise
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 200, py: 0.5, fontSize: '0.65rem' }}>
+                👤 Nom complet
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 120, py: 0.5, fontSize: '0.65rem' }}>
+                📋 Catégorie
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
                 💼 Libellé du poste
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 120, py: 0.5, fontSize: '0.65rem' }}>
-                📋 Catégorie
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 250, py: 0.5, fontSize: '0.65rem' }}>
+                📧 Email
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
+                📞 Téléphone
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.65rem' }}>
+                🏢 Entreprise
               </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.65rem' }}>
                 📊 Taille
@@ -904,14 +1085,8 @@ const ProspectsList = () => {
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 120, py: 0.5, fontSize: '0.65rem' }}>
                 🏭 Secteur
               </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.65rem' }}>
-                📞 Contact
-              </TableCell>
               <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.65rem' }}>
                 🎯 Étape
-              </TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 80, py: 0.5, fontSize: '0.65rem' }}>
-                ⚙️ Actions
               </TableCell>
             </TableRow>
           </TableHead>
@@ -937,7 +1112,16 @@ const ProspectsList = () => {
                     }
                   }}
                 >
-                  {/* Contact */}
+                  {/* Checkbox */}
+                  <TableCell sx={{ py: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedContacts.includes(prospect.id)}
+                      onChange={() => handleSelectContact(prospect.id)}
+                      size="small"
+                    />
+                  </TableCell>
+                  
+                  {/* Nom complet */}
                   <TableCell sx={{ py: 0.5 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <Avatar sx={{ bgcolor: '#4CAF50', width: 20, height: 20 }}>
@@ -946,6 +1130,66 @@ const ProspectsList = () => {
                       <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.65rem', lineHeight: 1.1 }}>
                         {capitalizeWords(prospect.nom_complet)}
                       </Typography>
+                    </Box>
+                  </TableCell>
+
+                  {/* Catégorie de poste */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {prospect.categorie_poste || '-'}
+                    </Typography>
+                    </Box>
+                  </TableCell>
+
+                  {/* Libellé du poste */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
+                        {capitalizeWords(prospect.poste_specifique)}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+
+                  {/* Email */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      {prospect.email && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <EmailIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
+                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
+                          {prospect.email}
+                        </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </TableCell>
+
+                  {/* Téléphone */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      {prospect.telephone && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.25 }}>
+                          <PhoneIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
+                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
+                          {prospect.telephone}
+                        </Typography>
+                        </Box>
+                      )}
+                      {prospect.linkedin && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <LinkedInIcon sx={{ fontSize: 10, color: '#0077b5' }} />
+                          <Link 
+                          href={prospect.linkedin} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                            sx={{ fontSize: '0.55rem', color: '#0077b5' }}
+                        >
+                          LinkedIn
+                          </Link>
+                        </Box>
+                      )}
                     </Box>
                   </TableCell>
 
@@ -969,24 +1213,6 @@ const ProspectsList = () => {
                     </Box>
                   </TableCell>
 
-                  {/* Libellé du poste */}
-                  <TableCell sx={{ py: 0.5 }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
-                        {capitalizeWords(prospect.poste_specifique)}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-
-                  {/* Catégorie de poste */}
-                  <TableCell sx={{ py: 0.5 }}>
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.6rem', lineHeight: 1.1 }}>
-                        {prospect.categorie_poste || '-'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-
                   {/* Taille entreprise */}
                   <TableCell sx={{ py: 0.5 }}>
                     <Box>
@@ -1005,33 +1231,6 @@ const ProspectsList = () => {
                     </Box>
                   </TableCell>
 
-                  {/* Contact */}
-                  <TableCell sx={{ py: 0.5 }}>
-                    <Box>
-                      {prospect.email && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.25 }}>
-                          <EmailIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
-                          <Typography variant="body2" sx={{ fontSize: '0.55rem', lineHeight: 1.1 }}>
-                          {prospect.email}
-                        </Typography>
-                        </Box>
-                      )}
-                      {prospect.linkedin && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-                          <LinkedInIcon sx={{ fontSize: 10, color: '#0077b5' }} />
-                          <Link 
-                          href={prospect.linkedin} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                            sx={{ fontSize: '0.55rem', color: '#0077b5' }}
-                        >
-                          LinkedIn
-                          </Link>
-                        </Box>
-                      )}
-                    </Box>
-                  </TableCell>
 
 
                   {/* Étape */}
@@ -1064,37 +1263,6 @@ const ProspectsList = () => {
                     </Box>
                   </TableCell>
 
-                  {/* Actions */}
-                  <TableCell sx={{ py: 0.5 }} onClick={(e) => e.stopPropagation()}>
-                    <Box sx={{ display: 'flex', gap: 0.25 }}>
-                      <Tooltip title="Modifier">
-                    <IconButton
-                      size="small"
-                      onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
-                          sx={{ 
-                            color: '#1976d2',
-                            padding: 0.25,
-                            '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
-                          }}
-                        >
-                          <EditIcon sx={{ fontSize: 12 }} />
-                    </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Supprimer">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDelete(prospect.id)}
-                          sx={{ 
-                            color: '#d32f2f',
-                            padding: 0.25,
-                            '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
-                          }}
-                        >
-                          <DeleteIcon sx={{ fontSize: 12 }} />
-                    </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
                 </TableRow>
               ))
             )}
