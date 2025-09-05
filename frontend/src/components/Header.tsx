@@ -111,14 +111,6 @@ const Header = () => {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             component={RouterLink} 
-            to="/dashboard"
-            sx={location.pathname === '/dashboard' ? activeButtonStyle : baseButtonStyle}
-            disableRipple={false}
-          >
-            Dashboard
-          </Button>
-          <Button 
-            component={RouterLink} 
             to="/prospects"
             sx={location.pathname === '/prospects' ? activeButtonStyle : baseButtonStyle}
             disableRipple={false}
@@ -127,11 +119,11 @@ const Header = () => {
           </Button>
           <Button 
             component={RouterLink} 
-            to="/map"
-            sx={location.pathname === '/map' ? activeButtonStyle : baseButtonStyle}
+            to="/system"
+            sx={location.pathname === '/system' ? activeButtonStyle : baseButtonStyle}
             disableRipple={false}
           >
-            Carte
+            Système
           </Button>
         </Box>
       </Toolbar>

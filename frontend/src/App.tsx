@@ -4,10 +4,9 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 import Header from './components/Header';
-import Dashboard from './pages/Dashboard';
 import ProspectsList from './pages/ProspectsList';
 import ProspectForm from './pages/ProspectForm';
-import ProspectsMap from './pages/ProspectsMap';
+import SystemDashboard from './pages/SystemDashboard';
 import './App.css';
 
 const theme = createTheme({
@@ -77,11 +76,10 @@ function App() {
           <Box component="main" sx={{ flex: 1, p: 3, width: '100%' }}>
             <Routes>
               <Route path="/" element={<Navigate to="/prospects" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/prospects" element={<ProspectsList />} />
               <Route path="/prospects/new" element={<ProspectForm />} />
               <Route path="/prospects/:id/edit" element={<ProspectForm />} />
-              <Route path="/map" element={<ProspectsMap />} />
+              <Route path="/system" element={<SystemDashboard />} />
             </Routes>
           </Box>
         </Box>

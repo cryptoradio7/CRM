@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Typography, 
   Table, 
@@ -18,14 +18,14 @@ import {
   MenuItem,
   Menu,
   Chip,
-  Grid,
   Card,
   CardContent,
   InputAdornment,
-  ListSubheader,
   Tooltip,
   Snackbar,
-  Alert
+  Alert,
+  Avatar,
+  Link
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -33,39 +33,31 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Clear as ClearIcon,
-  ArrowDropDown as ArrowDropDownIcon
+  ArrowDropDown as ArrowDropDownIcon,
+  Business as BusinessIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Language as LanguageIcon,
+  LinkedIn as LinkedInIcon,
+  LocationOn as LocationIcon,
+  Work as WorkIcon
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-
-interface Prospect {
-  id: number;
-  nom: string;
-  prenom?: string;
-  email?: string;
-  telephone?: string;
-  entreprise?: string;
-  type_entreprise?: string;
-  role?: string;
-  ville?: string;
-  region?: string;
-  statut: string;
-  linkedin?: string;
-  interets?: string;
-  historique?: string;
-  etape_suivi?: string;
-  date_creation: string;
-}
+import { Prospect } from '../types';
 
 const ProspectsList = () => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [regionFilter, setRegionFilter] = useState<string>('');
-  const [typeEntrepriseFilter, setTypeEntrepriseFilter] = useState<string>('');
-  const [typesEntreprise, setTypesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
-  const [statusMenuAnchor, setStatusMenuAnchor] = useState<null | HTMLElement>(null);
-  const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
+  const [paysFilter, setPaysFilter] = useState<string>('');
+  const [secteurFilter, setSecteurFilter] = useState<string>('');
+  const [categoriePosteFilter, setCategoriePosteFilter] = useState<string>('');
+  const [tailleEntrepriseFilter, setTailleEntrepriseFilter] = useState<string>('');
+  const [categoriesPoste, setCategoriesPoste] = useState<Array<{id: number, nom: string}>>([]);
+  const [taillesEntreprise, setTaillesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
+  const [secteurs, setSecteurs] = useState<Array<{id: number, nom: string}>>([]);
+  const [pays, setPays] = useState<Array<{id: number, nom: string}>>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
     open: false,
     message: '',
@@ -76,7 +68,7 @@ const ProspectsList = () => {
 
   useEffect(() => {
     fetchProspects();
-    fetchTypesEntreprise();
+    fetchReferenceData();
   }, []);
 
   // Appliquer les filtres depuis l'URL au chargement
@@ -101,73 +93,61 @@ const ProspectsList = () => {
     }
   };
 
-  const fetchTypesEntreprise = async () => {
+  const fetchReferenceData = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/types-entreprise');
-      if (response.ok) {
-        const data = await response.json();
-        setTypesEntreprise(data);
+      const [categoriesRes, taillesRes, secteursRes, paysRes] = await Promise.all([
+        fetch('http://localhost:3003/api/categories-poste'),
+        fetch('http://localhost:3003/api/tailles-entreprise'),
+        fetch('http://localhost:3003/api/secteurs'),
+        fetch('http://localhost:3003/api/pays')
+      ]);
+
+      if (categoriesRes.ok) {
+        const data = await categoriesRes.json();
+        setCategoriesPoste(data);
+      }
+      if (taillesRes.ok) {
+        const data = await taillesRes.json();
+        setTaillesEntreprise(data);
+      }
+      if (secteursRes.ok) {
+        const data = await secteursRes.json();
+        setSecteurs(data);
+      }
+      if (paysRes.ok) {
+        const data = await paysRes.json();
+        setPays(data);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des types d\'entreprise:', error);
+      console.error('Erreur lors du chargement des données de référence:', error);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce prospect ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
       try {
         const response = await fetch(`http://localhost:3003/api/prospects/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) {
           setProspects(prospects.filter(p => p.id !== id));
+          setSnackbar({
+            open: true,
+            message: 'Contact supprimé avec succès',
+            severity: 'success'
+          });
         }
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
+        setSnackbar({
+          open: true,
+          message: 'Erreur lors de la suppression',
+          severity: 'error'
+        });
       }
     }
   };
 
-  const handleStatusClick = (event: React.MouseEvent<HTMLElement>, prospectId: number) => {
-    setStatusMenuAnchor(event.currentTarget);
-    setSelectedProspectId(prospectId);
-  };
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (!selectedProspectId) return;
-    
-    try {
-      const prospect = prospects.find(p => p.id === selectedProspectId);
-      if (!prospect) return;
-
-      const response = await fetch(`http://localhost:3003/api/prospects/${selectedProspectId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...prospect,
-          statut: newStatus
-        }),
-      });
-
-      if (response.ok) {
-        setProspects(prospects.map(p => 
-          p.id === selectedProspectId ? { ...p, statut: newStatus } : p
-        ));
-      }
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-    } finally {
-      setStatusMenuAnchor(null);
-      setSelectedProspectId(null);
-    }
-  };
-
-  const handleStatusMenuClose = () => {
-    setStatusMenuAnchor(null);
-    setSelectedProspectId(null);
-  };
 
   // Gestion des actions (etape_suivi)
   const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null);
@@ -200,9 +180,19 @@ const ProspectsList = () => {
         setProspects(prospects.map(p => 
           p.id === selectedActionProspectId ? { ...p, etape_suivi: newAction } : p
         ));
+        setSnackbar({
+          open: true,
+          message: 'Étape de suivi mise à jour avec succès',
+          severity: 'success'
+        });
       }
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'action:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de la mise à jour',
+        severity: 'error'
+      });
     } finally {
       setActionMenuAnchor(null);
       setSelectedActionProspectId(null);
@@ -215,11 +205,11 @@ const ProspectsList = () => {
   };
 
   // Extraction des valeurs uniques pour les filtres
-  const uniqueStatuses = useMemo(() => 
-    [...new Set(prospects.map(p => p.statut).filter(Boolean))], [prospects]
+  const uniquePays = useMemo(() => 
+    [...new Set(prospects.map(p => p.pays).filter(Boolean))], [prospects]
   );
-  const uniqueRegions = useMemo(() => 
-    [...new Set(prospects.map(p => p.region).filter(Boolean))], [prospects]
+  const uniqueSecteurs = useMemo(() => 
+    [...new Set(prospects.map(p => p.secteur).filter(Boolean))], [prospects]
   );
 
   // Filtrage des prospects
@@ -228,78 +218,96 @@ const ProspectsList = () => {
       // Recherche full texte
       const searchLower = searchTerm.toLowerCase();
       const searchMatch = !searchTerm || 
-        prospect.nom?.toLowerCase().includes(searchLower) ||
-        prospect.prenom?.toLowerCase().includes(searchLower) ||
+        prospect.nom_complet?.toLowerCase().includes(searchLower) ||
         prospect.email?.toLowerCase().includes(searchLower) ||
         prospect.entreprise?.toLowerCase().includes(searchLower) ||
-        prospect.type_entreprise?.toLowerCase().includes(searchLower) ||
-        prospect.role?.toLowerCase().includes(searchLower) ||
-        prospect.ville?.toLowerCase().includes(searchLower) ||
-        prospect.region?.toLowerCase().includes(searchLower) ||
+        prospect.categorie_poste?.toLowerCase().includes(searchLower) ||
+        prospect.poste_specifique?.toLowerCase().includes(searchLower) ||
+        prospect.pays?.toLowerCase().includes(searchLower) ||
+        prospect.secteur?.toLowerCase().includes(searchLower) ||
         prospect.telephone?.toLowerCase().includes(searchLower) ||
         prospect.interets?.toLowerCase().includes(searchLower) ||
         prospect.historique?.toLowerCase().includes(searchLower);
 
       // Filtres par tags
-      const statusMatch = !statusFilter || prospect.statut === statusFilter;
-      const regionMatch = !regionFilter || prospect.region === regionFilter;
-      const typeEntrepriseMatch = !typeEntrepriseFilter || prospect.type_entreprise === typeEntrepriseFilter;
+      const paysMatch = !paysFilter || prospect.pays === paysFilter;
+      const secteurMatch = !secteurFilter || prospect.secteur === secteurFilter;
+      const categoriePosteMatch = !categoriePosteFilter || prospect.categorie_poste === categoriePosteFilter;
+      const tailleEntrepriseMatch = !tailleEntrepriseFilter || prospect.taille_entreprise === tailleEntrepriseFilter;
 
-      return searchMatch && statusMatch && regionMatch && typeEntrepriseMatch;
+      return searchMatch && paysMatch && secteurMatch && categoriePosteMatch && tailleEntrepriseMatch;
     });
-  }, [prospects, searchTerm, statusFilter, regionFilter, typeEntrepriseFilter]);
+  }, [prospects, searchTerm, paysFilter, secteurFilter, categoriePosteFilter, tailleEntrepriseFilter]);
 
   const clearFilters = () => {
     setSearchTerm('');
-    setStatusFilter('');
-    setRegionFilter('');
-    setTypeEntrepriseFilter('');
+    setPaysFilter('');
+    setSecteurFilter('');
+    setCategoriePosteFilter('');
+    setTailleEntrepriseFilter('');
   };
 
-  const hasActiveFilters = searchTerm || statusFilter || regionFilter || typeEntrepriseFilter;
+  const hasActiveFilters = searchTerm || paysFilter || secteurFilter || categoriePosteFilter || tailleEntrepriseFilter;
+
+
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'OK': return { bg: '#e8f5e8', color: '#2e7d32' };
+      case 'KO': return { bg: '#ffebee', color: '#c62828' };
+      case 'entretien 1':
+      case 'entretien 2':
+      case 'entretien 3': return { bg: '#e3f2fd', color: '#1565c0' };
+      case 'call effectué': return { bg: '#fff8e1', color: '#f57f17' };
+      case 'email envoyé':
+      case 'linkedin envoyé': return { bg: '#f3e5f5', color: '#7b1fa2' };
+      default: return { bg: '#f5f5f5', color: '#757575' };
+    }
+  };
 
   if (loading) {
-    return <Typography>Chargement...</Typography>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography variant="h6">Chargement des contacts...</Typography>
+      </Box>
+    );
   }
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Liste des Prospects
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: '#4CAF50' }}>
+          📋 Contacts
         </Typography>
         <Button
           variant="contained"
           onClick={() => navigate('/prospects/new')}
           sx={{
-            px: 2.5,
-            py: 1,
-            fontSize: '0.95rem',
-            fontWeight: 500,
-            borderRadius: 1,
-            transition: 'all 0.3s ease',
+            px: 3,
+            py: 1.5,
+            fontSize: '1rem',
+            fontWeight: 600,
+            borderRadius: 2,
             backgroundColor: '#4CAF50',
             color: 'white',
-            border: '1px solid #4CAF50',
             textTransform: 'none',
+            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
             '&:hover': {
               backgroundColor: '#45a049',
-              color: 'white',
               transform: 'translateY(-2px)',
-              boxShadow: '0 4px 8px rgba(76, 175, 80, 0.3)',
+              boxShadow: '0 6px 16px rgba(76, 175, 80, 0.4)',
             }
           }}
         >
-          Nouveau Prospect
+          ➕ Nouveau Contact
         </Button>
       </Box>
 
-      {/* Section de filtres */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FilterIcon sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Filtres et Recherche
+      {/* Section de filtres améliorée */}
+      <Card sx={{ mb: 3, p: 3, borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <FilterIcon sx={{ mr: 1, color: '#4CAF50', fontSize: 28 }} />
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            🔍 Filtres et Recherche
           </Typography>
           {hasActiveFilters && (
             <Button
@@ -308,19 +316,20 @@ const ProspectsList = () => {
               variant="outlined"
               size="small"
               color="secondary"
+              sx={{ borderRadius: 2 }}
             >
               Effacer les filtres
             </Button>
           )}
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, mb: 2 }}>
           {/* Recherche full texte */}
           <Box sx={{ gridColumn: { xs: '1', md: '1 / 2' } }}>
             <TextField
               fullWidth
-              label="Recherche full texte"
-              placeholder="Rechercher dans tous les champs..."
+              label="🔍 Recherche complète"
+              placeholder="Nom, entreprise, email, secteur..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -330,35 +339,57 @@ const ProspectsList = () => {
                   </InputAdornment>
                 ),
               }}
+              sx={{ borderRadius: 2 }}
             />
           </Box>
 
-          {/* Filtre par statut */}
+
+          {/* Filtre par pays */}
           <Box>
             <FormControl fullWidth>
-              <InputLabel>Statut</InputLabel>
+              <InputLabel>🌍 Pays</InputLabel>
               <Select
-                value={statusFilter}
-                label="Statut"
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={paysFilter}
+                label="🌍 Pays"
+                onChange={(e) => setPaysFilter(e.target.value)}
               >
-                <MenuItem value="">Tous les statuts</MenuItem>
-                {uniqueStatuses.map((status) => (
-                  <MenuItem key={status} value={status}>
+                <MenuItem value="">Tous les pays</MenuItem>
+                {uniquePays.map((pays) => (
+                  <MenuItem key={pays} value={pays}>
                     <Chip 
-                      label={status} 
+                      label={pays} 
                       size="small"
                       sx={{
-                        backgroundColor: 
-                          status === 'Prospects' ? '#fff3e0' :
-                          status === 'Client' ? '#e8f5e8' :
-                          status === 'N/A' ? '#f5f5f5' :
-                          '#fff3e0',
-                        color: 
-                          status === 'Prospects' ? '#f57c00' :
-                          status === 'Client' ? '#2e7d32' :
-                          status === 'N/A' ? '#757575' :
-                          '#f57c00',
+                        backgroundColor: pays === 'Luxembourg' ? '#e8f5e8' : '#fff3e0',
+                        color: pays === 'Luxembourg' ? '#2e7d32' : '#f57c00',
+                      }}
+                    />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+          {/* Filtre par secteur */}
+          <Box>
+            <FormControl fullWidth>
+              <InputLabel>🏢 Secteur</InputLabel>
+              <Select
+                value={secteurFilter}
+                label="🏢 Secteur"
+                onChange={(e) => setSecteurFilter(e.target.value)}
+              >
+                <MenuItem value="">Tous les secteurs</MenuItem>
+                {uniqueSecteurs.map((secteur) => (
+                  <MenuItem key={secteur} value={secteur}>
+                    <Chip 
+                      label={secteur} 
+                      size="small"
+                      sx={{
+                        backgroundColor: secteur === 'Technology' ? '#e3f2fd' : '#f5f5f5',
+                        color: secteur === 'Technology' ? '#1565c0' : '#757575',
                       }}
                     />
                   </MenuItem>
@@ -367,32 +398,24 @@ const ProspectsList = () => {
             </FormControl>
           </Box>
 
-          {/* Filtre par région */}
+          {/* Filtre par catégorie de poste */}
           <Box>
             <FormControl fullWidth>
-              <InputLabel>Région</InputLabel>
+              <InputLabel>💼 Catégorie de poste</InputLabel>
               <Select
-                value={regionFilter}
-                label="Région"
-                onChange={(e) => setRegionFilter(e.target.value)}
+                value={categoriePosteFilter}
+                label="💼 Catégorie de poste"
+                onChange={(e) => setCategoriePosteFilter(e.target.value)}
               >
-                <MenuItem value="">Toutes les régions</MenuItem>
-                {uniqueRegions.map((region) => (
-                  <MenuItem key={region} value={region}>
+                <MenuItem value="">Toutes les catégories</MenuItem>
+                {categoriesPoste.map((categorie) => (
+                  <MenuItem key={categorie.id} value={categorie.nom}>
                     <Chip 
-                      label={region} 
+                      label={categorie.nom} 
                       size="small"
                       sx={{
-                        backgroundColor: 
-                          region === 'Centre' ? '#e8f5e8' :
-                          region === 'Genève' ? '#fff3e0' :
-                          region === 'Île-de-France' ? '#f3e5f5' :
-                          '#f5f5f5',
-                        color: 
-                          region === 'Centre' ? '#2e7d32' :
-                          region === 'Genève' ? '#f57c00' :
-                          region === 'Île-de-France' ? '#7b1fa2' :
-                          '#757575',
+                        backgroundColor: categorie.nom === 'Direction' ? '#e8f5e8' : '#f5f5f5',
+                        color: categorie.nom === 'Direction' ? '#2e7d32' : '#757575',
                       }}
                     />
                   </MenuItem>
@@ -401,32 +424,24 @@ const ProspectsList = () => {
             </FormControl>
           </Box>
 
-          {/* Filtre par type d'entreprise */}
+          {/* Filtre par taille d'entreprise */}
           <Box>
             <FormControl fullWidth>
-              <InputLabel>Type d'Entreprise</InputLabel>
+              <InputLabel>📏 Taille d'entreprise</InputLabel>
               <Select
-                value={typeEntrepriseFilter}
-                label="Type d'Entreprise"
-                onChange={(e) => setTypeEntrepriseFilter(e.target.value)}
+                value={tailleEntrepriseFilter}
+                label="📏 Taille d'entreprise"
+                onChange={(e) => setTailleEntrepriseFilter(e.target.value)}
               >
-                <MenuItem value="">Tous les types</MenuItem>
-                {typesEntreprise.map((type) => (
-                  <MenuItem key={type.id} value={type.nom}>
+                <MenuItem value="">Toutes les tailles</MenuItem>
+                {taillesEntreprise.map((taille) => (
+                  <MenuItem key={taille.id} value={taille.nom}>
                     <Chip 
-                      label={type.nom} 
+                      label={taille.nom} 
                       size="small"
                       sx={{
-                        backgroundColor: 
-                          type.nom === 'SME' ? '#e8f5e8' :
-                          type.nom === 'Grande Entreprise' ? '#fff3e0' :
-                          type.nom === 'Start-up' ? '#f3e5f5' :
-                          '#f5f5f5',
-                        color: 
-                          type.nom === 'SME' ? '#2e7d32' :
-                          type.nom === 'Grande Entreprise' ? '#f57c00' :
-                          type.nom === 'Start-up' ? '#7b1fa2' :
-                          '#757575',
+                        backgroundColor: taille.nom === '51-200' ? '#fff3e0' : '#f5f5f5',
+                        color: taille.nom === '51-200' ? '#f57c00' : '#757575',
                       }}
                     />
                   </MenuItem>
@@ -438,13 +453,13 @@ const ProspectsList = () => {
 
         {/* Résumé des filtres actifs */}
         {hasActiveFilters && (
-          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            <Typography variant="body2" sx={{ mr: 1, alignSelf: 'center' }}>
+          <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="body2" sx={{ mr: 1, alignSelf: 'center', fontWeight: 500 }}>
               Filtres actifs:
             </Typography>
             {searchTerm && (
               <Chip 
-                label={`Recherche: "${searchTerm}"`} 
+                label={`🔍 "${searchTerm}"`} 
                 onDelete={() => setSearchTerm('')}
                 color="primary"
                 variant="outlined"
@@ -452,67 +467,80 @@ const ProspectsList = () => {
             )}
             {statusFilter && (
               <Chip 
-                label={`Statut: ${statusFilter}`} 
+                label={`📊 ${statusFilter}`} 
                 onDelete={() => setStatusFilter('')}
                 color="secondary"
                 variant="outlined"
               />
             )}
-            {regionFilter && (
+            {paysFilter && (
               <Chip 
-                label={`Région: ${regionFilter}`} 
-                onDelete={() => setRegionFilter('')}
+                label={`🌍 ${paysFilter}`} 
+                onDelete={() => setPaysFilter('')}
                 color="warning"
                 variant="outlined"
               />
             )}
-            {typeEntrepriseFilter && (
+            {secteurFilter && (
               <Chip 
-                label={`Type: ${typeEntrepriseFilter}`} 
-                onDelete={() => setTypeEntrepriseFilter('')}
+                label={`🏢 ${secteurFilter}`} 
+                onDelete={() => setSecteurFilter('')}
                 color="info"
+                variant="outlined"
+              />
+            )}
+            {categoriePosteFilter && (
+              <Chip 
+                label={`💼 ${categoriePosteFilter}`} 
+                onDelete={() => setCategoriePosteFilter('')}
+                color="success"
+                variant="outlined"
+              />
+            )}
+            {tailleEntrepriseFilter && (
+              <Chip 
+                label={`📏 ${tailleEntrepriseFilter}`} 
+                onDelete={() => setTailleEntrepriseFilter('')}
+                color="default"
                 variant="outlined"
               />
             )}
           </Box>
         )}
 
-        {/* Statistiques */}
-        <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Chip 
-            label={`Total: ${prospects.length}`} 
-            color="default"
-            variant="outlined"
-          />
-          <Chip 
-            label={`Affichés: ${filteredProspects.length}`} 
-            color={filteredProspects.length < prospects.length ? "primary" : "default"}
-            variant="outlined"
-          />
-        </Box>
       </Card>
 
-      <TableContainer component={Paper} sx={{ maxHeight: '70vh', overflow: 'auto' }}>
-        <Table stickyHeader>
+      <TableContainer component={Paper} sx={{ maxHeight: '80vh', overflow: 'auto', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 200 }}>Contact</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 150 }}>Entreprise</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Type d'Entreprise</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Localisation</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 150 }}>Contact</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Intérêts</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Historique</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 100 }}>Statut</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 120 }}>Étapes</TableCell>
-              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5', minWidth: 80 }}>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 200, py: 0.5, fontSize: '0.75rem' }}>
+                👤 Contact
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 180, py: 0.5, fontSize: '0.75rem' }}>
+                🏢 Entreprise
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.75rem' }}>
+                💼 Poste
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 150, py: 0.5, fontSize: '0.75rem' }}>
+                📞 Contact
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 100, py: 0.5, fontSize: '0.75rem' }}>
+                🎯 Étape
+              </TableCell>
+              <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f8f9fa', minWidth: 80, py: 0.5, fontSize: '0.75rem' }}>
+                ⚙️ Actions
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredProspects.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} align="center">
-                  {prospects.length === 0 ? 'Aucun prospect trouvé' : 'Aucun prospect ne correspond aux filtres'}
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <Typography variant="h6" color="text.secondary">
+                    {prospects.length === 0 ? '📭 Aucun contact trouvé' : '🔍 Aucun contact ne correspond aux filtres'}
+                  </Typography>
                 </TableCell>
               </TableRow>
             ) : (
@@ -528,160 +556,95 @@ const ProspectsList = () => {
                     }
                   }}
                 >
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {prospect.prenom ? `${prospect.prenom} ${prospect.nom}` : prospect.nom || '-'}
-                      </Typography>
-                      {prospect.role && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                          {prospect.role}
-                        </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {prospect.entreprise || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
-                      {prospect.type_entreprise || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      {prospect.region && (
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                          {prospect.region}
-                        </Typography>
-                      )}
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                        {prospect.ville || '-'}
+                  {/* Contact */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Avatar sx={{ bgcolor: '#4CAF50', width: 20, height: 20 }}>
+                        <PersonIcon sx={{ fontSize: 12 }} />
+                      </Avatar>
+                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', lineHeight: 1.1 }}>
+                        {prospect.nom_complet || '-'}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>
+
+                  {/* Entreprise */}
+                  <TableCell sx={{ py: 0.5 }}>
                     <Box>
-                      {prospect.email && (
-                        <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                          {prospect.email}
-                        </Typography>
-                      )}
-                      {prospect.telephone && (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                          {prospect.telephone}
-                        </Typography>
-                      )}
-                      {prospect.linkedin && (
-                        <a 
-                          href={prospect.linkedin} 
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.7rem', lineHeight: 1.1 }}>
+                        {prospect.entreprise || '-'}
+                      </Typography>
+                      {prospect.site_web && (
+                        <Link 
+                          href={prospect.site_web} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          style={{ color: '#0077b5', textDecoration: 'none', fontSize: '0.75rem' }}
+                          sx={{ fontSize: '0.65rem', color: '#1976d2', textDecoration: 'none', display: 'block', mt: 0.25, lineHeight: 1.1 }}
                         >
-                          LinkedIn
-                        </a>
+                          {prospect.site_web}
+                        </Link>
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Tooltip title={prospect.interets || 'Aucun intérêt renseigné'} placement="top">
-                      <Typography variant="body2" sx={{ 
-                        fontSize: '0.875rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: 120
-                      }}>
-                        {prospect.interets ? 
-                          (prospect.interets.length > 50 ? `${prospect.interets.substring(0, 50)}...` : prospect.interets) 
-                          : '-'
-                        }
+
+                  {/* Poste */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.7rem', lineHeight: 1.1 }}>
+                        {prospect.poste_specifique || '-'}
                       </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title={prospect.historique || 'Aucun historique renseigné'} placement="top">
-                      <Typography variant="body2" sx={{ 
-                        fontSize: '0.875rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: 120
-                      }}>
-                        {prospect.historique ? 
-                          (prospect.historique.length > 50 ? `${prospect.historique.substring(0, 50)}...` : prospect.historique) 
-                          : '-'
-                        }
-                      </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Box
-                      onClick={(e) => handleStatusClick(e, prospect.id)}
-                      sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 1,
-                        backgroundColor: 
-                          prospect.statut === 'Client' ? '#e8f5e8' :
-                          prospect.statut === 'N/A' ? '#f5f5f5' :
-                          '#fff3e0',
-                        color: 
-                          prospect.statut === 'Client' ? '#2e7d32' :
-                          prospect.statut === 'N/A' ? '#757575' :
-                          '#f57c00',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.5,
-                        '&:hover': {
-                          opacity: 0.8,
-                          transform: 'scale(1.02)'
-                        },
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {prospect.statut}
-                      <ArrowDropDownIcon sx={{ fontSize: 16 }} />
                     </Box>
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+
+
+                  {/* Contact */}
+                  <TableCell sx={{ py: 0.5 }}>
+                    <Box>
+                      {prospect.email && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, mb: 0.25 }}>
+                          <EmailIcon sx={{ fontSize: 10, color: '#4CAF50' }} />
+                          <Typography variant="body2" sx={{ fontSize: '0.65rem', lineHeight: 1.1 }}>
+                            {prospect.email}
+                          </Typography>
+                        </Box>
+                      )}
+                      {prospect.linkedin && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                          <LinkedInIcon sx={{ fontSize: 10, color: '#0077b5' }} />
+                          <Link 
+                            href={prospect.linkedin} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{ fontSize: '0.65rem', color: '#0077b5' }}
+                          >
+                            LinkedIn
+                          </Link>
+                        </Box>
+                      )}
+                    </Box>
+                  </TableCell>
+
+
+                  {/* Étape */}
+                  <TableCell sx={{ py: 0.5 }} onClick={(e) => e.stopPropagation()}>
                     <Box
                       onClick={(e) => handleActionClick(e, prospect.id)}
                       sx={{
-                        px: 2,
-                        py: 0.5,
+                        px: 1,
+                        py: 0.25,
                         borderRadius: 1,
-                        backgroundColor: 
-                          prospect.etape_suivi === 'OK' ? '#e8f5e8' :
-                          prospect.etape_suivi === 'KO' ? '#ffebee' :
-                          prospect.etape_suivi === 'entretien 1' || prospect.etape_suivi === 'entretien 2' || prospect.etape_suivi === 'entretien 3' ? '#e3f2fd' :
-                          prospect.etape_suivi === 'call effectué' ? '#fff8e1' :
-                          prospect.etape_suivi === 'email envoyé' || prospect.etape_suivi === 'linkedin envoyé' ? '#f3e5f5' :
-                          '#f5f5f5',
-                        color: 
-                          prospect.etape_suivi === 'OK' ? '#2e7d32' :
-                          prospect.etape_suivi === 'KO' ? '#c62828' :
-                          prospect.etape_suivi === 'entretien 1' || prospect.etape_suivi === 'entretien 2' || prospect.etape_suivi === 'entretien 3' ? '#1565c0' :
-                          prospect.etape_suivi === 'call effectué' ? '#f57f17' :
-                          prospect.etape_suivi === 'email envoyé' || prospect.etape_suivi === 'linkedin envoyé' ? '#7b1fa2' :
-                          '#757575',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
+                        backgroundColor: getActionColor(prospect.etape_suivi || '').bg,
+                        color: getActionColor(prospect.etape_suivi || '').color,
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
                         textAlign: 'center',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 0.5,
+                        gap: 0.25,
                         '&:hover': {
                           opacity: 0.8,
                           transform: 'scale(1.02)'
@@ -690,24 +653,40 @@ const ProspectsList = () => {
                       }}
                     >
                       {prospect.etape_suivi || 'à contacter'}
-                      <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+                      <ArrowDropDownIcon sx={{ fontSize: 12 }} />
                     </Box>
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <IconButton
-                      size="small"
-                      onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
-                      sx={{ color: '#1976d2' }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDelete(prospect.id)}
-                      sx={{ color: '#d32f2f' }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+
+                  {/* Actions */}
+                  <TableCell sx={{ py: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                    <Box sx={{ display: 'flex', gap: 0.25 }}>
+                      <Tooltip title="Modifier">
+                        <IconButton
+                          size="small"
+                          onClick={() => navigate(`/prospects/${prospect.id}/edit`)}
+                          sx={{ 
+                            color: '#1976d2',
+                            padding: 0.25,
+                            '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Supprimer">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(prospect.id)}
+                          sx={{ 
+                            color: '#d32f2f',
+                            padding: 0.25,
+                            '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
+                          }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))
@@ -716,51 +695,6 @@ const ProspectsList = () => {
         </Table>
       </TableContainer>
 
-      {/* Menu déroulant pour changer le statut */}
-      <Menu
-        anchorEl={statusMenuAnchor}
-        open={Boolean(statusMenuAnchor)}
-        onClose={handleStatusMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-      >
-                        <MenuItem onClick={() => handleStatusChange('Prospects')}>
-                  <Chip
-                    label="Prospects" 
-            size="small"
-            sx={{
-              backgroundColor: '#fff3e0',
-              color: '#f57c00',
-            }}
-          />
-        </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('N/A')}>
-          <Chip 
-            label="N/A" 
-            size="small"
-            sx={{
-              backgroundColor: '#f5f5f5',
-              color: '#757575',
-            }}
-          />
-        </MenuItem>
-        <MenuItem onClick={() => handleStatusChange('Client')}>
-          <Chip 
-            label="Client" 
-            size="small"
-            sx={{
-              backgroundColor: '#e8f5e8',
-              color: '#2e7d32',
-            }}
-          />
-        </MenuItem>
-      </Menu>
 
       {/* Menu déroulant pour changer les actions */}
       <Menu

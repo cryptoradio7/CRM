@@ -1,0 +1,82 @@
+-Email: concataine 10 emails, separe les avec ";"
+
+Nom complet 
+Entreprise 
+Catégorie de poste 	
+Poste spécifique 	
+Pays 
+Taille de l'entreprise	
+Site web	
+Secteur	MX_Record_Exists	
+Email
+
+
+Pour les listes: 
+-Catégorie de poste:
+Académique
+Administratif
+Assistance
+Audit
+Autre poste
+Communication
+Comptable/Financier
+Coach
+Direction
+Exécutif
+Fonction publique
+Founder
+Gouvernance
+Gestion
+Indépendant
+Juridique
+Médiation
+Représentation
+Recherche
+Ressources Humaines
+Responsable
+Service 
+Techniques de l'Information
+Technique
+Vente/Marketing
+
+-Taille de l'entreprise	
+1-10
+11-50
+51-200
+201-500
+501-1000
+1001-5000
+5001-10000
+10001+
+
+-Secteur:
+Administrative & Support Services
+Aerospace
+Agriculture
+Automotive
+Chemicals
+Construction
+Consumer Goods
+Consumer Services
+Education
+Energy
+Finance
+Healthcare
+Hospitality
+Manufacturing
+Media & Entertainment
+Non profit
+Organizations
+Professional Services
+Public Administration
+Real Estate
+Retail
+Technology
+Telecommunications
+Transportation
+Utilities
+Wholesale
+
+-Pays: Luxembourg, Suisse par défaut Luxembourg
+
+

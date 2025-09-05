@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Typography, 
   TextField, 
@@ -12,28 +12,12 @@ import {
   Alert,
   Divider,
   ListSubheader,
-  IconButton,
-  InputAdornment,
-  Snackbar
+  Snackbar,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-
-interface Prospect {
-  nom: string;
-  prenom?: string;
-  email?: string;
-  telephone?: string;
-  entreprise?: string;
-  typeEntreprise?: string;
-  role?: string;
-  ville: string;
-  region: string;
-  statut: string;
-  linkedin?: string;
-  interets?: string;
-  historique?: string;
-  etape_suivi?: string;
-}
+import { Prospect, CreateProspectData } from '../types';
 
 const ProspectForm = () => {
   const { id } = useParams();
@@ -41,35 +25,39 @@ const ProspectForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [typesEntreprise, setTypesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
+  const [categoriesPoste, setCategoriesPoste] = useState<Array<{id: number, nom: string}>>([]);
+  const [taillesEntreprise, setTaillesEntreprise] = useState<Array<{id: number, nom: string}>>([]);
+  const [secteurs, setSecteurs] = useState<Array<{id: number, nom: string}>>([]);
+  const [pays, setPays] = useState<Array<{id: number, nom: string}>>([]);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
     open: false,
     message: '',
     severity: 'info'
   });
   
-  const [formData, setFormData] = useState<Prospect>({
-    nom: '',
-    prenom: '',
+  const [formData, setFormData] = useState<CreateProspectData>({
+    nom_complet: '',
+    entreprise: '',
+    categorie_poste: '',
+    poste_specifique: '',
+    pays: 'Luxembourg',
+    taille_entreprise: '',
+    site_web: '',
+    secteur: '',
+    mx_record_exists: false,
     email: '',
     telephone: '',
-    entreprise: '',
-    typeEntreprise: '',
-    role: '',
-    ville: '',
-    region: '',
-    statut: 'Prospects',
     linkedin: '',
     interets: '',
     historique: '',
-    etape_suivi: ''
+    etape_suivi: 'à contacter'
   });
 
   useEffect(() => {
     if (id) {
       fetchProspect();
     }
-    fetchTypesEntreprise();
+    fetchReferenceData();
   }, [id]);
 
   const fetchProspect = async () => {
@@ -84,24 +72,51 @@ const ProspectForm = () => {
     }
   };
 
-  const fetchTypesEntreprise = async () => {
+  const fetchReferenceData = async () => {
     try {
-      const response = await fetch('http://localhost:3003/api/types-entreprise');
-      if (response.ok) {
-        const data = await response.json();
-        setTypesEntreprise(data);
+      const [categoriesRes, taillesRes, secteursRes, paysRes] = await Promise.all([
+        fetch('http://localhost:3003/api/categories-poste'),
+        fetch('http://localhost:3003/api/tailles-entreprise'),
+        fetch('http://localhost:3003/api/secteurs'),
+        fetch('http://localhost:3003/api/pays')
+      ]);
+
+      if (categoriesRes.ok) {
+        const data = await categoriesRes.json();
+        setCategoriesPoste(data);
+      }
+      if (taillesRes.ok) {
+        const data = await taillesRes.json();
+        setTaillesEntreprise(data);
+      }
+      if (secteursRes.ok) {
+        const data = await secteursRes.json();
+        setSecteurs(data);
+      }
+      if (paysRes.ok) {
+        const data = await paysRes.json();
+        setPays(data);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des types d\'entreprise:', error);
+      console.error('Erreur lors du chargement des données de référence:', error);
     }
   };
 
-  const handleChange = (field: keyof Prospect) => (
+  const handleChange = (field: keyof CreateProspectData) => (
     event: React.ChangeEvent<HTMLInputElement> | { target: { value: unknown } }
   ) => {
     setFormData({
       ...formData,
       [field]: event.target.value
+    });
+  };
+
+  const handleCheckboxChange = (field: keyof CreateProspectData) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFormData({
+      ...formData,
+      [field]: event.target.checked
     });
   };
 
@@ -112,14 +127,8 @@ const ProspectForm = () => {
     setSuccess('');
 
     // Validation des champs obligatoires
-    if (!formData.ville.trim()) {
-      setError('Le champ Ville est obligatoire');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.region.trim()) {
-      setError('Le champ Région est obligatoire');
+    if (!formData.nom_complet.trim()) {
+      setError('Le nom complet est obligatoire');
       setLoading(false);
       return;
     }
@@ -167,7 +176,7 @@ const ProspectForm = () => {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-      <Paper sx={{ p: 4, maxWidth: 500, mx: 'auto' }}>
+      <Paper sx={{ p: 4, maxWidth: 600, mx: 'auto' }}>
         <form onSubmit={handleSubmit}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* Informations personnelles */}
@@ -179,17 +188,11 @@ const ProspectForm = () => {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   fullWidth
-                  label="Nom *"
-                  value={formData.nom}
-                  onChange={handleChange('nom')}
+                  label="Nom complet *"
+                  value={formData.nom_complet}
+                  onChange={handleChange('nom_complet')}
                   required
-                />
-                
-                <TextField
-                  fullWidth
-                  label="Prénom"
-                  value={formData.prenom}
-                  onChange={handleChange('prenom')}
+                  placeholder="Ex: Jean Dupont"
                 />
                 
                 <TextField
@@ -198,6 +201,7 @@ const ProspectForm = () => {
                   type="email"
                   value={formData.email}
                   onChange={handleChange('email')}
+                  placeholder="jean.dupont@email.com"
                 />
                 
                 <TextField
@@ -205,66 +209,25 @@ const ProspectForm = () => {
                   label="Téléphone"
                   value={formData.telephone}
                   onChange={handleChange('telephone')}
+                  placeholder="+352 123 456 789"
                 />
-                
-                <FormControl fullWidth required>
-                  <InputLabel>Région *</InputLabel>
-                  <Select
-                    value={formData.region}
-                    label="Région *"
-                    onChange={handleChange('region')}
-                  >
-                    <ListSubheader>Luxembourg</ListSubheader>
-                    <MenuItem value="Centre">Centre</MenuItem>
-                    <MenuItem value="Sud">Sud</MenuItem>
-                    <MenuItem value="Nord">Nord</MenuItem>
-                    <MenuItem value="Est">Est</MenuItem>
-                    <MenuItem value="Ouest">Ouest</MenuItem>
-                    <ListSubheader>Suisse</ListSubheader>
-                    <MenuItem value="Zurich">Zurich</MenuItem>
-                    <MenuItem value="Berne">Berne</MenuItem>
-                    <MenuItem value="Lucerne">Lucerne</MenuItem>
-                    <MenuItem value="Uri">Uri</MenuItem>
-                    <MenuItem value="Schwytz">Schwytz</MenuItem>
-                    <MenuItem value="Obwald">Obwald</MenuItem>
-                    <MenuItem value="Nidwald">Nidwald</MenuItem>
-                    <MenuItem value="Glaris">Glaris</MenuItem>
-                    <MenuItem value="Zoug">Zoug</MenuItem>
-                    <MenuItem value="Fribourg">Fribourg</MenuItem>
-                    <MenuItem value="Soleure">Soleure</MenuItem>
-                    <MenuItem value="Bâle-Ville">Bâle-Ville</MenuItem>
-                    <MenuItem value="Bâle-Campagne">Bâle-Campagne</MenuItem>
-                    <MenuItem value="Schaffhouse">Schaffhouse</MenuItem>
-                    <MenuItem value="Appenzell Rhodes-Extérieures">Appenzell Rhodes-Extérieures</MenuItem>
-                    <MenuItem value="Appenzell Rhodes-Intérieures">Appenzell Rhodes-Intérieures</MenuItem>
-                    <MenuItem value="Saint-Gall">Saint-Gall</MenuItem>
-                    <MenuItem value="Grisons">Grisons</MenuItem>
-                    <MenuItem value="Argovie">Argovie</MenuItem>
-                    <MenuItem value="Thurgovie">Thurgovie</MenuItem>
-                    <MenuItem value="Tessin">Tessin</MenuItem>
-                    <MenuItem value="Vaud">Vaud</MenuItem>
-                    <MenuItem value="Valais">Valais</MenuItem>
-                    <MenuItem value="Neuchâtel">Neuchâtel</MenuItem>
-                    <MenuItem value="Genève">Genève</MenuItem>
-                    <MenuItem value="Jura">Jura</MenuItem>
-                    <ListSubheader>France</ListSubheader>
-                    <MenuItem value="Île-de-France">Île-de-France</MenuItem>
-                    <MenuItem value="Grand Est">Grand Est</MenuItem>
-                    <MenuItem value="Auvergne-Rhône-Alpes">Auvergne-Rhône-Alpes</MenuItem>
-                    <MenuItem value="Occitanie">Occitanie</MenuItem>
-                    <MenuItem value="Provence-Alpes-Côte d'Azur">Provence-Alpes-Côte d'Azur</MenuItem>
-                    <ListSubheader>Autres</ListSubheader>
-                    <MenuItem value="Autre">Autre</MenuItem>
-                  </Select>
-                </FormControl>
                 
                 <TextField
                   fullWidth
-                  label="Ville *"
-                  value={formData.ville}
-                  onChange={handleChange('ville')}
-                  placeholder="Ex: Paris, Genève, Luxembourg..."
-                  required
+                  label="Site web"
+                  value={formData.site_web}
+                  onChange={handleChange('site_web')}
+                  placeholder="https://www.entreprise.com"
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.mx_record_exists || false}
+                      onChange={handleCheckboxChange('mx_record_exists')}
+                    />
+                  }
+                  label="MX Record Exists"
                 />
               </Box>
             </Box>
@@ -283,18 +246,19 @@ const ProspectForm = () => {
                   label="Entreprise"
                   value={formData.entreprise}
                   onChange={handleChange('entreprise')}
+                  placeholder="Nom de l'entreprise"
                 />
                 
                 <FormControl fullWidth>
-                  <InputLabel>Type entreprise</InputLabel>
+                  <InputLabel>Catégorie de poste</InputLabel>
                   <Select
-                    value={formData.typeEntreprise}
-                    label="Type entreprise"
-                    onChange={handleChange('typeEntreprise')}
+                    value={formData.categorie_poste || ''}
+                    label="Catégorie de poste"
+                    onChange={handleChange('categorie_poste')}
                   >
-                    {typesEntreprise.map((type) => (
-                      <MenuItem key={type.id} value={type.nom}>
-                        {type.nom}
+                    {categoriesPoste.map((categorie) => (
+                      <MenuItem key={categorie.id} value={categorie.nom}>
+                        {categorie.nom}
                       </MenuItem>
                     ))}
                   </Select>
@@ -302,10 +266,56 @@ const ProspectForm = () => {
                 
                 <TextField
                   fullWidth
-                  label="Rôle"
-                  value={formData.role}
-                  onChange={handleChange('role')}
+                  label="Poste spécifique"
+                  value={formData.poste_specifique}
+                  onChange={handleChange('poste_specifique')}
+                  placeholder="Ex: CEO, Directeur Marketing, Développeur Senior..."
                 />
+                
+                <FormControl fullWidth>
+                  <InputLabel>Pays</InputLabel>
+                  <Select
+                    value={formData.pays || 'Luxembourg'}
+                    label="Pays"
+                    onChange={handleChange('pays')}
+                  >
+                    {pays.map((paysItem) => (
+                      <MenuItem key={paysItem.id} value={paysItem.nom}>
+                        {paysItem.nom}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth>
+                  <InputLabel>Taille de l'entreprise</InputLabel>
+                  <Select
+                    value={formData.taille_entreprise || ''}
+                    label="Taille de l'entreprise"
+                    onChange={handleChange('taille_entreprise')}
+                  >
+                    {taillesEntreprise.map((taille) => (
+                      <MenuItem key={taille.id} value={taille.nom}>
+                        {taille.nom}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                
+                <FormControl fullWidth>
+                  <InputLabel>Secteur</InputLabel>
+                  <Select
+                    value={formData.secteur || ''}
+                    label="Secteur"
+                    onChange={handleChange('secteur')}
+                  >
+                    {secteurs.map((secteur) => (
+                      <MenuItem key={secteur.id} value={secteur.nom}>
+                        {secteur.nom}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 
                 <TextField
                   fullWidth
@@ -327,23 +337,10 @@ const ProspectForm = () => {
               
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <FormControl fullWidth>
-                  <InputLabel>Statut</InputLabel>
+                  <InputLabel>Étape de suivi</InputLabel>
                   <Select
-                    value={formData.statut}
-                    label="Statut"
-                    onChange={handleChange('statut')}
-                  >
-                    <MenuItem value="Prospects">Prospects</MenuItem>
-                    <MenuItem value="Clients">Clients</MenuItem>
-                    <MenuItem value="N/A">N/A</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                <FormControl fullWidth>
-                  <InputLabel>Actions</InputLabel>
-                  <Select
-                    value={formData.etape_suivi || ''}
-                    label="Actions"
+                    value={formData.etape_suivi || 'à contacter'}
+                    label="Étape de suivi"
                     onChange={handleChange('etape_suivi')}
                   >
                     <MenuItem value="à contacter">à contacter</MenuItem>
