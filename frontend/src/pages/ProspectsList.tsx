@@ -36,10 +36,10 @@ import {
   ArrowDropDown as ArrowDropDownIcon,
   Person as PersonIcon,
   Email as EmailIcon,
-  LinkedIn as LinkedInIcon,
   Download as DownloadIcon,
   Upload as UploadIcon,
-  Phone as PhoneIcon
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { Prospect } from '../types';
@@ -48,7 +48,6 @@ import ContactModal from '../components/ContactModal';
 const ProspectsList = () => {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cacheLoaded, setCacheLoaded] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
   
   // États pour l'import CSV
@@ -110,17 +109,10 @@ const ProspectsList = () => {
   };
 
   // Fonction pour vider le cache (utile pour le debug)
-  const clearCache = () => {
-    sessionStorage.removeItem('prospects-cache');
-    sessionStorage.removeItem('categories-cache');
-    sessionStorage.removeItem('tailles-cache');
-    setCacheLoaded(false);
-    console.log('🗑️ Cache vidé');
-  };
 
-  // Fonction d'export CSV
-  const exportToCSV = () => {
-    if (filteredProspects.length === 0) {
+  // Fonction d'export CSV des résultats filtrés
+  const exportFilteredToCSV = async () => {
+    if (filteredCount === 0) {
       setSnackbar({
         open: true,
         message: 'Aucun contact à exporter',
@@ -128,6 +120,45 @@ const ProspectsList = () => {
       });
       return;
     }
+
+    try {
+      // Récupérer tous les prospects filtrés depuis l'API
+      const filterParams = new URLSearchParams();
+      
+      // Recherche textuelle combinée
+      const searchTerm = [nomCompletFilter, libellePosteFilter, nomEntrepriseFilter]
+        .filter(Boolean)
+        .join(' ');
+      if (searchTerm) {
+        filterParams.append('search', searchTerm);
+      }
+      
+      // Filtres par catégorie de poste
+      if (categoriePosteFilter.length > 0) {
+        filterParams.append('categorie_poste', categoriePosteFilter[0]);
+      }
+      
+      // Filtres par taille d'entreprise
+      if (tailleEntrepriseFilter.length > 0) {
+        filterParams.append('taille_entreprise', tailleEntrepriseFilter[0]);
+      }
+      
+      // Filtres par secteur
+      if (secteurFilter.length > 0) {
+        filterParams.append('secteur', secteurFilter[0]);
+      }
+
+      // Récupérer TOUS les résultats filtrés (pas de pagination)
+      filterParams.append('limit', '10000'); // Limite très élevée pour récupérer tous les résultats
+      filterParams.append('page', '1');
+
+      const response = await fetch(`http://localhost:3003/api/prospects/filter?${filterParams.toString()}`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des données filtrées');
+      }
+      
+      const data = await response.json();
+      const allFilteredProspects = data.prospects;
 
     // En-têtes CSV
     const headers = [
@@ -146,7 +177,7 @@ const ProspectsList = () => {
     ];
 
     // Données CSV
-    const csvData = filteredProspects.map(prospect => [
+      const csvData = allFilteredProspects.map((prospect: any) => [
       prospect.nom_complet || '',
       prospect.categorie_poste || '',
       prospect.poste_specifique || '',
@@ -164,7 +195,7 @@ const ProspectsList = () => {
     // Créer le contenu CSV
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+        ...csvData.map((row: any) => row.map((field: any) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
     // Créer et télécharger le fichier
@@ -172,7 +203,7 @@ const ProspectsList = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `contacts_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `contacts_filtres_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -180,9 +211,106 @@ const ProspectsList = () => {
 
     setSnackbar({
       open: true,
-      message: `${filteredProspects.length} contact(s) exporté(s) avec succès`,
+        message: `${allFilteredProspects.length} contact(s) filtré(s) exporté(s) avec succès`,
       severity: 'success'
     });
+    } catch (error) {
+      console.error('Erreur lors de l\'export filtré:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de l\'export des contacts filtrés',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Fonction d'export CSV de la base complète
+  const exportAllToCSV = async () => {
+    try {
+      setLoading(true);
+      
+      // Récupérer tous les prospects depuis l'API
+      const response = await fetch(`http://localhost:3003/api/prospects?limit=10000&page=1`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des données');
+      }
+      
+      const data = await response.json();
+      const allProspects = data.prospects;
+
+      if (allProspects.length === 0) {
+        setSnackbar({
+          open: true,
+          message: 'Aucun contact à exporter',
+          severity: 'warning'
+        });
+        return;
+      }
+
+      // En-têtes CSV
+      const headers = [
+        'Nom complet',
+        'Catégorie de poste',
+        'Libellé du poste',
+        'Email',
+        'LinkedIn',
+        'Entreprise', 
+        'Taille entreprise',
+        'Secteur',
+        'Étape de suivi',
+        'Intérêts',
+        'Historique',
+        'Date création'
+      ];
+
+      // Données CSV
+      const csvData = allProspects.map((prospect: any) => [
+        prospect.nom_complet || '',
+        prospect.categorie_poste || '',
+        prospect.poste_specifique || '',
+        prospect.email || '',
+        prospect.linkedin || '',
+        prospect.entreprise || '',
+        prospect.taille_entreprise || '',
+        prospect.secteur || '',
+        prospect.etape_suivi || '',
+        prospect.interets || '',
+        prospect.historique || '',
+        prospect.date_creation ? new Date(prospect.date_creation).toLocaleDateString('fr-FR') : ''
+      ]);
+
+      // Créer le contenu CSV
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map((row: any) => row.map((field: any) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `contacts_complet_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSnackbar({
+        open: true,
+        message: `${allProspects.length} contact(s) de la base complète exporté(s) avec succès`,
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'export complet:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de l\'export de la base complète',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fonction pour capitaliser chaque mot et gérer les acronymes
@@ -228,6 +356,7 @@ const ProspectsList = () => {
     fetchProspects();
     fetchReferenceData();
   }, []);
+
 
   // Charger le contenu des notes au montage (localStorage puis DB)
   useEffect(() => {
@@ -296,26 +425,13 @@ const ProspectsList = () => {
 
   const fetchProspects = async () => {
     try {
-      // Vérifier le cache d'abord
-      const cachedData = sessionStorage.getItem('prospects-cache');
-      if (cachedData) {
-        const data = JSON.parse(cachedData);
-        setProspects(data);
-        setCacheLoaded(true);
-        setLoading(false);
-        console.log('✅ Données chargées depuis le cache');
-        return;
-      }
+      setLoading(true);
 
-      console.log('🔄 Chargement depuis l\'API...');
-      const response = await fetch('http://localhost:3003/api/prospects');
+      // Charger TOUS les contacts d'un coup (pas de pagination côté serveur)
+      const response = await fetch(`http://localhost:3003/api/prospects?page=1&limit=10000`);
       if (response.ok) {
         const data = await response.json();
-        setProspects(data);
-        // Mettre en cache pour les prochaines fois
-        sessionStorage.setItem('prospects-cache', JSON.stringify(data));
-        setCacheLoaded(true);
-        console.log('✅ Données chargées depuis l\'API et mises en cache');
+        setProspects(data.prospects);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des prospects:', error);
@@ -329,18 +445,21 @@ const ProspectsList = () => {
       // Vérifier le cache pour les données de référence
       const cachedCategories = sessionStorage.getItem('categories-cache');
       const cachedTailles = sessionStorage.getItem('tailles-cache');
+      const cachedSecteurs = sessionStorage.getItem('secteurs-cache');
       
-      if (cachedCategories && cachedTailles) {
+      if (cachedCategories && cachedTailles && cachedSecteurs) {
         setCategoriesPoste(JSON.parse(cachedCategories));
         setTaillesEntreprise(JSON.parse(cachedTailles));
+        setSecteurs(JSON.parse(cachedSecteurs));
         console.log('✅ Données de référence chargées depuis le cache');
         return;
       }
 
       console.log('🔄 Chargement des données de référence depuis l\'API...');
-      const [categoriesRes, taillesRes] = await Promise.all([
+      const [categoriesRes, taillesRes, secteursRes] = await Promise.all([
         fetch('http://localhost:3003/api/categories-poste'),
-        fetch('http://localhost:3003/api/tailles-entreprise')
+        fetch('http://localhost:3003/api/tailles-entreprise'),
+        fetch('http://localhost:3003/api/secteurs')
       ]);
 
       if (categoriesRes.ok) {
@@ -352,6 +471,11 @@ const ProspectsList = () => {
         const data = await taillesRes.json();
         setTaillesEntreprise(data);
         sessionStorage.setItem('tailles-cache', JSON.stringify(data));
+      }
+      if (secteursRes.ok) {
+        const data = await secteursRes.json();
+        setSecteurs(data);
+        sessionStorage.setItem('secteurs-cache', JSON.stringify(data));
       }
       console.log('✅ Données de référence chargées depuis l\'API et mises en cache');
     } catch (error) {
@@ -422,10 +546,9 @@ const ProspectsList = () => {
   };
 
   const handleModalSuccess = () => {
-    // Invalider le cache et recharger
-    sessionStorage.removeItem('prospects-cache');
-    setCacheLoaded(false);
-    fetchProspects(); // Recharger la liste des contacts
+    // Recharger tous les contacts
+    setProspects([]);
+    fetchProspects();
   };
 
   // Fonctions d'import CSV
@@ -540,9 +663,8 @@ const ProspectsList = () => {
         severity: 'success'
       });
       
-      // Recharger la liste
-      sessionStorage.removeItem('prospects-cache');
-      setCacheLoaded(false);
+      // Recharger tous les contacts
+      setProspects([]);
       fetchProspects();
       
     } catch (error) {
@@ -592,42 +714,78 @@ const ProspectsList = () => {
     [...new Set(prospects.map(p => p.secteur).filter(Boolean))], [prospects]
   );
 
-  // Filtrage des prospects
+
+
+  // Moteur de recherche simple
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Réinitialiser la page quand on filtre
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoriePosteFilter, tailleEntrepriseFilter, secteurFilter]);
+  
+  // Filtrage complet côté client
   const filteredProspects = useMemo(() => {
-    return prospects.filter(prospect => {
-      // Recherche multicritère
-      const nomCompletMatch = !nomCompletFilter || 
-        prospect.nom_complet?.toLowerCase().includes(nomCompletFilter.toLowerCase());
-      
-      const libellePosteMatch = !libellePosteFilter || 
-        prospect.poste_specifique?.toLowerCase().includes(libellePosteFilter.toLowerCase());
-      
-      const nomEntrepriseMatch = !nomEntrepriseFilter || 
-        prospect.entreprise?.toLowerCase().includes(nomEntrepriseFilter.toLowerCase());
+    let filtered = prospects;
+    
+    // Filtre par recherche textuelle
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(prospect => 
+        prospect.nom_complet?.toLowerCase().includes(term) ||
+        prospect.entreprise?.toLowerCase().includes(term) ||
+        prospect.email?.toLowerCase().includes(term) ||
+        prospect.poste_specifique?.toLowerCase().includes(term)
+      );
+    }
+    
+    // Filtre par catégorie de poste
+    if (categoriePosteFilter.length > 0) {
+      filtered = filtered.filter(prospect => 
+        prospect.categorie_poste && categoriePosteFilter.includes(prospect.categorie_poste)
+      );
+    }
+    
+    // Filtre par taille d'entreprise
+    if (tailleEntrepriseFilter.length > 0) {
+      filtered = filtered.filter(prospect => 
+        prospect.taille_entreprise && tailleEntrepriseFilter.includes(prospect.taille_entreprise)
+      );
+    }
+    
+    // Filtre par secteur
+    if (secteurFilter.length > 0) {
+      filtered = filtered.filter(prospect => 
+        prospect.secteur && secteurFilter.includes(prospect.secteur)
+      );
+    }
+    
+    return filtered;
+  }, [prospects, searchTerm, categoriePosteFilter, tailleEntrepriseFilter, secteurFilter]);
+  
+  // Compteur pour l'affichage
+  const filteredCount = filteredProspects.length;
 
-      // Filtres par dropdowns (sélection multiple)
-      const categoriePosteMatch = categoriePosteFilter.length === 0 || categoriePosteFilter.includes(prospect.categorie_poste || '');
-      const tailleEntrepriseMatch = tailleEntrepriseFilter.length === 0 || tailleEntrepriseFilter.includes(prospect.taille_entreprise || '');
-      const secteurMatch = secteurFilter.length === 0 || secteurFilter.includes(prospect.secteur || '');
-
-
-      return nomCompletMatch && libellePosteMatch && nomEntrepriseMatch && 
-             categoriePosteMatch && tailleEntrepriseMatch && secteurMatch;
-    });
-  }, [prospects, nomCompletFilter, libellePosteFilter, nomEntrepriseFilter, 
-      categoriePosteFilter, tailleEntrepriseFilter, secteurFilter]);
-
-  const clearFilters = () => {
-    setNomCompletFilter('');
-    setLibellePosteFilter('');
-    setNomEntrepriseFilter('');
+  const clearSearch = () => {
+    setSearchTerm('');
     setCategoriePosteFilter([]);
     setTailleEntrepriseFilter([]);
     setSecteurFilter([]);
   };
 
-  const hasActiveFilters = nomCompletFilter || libellePosteFilter || nomEntrepriseFilter || 
-                          categoriePosteFilter.length > 0 || tailleEntrepriseFilter.length > 0 || secteurFilter.length > 0;
+  // Pagination simple
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  
+  const totalPages = Math.ceil(filteredProspects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProspects = filteredProspects.slice(startIndex, endIndex);
+  
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
 
 
   const getActionColor = (action: string) => {
@@ -709,10 +867,10 @@ const ProspectsList = () => {
             <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600, fontSize: '0.8rem' }}>
               🔍 Moteur de recherche
           </Typography>
-          {hasActiveFilters && (
+          {(searchTerm || categoriePosteFilter.length > 0 || tailleEntrepriseFilter.length > 0 || secteurFilter.length > 0) && (
             <Button
                 startIcon={<ClearIcon sx={{ fontSize: 14 }} />}
-              onClick={clearFilters}
+              onClick={clearSearch}
               variant="outlined"
               size="small"
               color="secondary"
@@ -723,31 +881,15 @@ const ProspectsList = () => {
           )}
         </Box>
 
-          {/* Ligne 1 - Nom complet et Nom entreprise */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
+          {/* Champ de recherche simple */}
+          <Box sx={{ mb: 1.5 }}>
             <TextField
               fullWidth
               size="small"
-              label="👤 Nom complet"
-              placeholder="Jean Dupont..."
-              value={nomCompletFilter}
-              onChange={(e) => setNomCompletFilter(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 14 }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            
-            <TextField
-              fullWidth
-                      size="small"
-              label="🏢 Nom entreprise"
-              placeholder="Société Générale..."
-              value={nomEntrepriseFilter}
-              onChange={(e) => setNomEntrepriseFilter(e.target.value)}
+              label="🔍 Rechercher (nom, entreprise, email, poste)"
+              placeholder="Tapez pour rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -1009,19 +1151,22 @@ const ProspectsList = () => {
                 📊 Export CSV
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.7rem', mb: 2 }}>
-                Exporter les contacts filtrés
+                Exporter les contacts
               </Typography>
+              
+              {/* Boutons d'export côte à côte */}
+              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+                {/* Export filtré */}
               <Button
                 variant="contained"
                 startIcon={<DownloadIcon />}
-                onClick={exportToCSV}
-                disabled={filteredProspects.length === 0}
+                  onClick={exportFilteredToCSV}
+                  disabled={filteredCount === 0}
+                  size="small"
                 sx={{
                   backgroundColor: '#4CAF50',
-                  color: 'white',
                   fontSize: '0.7rem',
-                  py: 1,
-                  px: 2,
+                    py: 0.5,
                   '&:hover': {
                     backgroundColor: '#45a049',
                   },
@@ -1031,8 +1176,34 @@ const ProspectsList = () => {
                   }
                 }}
               >
-                Exporter ({filteredProspects.length})
+                  Filtres ({filteredCount})
+                </Button>
+                
+                {/* Export complet */}
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={exportAllToCSV}
+                  disabled={loading}
+                  size="small"
+                  sx={{
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    py: 0.5,
+                    '&:hover': {
+                      backgroundColor: '#1976D2',
+                      color: 'white',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#ccc',
+                      color: '#999'
+                    }
+                  }}
+                >
+                  Base complète
               </Button>
+              </Box>
             </Box>
           </Card>
         </Box>
@@ -1215,8 +1386,9 @@ const ProspectsList = () => {
           color: '#4CAF50',
           fontSize: '0.9rem'
         }}>
-          📊 {filteredProspects.length} contact{filteredProspects.length > 1 ? 's' : ''} affiché{filteredProspects.length > 1 ? 's' : ''} sur {prospects.length} total
+          📊 {filteredCount} contact{filteredCount > 1 ? 's' : ''} filtré{filteredCount > 1 ? 's' : ''} sur {prospects.length} total
         </Typography>
+        
       </Box>
 
       {/* Barre d'actions en masse */}
@@ -1270,8 +1442,8 @@ const ProspectsList = () => {
         </Box>
       )}
 
-      {/* Indicateur de chargement optimisé */}
-      {loading && !cacheLoaded && (
+      {/* Indicateur de chargement initial */}
+      {loading && (
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'center', 
@@ -1282,13 +1454,14 @@ const ProspectsList = () => {
           borderRadius: 2
         }}>
           <Typography variant="h6" sx={{ color: '#666' }}>
-            🚀 Chargement des {prospects.length > 0 ? prospects.length : '8000'} contacts... 
-            {cacheLoaded ? ' (depuis le cache)' : ' (première fois)'}
+            🚀 Chargement des premiers contacts...
           </Typography>
         </Box>
       )}
 
-      <TableContainer component={Paper} sx={{ maxHeight: '80vh', overflow: 'auto', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', mt: 3 }}>
+
+      {!loading && (
+        <TableContainer component={Paper} sx={{ maxHeight: 'none', overflow: 'visible', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', mt: 3 }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
@@ -1327,7 +1500,7 @@ const ProspectsList = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProspects.length === 0 ? (
+            {filteredCount === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                   <Typography variant="h6" color="text.secondary">
@@ -1336,7 +1509,7 @@ const ProspectsList = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProspects.map((prospect) => (
+              currentProspects.map((prospect) => (
                 <TableRow 
                   key={prospect.id} 
                   hover
@@ -1507,6 +1680,77 @@ const ProspectsList = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
+
+      {/* Pagination */}
+      {!loading && filteredProspects.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 3, mb: 2 }}>
+          {/* Indicateur de page */}
+          <Typography variant="body2" color="text.secondary">
+            Page {currentPage} sur {totalPages} • {filteredProspects.length} contact{filteredProspects.length > 1 ? 's' : ''}
+          </Typography>
+          
+          {/* Boutons de navigation */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={currentPage === 1}
+              onClick={() => goToPage(currentPage - 1)}
+              startIcon={<ArrowBackIcon />}
+            >
+              Précédent
+            </Button>
+            
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                if (pageNum > totalPages) return null;
+                
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={pageNum === currentPage ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => goToPage(pageNum)}
+                    sx={{ minWidth: 40 }}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </Box>
+            
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={currentPage === totalPages}
+              onClick={() => goToPage(currentPage + 1)}
+              endIcon={<ArrowForwardIcon />}
+            >
+              Suivant
+            </Button>
+          </Box>
+        </Box>
+      )}
+
+      {/* Indicateur de pagination en bas */}
+      {!loading && prospects.length > 0 && (
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          py: 2,
+          mt: 2,
+          backgroundColor: '#f8f9fa',
+          borderRadius: 2,
+          border: '1px solid #e0e0e0'
+        }}>
+          <Typography variant="body2" sx={{ color: '#666', textAlign: 'center' }}>
+            📄 Tous les contacts sont chargés ({prospects.length} contacts)
+          </Typography>
+        </Box>
+      )}
 
 
       {/* Menu déroulant pour changer les actions */}

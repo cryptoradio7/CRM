@@ -34,11 +34,34 @@ app.get('/', (req, res) => {
   res.json({ message: 'API CRM Backend - Fonctionnel!' });
 });
 
-// GET - Récupérer tous les prospects
+// GET - Récupérer tous les prospects avec pagination
 app.get('/api/prospects', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM prospects ORDER BY date_creation DESC');
-    res.json(result.rows);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    
+    // Récupérer le nombre total de prospects
+    const countResult = await pool.query('SELECT COUNT(*) FROM prospects');
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Récupérer les prospects paginés
+    const result = await pool.query(
+      'SELECT * FROM prospects ORDER BY date_creation DESC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
+    
+    res.json({
+      prospects: result.rows,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page < Math.ceil(totalCount / limit),
+        hasPrevPage: page > 1
+      }
+    });
   } catch (err) {
     console.error('Erreur lors du chargement des prospects:', err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -85,6 +108,140 @@ app.get('/api/pays', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('Erreur lors du chargement des pays:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Récupérer les prospects filtrés avec pagination
+app.get('/api/prospects/filter', async (req, res) => {
+  try {
+    const { 
+      categorie_poste, 
+      taille_entreprise, 
+      secteur, 
+      pays, 
+      etape_suivi,
+      search,
+      nom_complet,
+      libelle_poste,
+      entreprise,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 20;
+    const offset = (pageNum - 1) * limitNum;
+
+    // Construire la requête SQL dynamiquement
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Filtre par catégorie de poste
+    if (categorie_poste && categorie_poste !== '') {
+      whereConditions.push(`categorie_poste = $${paramIndex}`);
+      queryParams.push(categorie_poste);
+      paramIndex++;
+    }
+
+    // Filtre par taille d'entreprise
+    if (taille_entreprise && taille_entreprise !== '') {
+      whereConditions.push(`taille_entreprise = $${paramIndex}`);
+      queryParams.push(taille_entreprise);
+      paramIndex++;
+    }
+
+    // Filtre par secteur
+    if (secteur && secteur !== '') {
+      whereConditions.push(`secteur = $${paramIndex}`);
+      queryParams.push(secteur);
+      paramIndex++;
+    }
+
+    // Filtre par pays
+    if (pays && pays !== '') {
+      whereConditions.push(`pays = $${paramIndex}`);
+      queryParams.push(pays);
+      paramIndex++;
+    }
+
+    // Filtre par étape de suivi
+    if (etape_suivi && etape_suivi !== '') {
+      whereConditions.push(`etape_suivi = $${paramIndex}`);
+      queryParams.push(etape_suivi);
+      paramIndex++;
+    }
+
+    // Filtre par nom complet spécifique
+    if (nom_complet && nom_complet !== '') {
+      whereConditions.push(`LOWER(nom_complet) LIKE LOWER($${paramIndex})`);
+      queryParams.push(`%${nom_complet}%`);
+      paramIndex++;
+    }
+
+    // Filtre par libellé de poste spécifique
+    if (libelle_poste && libelle_poste !== '') {
+      whereConditions.push(`LOWER(libelle_poste) LIKE LOWER($${paramIndex})`);
+      queryParams.push(`%${libelle_poste}%`);
+      paramIndex++;
+    }
+
+    // Filtre par entreprise spécifique
+    if (entreprise && entreprise !== '') {
+      whereConditions.push(`LOWER(entreprise) LIKE LOWER($${paramIndex})`);
+      queryParams.push(`%${entreprise}%`);
+      paramIndex++;
+    }
+
+    // Filtre par recherche textuelle globale (fallback)
+    if (search && search !== '') {
+      whereConditions.push(`(
+        LOWER(nom_complet) LIKE LOWER($${paramIndex}) OR 
+        LOWER(entreprise) LIKE LOWER($${paramIndex}) OR 
+        LOWER(email) LIKE LOWER($${paramIndex})
+      )`);
+      queryParams.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // Construire la clause WHERE
+    let whereClause = '';
+    if (whereConditions.length > 0) {
+      whereClause = ' WHERE ' + whereConditions.join(' AND ');
+    }
+
+    // Compter le total des résultats
+    const countQuery = `SELECT COUNT(*) FROM prospects${whereClause}`;
+    const countResult = await pool.query(countQuery, queryParams);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Récupérer les résultats paginés
+    const dataQuery = `SELECT * FROM prospects${whereClause} ORDER BY date_creation DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    const dataParams = [...queryParams, limitNum, offset];
+    const result = await pool.query(dataQuery, dataParams);
+    
+    res.json({
+      prospects: result.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+        hasNextPage: pageNum < Math.ceil(totalCount / limitNum),
+        hasPrevPage: pageNum > 1
+      },
+      filters: {
+        categorie_poste,
+        taille_entreprise,
+        secteur,
+        pays,
+        etape_suivi,
+        search
+      }
+    });
+  } catch (err) {
+    console.error('Erreur lors du filtrage des prospects:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -331,7 +488,7 @@ app.post('/api/notes', async (req, res) => {
   try {
     // Gérer les deux formats : JSON et FormData
     let content;
-    if (req.body.content) {
+    if (req.body && req.body.content) {
       // Format JSON
       content = req.body.content;
     } else if (req.body && typeof req.body === 'object') {
