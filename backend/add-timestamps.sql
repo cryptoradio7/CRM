@@ -147,3 +147,5 @@ FROM follow_up_stages
 UNION ALL
 SELECT 'CONTACT_NOTES', COUNT(*), COUNT(created_at), COUNT(updated_at), 0
 FROM contact_notes;
+
+

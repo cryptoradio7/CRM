@@ -58,3 +58,5 @@ SELECT 'MIGRATION_MAPPING - Table créée' as table_info,
        COUNT(*) as table_exists
 FROM information_schema.tables 
 WHERE table_name = 'migration_mapping';
+
+

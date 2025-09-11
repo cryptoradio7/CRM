@@ -735,3 +735,5 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId, onClose }) => 
 };
 
 export default CompanyDetail;
+
+

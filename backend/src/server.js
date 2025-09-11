@@ -1,55 +1,60 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { Pool } from 'pg';
-
-dotenv.config();
-
-const app = express();
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const pg_1 = require("pg");
+dotenv_1.default.config();
+const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3003;
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-const pool = new Pool({
-  user: process.env.DB_USER || 'egx',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'crm_db',
-  password: process.env.DB_PASSWORD || 'Luxembourg1978',
-  port: parseInt(process.env.DB_PORT || '5432'),
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
+app.use(express_1.default.urlencoded({ extended: true }));
+const pool = new pg_1.Pool({
+    user: process.env.DB_USER || 'egx',
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'crm_db',
+    password: process.env.DB_PASSWORD || 'Luxembourg1978',
+    port: parseInt(process.env.DB_PORT || '5432'),
 });
-
 pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Erreur de connexion à PostgreSQL:', err);
-  } else {
-    console.log('✅ Connexion à PostgreSQL réussie');
-  }
+    if (err) {
+        console.error('Erreur de connexion à PostgreSQL:', err);
+    }
+    else {
+        console.log('✅ Connexion à PostgreSQL réussie');
+    }
 });
-
 // Routes de base
 app.get('/', (req, res) => {
-  res.json({ message: 'API CRM Backend - Fonctionnel avec toutes les données!' });
+    res.json({ message: 'API CRM Backend - Fonctionnel avec toutes les données!' });
 });
-
 // =====================================================
 // API CONTACTS - VERSION COMPLÈTE
 // =====================================================
-
 // GET - Récupérer tous les contacts avec pagination et toutes les données
-app.get('/api/contacts', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
-    
-    // Récupérer le nombre total de contacts
-    const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
-    const totalCount = parseInt(countResult.rows[0].count);
-    
-    // Récupérer les contacts paginés avec toutes les données
-    const result = await pool.query(`
+app.get('/api/contacts', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+        // Récupérer le nombre total de contacts
+        const countResult = yield pool.query('SELECT COUNT(*) FROM contacts');
+        const totalCount = parseInt(countResult.rows[0].count);
+        // Récupérer les contacts paginés avec toutes les données
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COALESCE(
@@ -133,28 +138,26 @@ app.get('/api/contacts', async (req, res) => {
       ORDER BY c.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
-    
-    res.json({
-      contacts: result.rows,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors de la récupération des contacts:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        res.json({
+            contacts: result.rows,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit)
+            }
+        });
+    }
+    catch (error) {
+        console.error('Erreur lors de la récupération des contacts:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // GET - Récupérer un contact par ID avec toutes les données
-app.get('/api/contacts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await pool.query(`
+app.get('/api/contacts/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COALESCE(
@@ -244,31 +247,26 @@ app.get('/api/contacts/:id', async (req, res) => {
       WHERE c.id = $1
       GROUP BY c.id
     `, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Contact non trouvé' });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Contact non trouvé' });
+        }
+        res.json(result.rows[0]);
     }
-    
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Erreur lors de la récupération du contact:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+    catch (error) {
+        console.error('Erreur lors de la récupération du contact:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // GET - Rechercher des contacts
-app.get('/api/contacts/search', async (req, res) => {
-  try {
-    const { q, page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
-    
-    if (!q) {
-      return res.json({ contacts: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
-    }
-    
-    const searchTerm = `%${q}%`;
-    
-    const result = await pool.query(`
+app.get('/api/contacts/search', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { q, page = 1, limit = 20 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        if (!q) {
+            return res.json({ contacts: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+        }
+        const searchTerm = `%${q}%`;
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COALESCE(
@@ -295,37 +293,33 @@ app.get('/api/contacts/search', async (req, res) => {
       ORDER BY c.created_at DESC
       LIMIT $2 OFFSET $3
     `, [searchTerm, limit, offset]);
-    
-    res.json({
-      contacts: result.rows,
-      pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        total: result.rows.length,
-        pages: Math.ceil(result.rows.length / parseInt(limit as string))
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors de la recherche de contacts:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        res.json({
+            contacts: result.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: result.rows.length,
+                pages: Math.ceil(result.rows.length / parseInt(limit))
+            }
+        });
+    }
+    catch (error) {
+        console.error('Erreur lors de la recherche de contacts:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // =====================================================
 // API COMPANIES - VERSION COMPLÈTE
 // =====================================================
-
 // GET - Récupérer toutes les entreprises avec pagination
-app.get('/api/companies', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
-    
-    const countResult = await pool.query('SELECT COUNT(*) FROM companies');
-    const totalCount = parseInt(countResult.rows[0].count);
-    
-    const result = await pool.query(`
+app.get('/api/companies', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+        const countResult = yield pool.query('SELECT COUNT(*) FROM companies');
+        const totalCount = parseInt(countResult.rows[0].count);
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COUNT(e.id) as employee_count
@@ -335,28 +329,26 @@ app.get('/api/companies', async (req, res) => {
       ORDER BY c.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
-    
-    res.json({
-      companies: result.rows,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors de la récupération des entreprises:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        res.json({
+            companies: result.rows,
+            pagination: {
+                page,
+                limit,
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit)
+            }
+        });
+    }
+    catch (error) {
+        console.error('Erreur lors de la récupération des entreprises:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // GET - Récupérer une entreprise par ID
-app.get('/api/companies/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const result = await pool.query(`
+app.get('/api/companies/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COALESCE(
@@ -379,31 +371,26 @@ app.get('/api/companies/:id', async (req, res) => {
       WHERE c.id = $1
       GROUP BY c.id
     `, [id]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Entreprise non trouvée' });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Entreprise non trouvée' });
+        }
+        res.json(result.rows[0]);
     }
-    
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Erreur lors de la récupération de l\'entreprise:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+    catch (error) {
+        console.error('Erreur lors de la récupération de l\'entreprise:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // GET - Rechercher des entreprises
-app.get('/api/companies/search', async (req, res) => {
-  try {
-    const { q, page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
-    
-    if (!q) {
-      return res.json({ companies: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
-    }
-    
-    const searchTerm = `%${q}%`;
-    
-    const result = await pool.query(`
+app.get('/api/companies/search', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { q, page = 1, limit = 20 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        if (!q) {
+            return res.json({ companies: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+        }
+        const searchTerm = `%${q}%`;
+        const result = yield pool.query(`
       SELECT 
         c.*,
         COUNT(e.id) as employee_count
@@ -419,30 +406,28 @@ app.get('/api/companies/search', async (req, res) => {
       ORDER BY c.created_at DESC
       LIMIT $2 OFFSET $3
     `, [searchTerm, limit, offset]);
-    
-    res.json({
-      companies: result.rows,
-      pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        total: result.rows.length,
-        pages: Math.ceil(result.rows.length / parseInt(limit as string))
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors de la recherche d\'entreprises:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        res.json({
+            companies: result.rows,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: result.rows.length,
+                pages: Math.ceil(result.rows.length / parseInt(limit))
+            }
+        });
+    }
+    catch (error) {
+        console.error('Erreur lors de la recherche d\'entreprises:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // =====================================================
 // API EXPORT
 // =====================================================
-
 // GET - Exporter tous les contacts en CSV
-app.get('/api/contacts/export', async (req, res) => {
-  try {
-    const result = await pool.query(`
+app.get('/api/contacts/export', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const result = yield pool.query(`
       SELECT 
         full_name, headline, location, country, 
         connections_count, lead_quality_score, linkedin_url,
@@ -451,26 +436,22 @@ app.get('/api/contacts/export', async (req, res) => {
       FROM contacts
       ORDER BY created_at DESC
     `);
-    
-    // Convertir en CSV
-    const csvHeader = 'Nom,Poste,Localisation,Pays,Connexions,Score,LinkedIn,Expérience,Département,Entreprise,Secteur,Expériences,Créé\n';
-    const csvData = result.rows.map(row => 
-      `"${row.full_name || ''}","${row.headline || ''}","${row.location || ''}","${row.country || ''}",${row.connections_count || 0},${row.lead_quality_score || 0},"${row.linkedin_url || ''}",${row.years_of_experience || 0},"${row.department || ''}","${row.current_company_name || ''}","${row.current_company_industry || ''}",${row.experience_count || 0},"${row.created_at || ''}"`
-    ).join('\n');
-    
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=contacts.csv');
-    res.send(csvHeader + csvData);
-  } catch (error) {
-    console.error('Erreur lors de l\'export des contacts:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        // Convertir en CSV
+        const csvHeader = 'Nom,Poste,Localisation,Pays,Connexions,Score,LinkedIn,Expérience,Département,Entreprise,Secteur,Expériences,Créé\n';
+        const csvData = result.rows.map(row => `"${row.full_name || ''}","${row.headline || ''}","${row.location || ''}","${row.country || ''}",${row.connections_count || 0},${row.lead_quality_score || 0},"${row.linkedin_url || ''}",${row.years_of_experience || 0},"${row.department || ''}","${row.current_company_name || ''}","${row.current_company_industry || ''}",${row.experience_count || 0},"${row.created_at || ''}"`).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=contacts.csv');
+        res.send(csvHeader + csvData);
+    }
+    catch (error) {
+        console.error('Erreur lors de l\'export des contacts:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // GET - Exporter toutes les entreprises en CSV
-app.get('/api/companies/export', async (req, res) => {
-  try {
-    const result = await pool.query(`
+app.get('/api/companies/export', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const result = yield pool.query(`
       SELECT 
         company_name, company_industry, company_size, 
         headquarters_city, headquarters_country, employee_count,
@@ -478,36 +459,31 @@ app.get('/api/companies/export', async (req, res) => {
       FROM companies
       ORDER BY created_at DESC
     `);
-    
-    // Convertir en CSV
-    const csvHeader = 'Nom,Secteur,Taille,Ville,Pays,Employés,Site Web,LinkedIn,Créé\n';
-    const csvData = result.rows.map(row => 
-      `"${row.company_name || ''}","${row.company_industry || ''}","${row.company_size || ''}","${row.headquarters_city || ''}","${row.headquarters_country || ''}",${row.employee_count || 0},"${row.company_website_url || ''}","${row.company_linkedin_url || ''}","${row.created_at || ''}"`
-    ).join('\n');
-    
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=companies.csv');
-    res.send(csvHeader + csvData);
-  } catch (error) {
-    console.error('Erreur lors de l\'export des entreprises:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
+        // Convertir en CSV
+        const csvHeader = 'Nom,Secteur,Taille,Ville,Pays,Employés,Site Web,LinkedIn,Créé\n';
+        const csvData = result.rows.map(row => `"${row.company_name || ''}","${row.company_industry || ''}","${row.company_size || ''}","${row.headquarters_city || ''}","${row.headquarters_country || ''}",${row.employee_count || 0},"${row.company_website_url || ''}","${row.company_linkedin_url || ''}","${row.created_at || ''}"`).join('\n');
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=companies.csv');
+        res.send(csvHeader + csvData);
+    }
+    catch (error) {
+        console.error('Erreur lors de l\'export des entreprises:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+}));
 // =====================================================
 // DÉMARRAGE DU SERVEUR
 // =====================================================
-
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  console.log(`📊 API complète avec toutes les données Lemlist`);
-  console.log(`🔗 Endpoints disponibles:`);
-  console.log(`   - GET /api/contacts (avec pagination et toutes les données)`);
-  console.log(`   - GET /api/contacts/:id (fiche contact complète)`);
-  console.log(`   - GET /api/contacts/search (recherche avancée)`);
-  console.log(`   - GET /api/companies (avec pagination)`);
-  console.log(`   - GET /api/companies/:id (fiche entreprise complète)`);
-  console.log(`   - GET /api/companies/search (recherche avancée)`);
-  console.log(`   - GET /api/contacts/export (export CSV)`);
-  console.log(`   - GET /api/companies/export (export CSV)`);
+    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+    console.log(`📊 API complète avec toutes les données Lemlist`);
+    console.log(`🔗 Endpoints disponibles:`);
+    console.log(`   - GET /api/contacts (avec pagination et toutes les données)`);
+    console.log(`   - GET /api/contacts/:id (fiche contact complète)`);
+    console.log(`   - GET /api/contacts/search (recherche avancée)`);
+    console.log(`   - GET /api/companies (avec pagination)`);
+    console.log(`   - GET /api/companies/:id (fiche entreprise complète)`);
+    console.log(`   - GET /api/companies/search (recherche avancée)`);
+    console.log(`   - GET /api/contacts/export (export CSV)`);
+    console.log(`   - GET /api/companies/export (export CSV)`);
 });
