@@ -391,7 +391,7 @@ const ContactsList = () => {
           <Button
             variant={viewMode === 'table' ? 'contained' : 'outlined'}
             onClick={() => setViewMode('table')}
-            startIcon={<FilterListIcon />}
+            startIcon={<FilterIcon />}
           >
             Tableau
           </Button>
