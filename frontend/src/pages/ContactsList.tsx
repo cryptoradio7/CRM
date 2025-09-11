@@ -318,31 +318,41 @@ const ContactsList = () => {
     </Card>
   );
 
-  // Affichage des contacts en tableau
+  // Affichage des contacts en tableau complet
   const renderContactTable = () => (
-    <TableContainer component={Paper}>
-      <Table>
+    <TableContainer component={Paper} sx={{ maxHeight: '70vh', overflow: 'auto' }}>
+      <Table stickyHeader>
         <TableHead>
           <TableRow>
             <TableCell padding="checkbox">
               <Checkbox
-                checked={selectedContacts.length === contacts.length && contacts.length > 0}
-                indeterminate={selectedContacts.length > 0 && selectedContacts.length < contacts.length}
+                checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
+                indeterminate={selectedContacts.length > 0 && selectedContacts.length < filteredContacts.length}
                 onChange={handleSelectAll}
               />
             </TableCell>
-            <TableCell>Contact</TableCell>
-            <TableCell>Poste</TableCell>
+            <TableCell>Photo</TableCell>
+            <TableCell>Nom complet</TableCell>
+            <TableCell>Poste actuel</TableCell>
+            <TableCell>Département</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Téléphone</TableCell>
             <TableCell>Localisation</TableCell>
+            <TableCell>Pays</TableCell>
             <TableCell>Secteur</TableCell>
-            <TableCell>Étape</TableCell>
+            <TableCell>Expérience</TableCell>
+            <TableCell>Connexions</TableCell>
+            <TableCell>Score qualité</TableCell>
+            <TableCell>LinkedIn</TableCell>
+            <TableCell>Intérêts</TableCell>
+            <TableCell>Étape suivi</TableCell>
+            <TableCell>Date création</TableCell>
+            <TableCell>Dernière modif</TableCell>
             <TableCell>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {contacts.map((contact) => (
+          {filteredContacts.map((contact) => (
             <TableRow key={contact.id} hover>
               <TableCell padding="checkbox">
                 <Checkbox
@@ -351,88 +361,152 @@ const ContactsList = () => {
                 />
               </TableCell>
               <TableCell>
-                <Box display="flex" alignItems="center">
-                  <Avatar sx={{ mr: 2, width: 32, height: 32 }}>
-                    {contact.full_name.charAt(0).toUpperCase()}
+                <Avatar 
+                  src={contact.profile_picture_url} 
+                  sx={{ width: 40, height: 40 }}
+                >
+                  {contact.full_name?.charAt(0)}
                   </Avatar>
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      {contact.full_name}
-                    </Typography>
-                    {contact.linkedin_url && (
-                      <Link href={contact.linkedin_url} target="_blank" rel="noopener">
-                        <LinkedInIcon fontSize="small" />
-                      </Link>
-                    )}
-                  </Box>
-                </Box>
               </TableCell>
               <TableCell>
-                <Typography variant="body2">
-                  {contact.headline || contact.current_title_normalized || '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" noWrap>
-                  <LongTextDisplay 
-                    text={contact.email || ''}
-                    maxLength={40}
-                    variant="body2"
-                    color="textSecondary"
-                    sx={{ fontSize: '0.75rem', maxWidth: 200 }}
-                    showToggle={false}
-                  />
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {contact.full_name}
                 </Typography>
               </TableCell>
               <TableCell>
                 <Typography variant="body2">
-                  {contact.telephone || '-'}
+                  {contact.current_title_normalized || contact.headline || 'Non renseigné'}
                 </Typography>
               </TableCell>
               <TableCell>
                 <Typography variant="body2">
+                  {contact.department || 'Non renseigné'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {contact.email ? (
+                  <Link href={`mailto:${contact.email}`} color="primary" sx={{ fontSize: '0.8rem' }}>
+                    {contact.email}
+                  </Link>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                    -
+                  </Typography>
+                )}
+              </TableCell>
+              <TableCell>
+                {contact.telephone ? (
+                  <Link href={`tel:${contact.telephone}`} color="primary" sx={{ fontSize: '0.8rem' }}>
+                    {contact.telephone}
+                  </Link>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                    -
+                  </Typography>
+                )}
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                   {contact.location || '-'}
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="body2">
-                  {contact.sector || '-'}
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.country || '-'}
                 </Typography>
               </TableCell>
               <TableCell>
-                {contact.follow_up && (
                   <Chip 
-                    label={contact.follow_up} 
+                  label={contact.sector || 'Non spécifié'} 
                     size="small" 
                     color="primary" 
                     variant="outlined"
-                  />
+                  sx={{ fontSize: '0.7rem' }}
+                />
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.years_of_experience ? `${contact.years_of_experience} ans` : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.connections_count ? contact.connections_count.toLocaleString() : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.lead_quality_score ? `${contact.lead_quality_score}/100` : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                {contact.linkedin_url ? (
+                  <Link 
+                    href={contact.linkedin_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    color="primary"
+                    sx={{ fontSize: '0.8rem' }}
+                  >
+                    LinkedIn
+                  </Link>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                    -
+                  </Typography>
                 )}
               </TableCell>
               <TableCell>
-                <Box display="flex" gap={1}>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {contact.interests || '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Chip 
+                  label={contact.follow_up || 'À contacter'} 
+                  size="small" 
+                  color="default" 
+                  variant="outlined"
+                  sx={{ fontSize: '0.7rem' }}
+                />
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.created_at ? new Date(contact.created_at).toLocaleDateString('fr-FR') : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                  {contact.updated_at ? new Date(contact.updated_at).toLocaleDateString('fr-FR') : '-'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Box display="flex" gap={0.5}>
                   <Tooltip title="Voir">
                     <IconButton 
                       size="small"
                       onClick={() => navigate(`/contacts/${contact.id}`)}
+                      sx={{ p: 0.5 }}
                     >
-                      <ViewIcon />
+                      <ViewIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Modifier">
                     <IconButton 
                       size="small"
                       onClick={() => navigate(`/contacts/${contact.id}/edit`)}
+                      sx={{ p: 0.5 }}
                     >
-                      <EditIcon />
+                      <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Notes">
                     <IconButton 
                       size="small"
                       onClick={() => navigate(`/contacts/${contact.id}/notes`)}
+                      sx={{ p: 0.5 }}
                     >
-                      <NotesIcon />
+                      <NotesIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Box>
@@ -486,25 +560,25 @@ const ContactsList = () => {
             </Box>
             
             {/* Recherche globale */}
-            <TextField
-              fullWidth
+        <TextField
+          fullWidth
               placeholder="Tapez pour rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+            endAdornment: searchTerm && (
+              <InputAdornment position="end">
                     <IconButton onClick={() => setSearchTerm('')} size="small">
-                      <ClearIcon />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
+                  <ClearIcon />
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
               sx={{ mb: 2 }}
             />
 
