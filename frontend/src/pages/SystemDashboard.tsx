@@ -186,11 +186,38 @@ const SystemDashboard = () => {
       method: 'GET',
       path: '/api/prospects',
       fullUrl: 'http://localhost:3003/api/prospects',
-      description: 'Récupérer tous les prospects avec tri par date de création',
-      response: 'Array<Prospect> - Liste complète des prospects',
-      exampleRequest: 'curl http://localhost:3003/api/prospects',
-      exampleResponse: '[{"id":1,"nom":"Dupont","prenom":"Jean","email":"jean@email.com",...}]',
-      useCase: 'Charger la liste complète des prospects dans l\'interface'
+      description: 'Récupérer tous les prospects avec pagination et tri par date de création',
+      parameters: [
+        'page (optional) - Numéro de page (défaut: 1)',
+        'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
+      ],
+      response: 'Object avec prospects[] et pagination{} - Liste paginée des prospects',
+      exampleRequest: 'curl "http://localhost:3003/api/prospects?page=1&limit=20"',
+      exampleResponse: '{"prospects":[{"id":1,"nom":"Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":50,"totalPages":3}}',
+      useCase: 'Charger la liste paginée des prospects dans l\'interface'
+    },
+    {
+      method: 'GET',
+      path: '/api/prospects/filter',
+      fullUrl: 'http://localhost:3003/api/prospects/filter',
+      description: 'Filtrer les prospects avec critères multiples et pagination avancée',
+      parameters: [
+        'categorie_poste (optional) - Filtrer par catégorie de poste',
+        'taille_entreprise (optional) - Filtrer par taille d\'entreprise',
+        'secteur (optional) - Filtrer par secteur d\'activité',
+        'pays (optional) - Filtrer par pays',
+        'etape_suivi (optional) - Filtrer par étape de suivi',
+        'search (optional) - Recherche textuelle globale (nom, entreprise, email)',
+        'nom_complet (optional) - Recherche spécifique par nom complet',
+        'libelle_poste (optional) - Recherche par libellé de poste',
+        'entreprise (optional) - Recherche par entreprise',
+        'page (optional) - Numéro de page (défaut: 1)',
+        'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
+      ],
+      response: 'Object avec prospects[], pagination{} et filters{} - Résultats filtrés et paginés',
+      exampleRequest: 'curl "http://localhost:3003/api/prospects/filter?categorie_poste=Directeur&taille_entreprise=PME&search=tech"',
+      exampleResponse: '{"prospects":[{"id":1,"nom":"Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":5},"filters":{"categorie_poste":"Directeur","taille_entreprise":"PME","search":"tech"}}',
+      useCase: 'Filtrage avancé des prospects avec critères multiples et recherche textuelle'
     },
     {
       method: 'GET',
@@ -678,6 +705,12 @@ ORDER BY date_creation ASC;`,
               </Typography>
             </Alert>
 
+            <Alert severity="success" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>🆕 Nouveau :</strong> API de filtrage avancée `/api/prospects/filter` avec 10+ paramètres de recherche et pagination intelligente
+              </Typography>
+            </Alert>
+
             <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
               {apiEndpoints.map((endpoint, index) => (
                 <Accordion key={index} sx={{ mb: 1 }}>
@@ -933,6 +966,88 @@ ORDER BY date_creation ASC;`,
             </CardContent>
           </Card>
         </Box>
+
+        {/* Nouvelles Fonctionnalités */}
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#4CAF50' }}>
+                🆕 Nouvelles Fonctionnalités - API de Filtrage Avancée
+              </Typography>
+            </Box>
+
+            <Alert severity="success" sx={{ mb: 3 }}>
+              <Typography variant="body1">
+                <strong>Filtrage Multi-Critères :</strong> La nouvelle API `/api/prospects/filter` permet de filtrer les prospects selon 10+ critères différents avec pagination intelligente.
+              </Typography>
+            </Alert>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 2, mb: 3 }}>
+              <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: '#4CAF50' }}>
+                  🔍 Recherche Textuelle
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>search</strong> - Recherche globale (nom, entreprise, email)
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>nom_complet</strong> - Recherche par nom complet
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>entreprise</strong> - Recherche par entreprise
+                </Typography>
+                <Typography variant="body2">
+                  • <strong>libelle_poste</strong> - Recherche par poste
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: '#4CAF50' }}>
+                  🏢 Filtres Entreprise
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>categorie_poste</strong> - Directeur, Manager, etc.
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>taille_entreprise</strong> - PME, Startup, Grand Groupe
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>secteur</strong> - Technologie, Finance, etc.
+                </Typography>
+                <Typography variant="body2">
+                  • <strong>pays</strong> - Luxembourg, France, etc.
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: '#4CAF50' }}>
+                  📊 Gestion & Pagination
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>etape_suivi</strong> - À contacter, OK, etc.
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>page</strong> - Numéro de page (défaut: 1)
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  • <strong>limit</strong> - Éléments par page (défaut: 20)
+                </Typography>
+                <Typography variant="body2">
+                  • <strong>Réponse</strong> - prospects[], pagination{}, filters{}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ backgroundColor: '#f5f5f5', p: 2, borderRadius: 1, mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                <strong>Exemple d'utilisation :</strong>
+              </Typography>
+              <Box sx={{ fontFamily: 'monospace', fontSize: '0.8rem', backgroundColor: '#fff', p: 1, borderRadius: 0.5 }}>
+                curl "http://localhost:3003/api/prospects/filter?categorie_poste=Directeur&taille_entreprise=PME&search=tech&page=1&limit=10"
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
 
         {/* System Information */}
         <Card>
