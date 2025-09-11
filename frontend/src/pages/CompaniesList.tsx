@@ -182,7 +182,8 @@ const CompaniesList = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const formatEmployeeCount = (count: number) => {
+  const formatEmployeeCount = (count: number | null) => {
+    if (count === null || count === undefined) return 'Non spécifié';
     if (count === 0) return 'Non spécifié';
     if (count < 1000) return count.toString();
     if (count < 1000000) return `${(count / 1000).toFixed(1)}K`;
