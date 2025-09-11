@@ -22,7 +22,8 @@ import {
   ListItemText,
   ListItemIcon,
   TextField,
-  IconButton
+  IconButton,
+  Stack
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -31,7 +32,9 @@ import {
   Code as CodeIcon,
   Speed as SpeedIcon,
   Visibility as ViewIcon,
-  ContentCopy as CopyIcon
+  ContentCopy as CopyIcon,
+  Build as BuildIcon,
+  DataObject as DataObjectIcon
 } from '@mui/icons-material';
 
 interface DatabaseColumn {
@@ -61,8 +64,8 @@ const SystemDashboard = () => {
     navigator.clipboard.writeText(text);
   };
 
-  // Database schema definition
-  const databaseColumns: DatabaseColumn[] = [
+  // Database schema definition - Table principale prospects
+  const prospectsColumns: DatabaseColumn[] = [
     {
       name: 'id',
       type: 'SERIAL PRIMARY KEY',
@@ -71,18 +74,67 @@ const SystemDashboard = () => {
       description: 'Identifiant unique du prospect'
     },
     {
-      name: 'nom',
+      name: 'nom_complet',
       type: 'VARCHAR(255)',
       nullable: false,
       default: null,
-      description: 'Nom de famille du prospect'
+      description: 'Nom complet du prospect (nom + prénom)'
     },
     {
-      name: 'prenom',
+      name: 'entreprise',
       type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Prénom du prospect'
+      description: 'Nom de l\'entreprise'
+    },
+    {
+      name: 'categorie_poste',
+      type: 'VARCHAR(100)',
+      nullable: true,
+      default: null,
+      description: 'Catégorie de poste (Direction, Comptable/Financier, etc.)'
+    },
+    {
+      name: 'poste_specifique',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Poste spécifique occupé'
+    },
+    {
+      name: 'pays',
+      type: 'VARCHAR(100)',
+      nullable: true,
+      default: "'Luxembourg'",
+      description: 'Pays du prospect'
+    },
+    {
+      name: 'taille_entreprise',
+      type: 'VARCHAR(50)',
+      nullable: true,
+      default: null,
+      description: 'Taille de l\'entreprise (1-10, 11-50, etc.)'
+    },
+    {
+      name: 'site_web',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Site web de l\'entreprise'
+    },
+    {
+      name: 'secteur',
+      type: 'VARCHAR(100)',
+      nullable: true,
+      default: null,
+      description: 'Secteur d\'activité de l\'entreprise'
+    },
+    {
+      name: 'mx_record_exists',
+      type: 'BOOLEAN',
+      nullable: true,
+      default: 'false',
+      description: 'Vérification de l\'existence du MX record email'
     },
     {
       name: 'email',
@@ -97,48 +149,6 @@ const SystemDashboard = () => {
       nullable: true,
       default: null,
       description: 'Numéro de téléphone'
-    },
-    {
-      name: 'entreprise',
-      type: 'VARCHAR(255)',
-      nullable: true,
-      default: null,
-      description: 'Nom de l\'entreprise'
-    },
-    {
-      name: 'role',
-      type: 'VARCHAR(255)',
-      nullable: true,
-      default: null,
-      description: 'Poste occupé dans l\'entreprise'
-    },
-    {
-      name: 'ville',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: null,
-      description: 'Ville de résidence'
-    },
-    {
-      name: 'region',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: null,
-      description: 'Région (calculée automatiquement)'
-    },
-    {
-      name: 'type_entreprise',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: null,
-      description: 'Type d\'entreprise (PME, Startup, etc.)'
-    },
-    {
-      name: 'etape_suivi',
-      type: 'VARCHAR(32)',
-      nullable: true,
-      default: "'à contacter'",
-      description: 'Étape de suivi actuelle'
     },
     {
       name: 'linkedin',
@@ -162,11 +172,71 @@ const SystemDashboard = () => {
       description: 'Historique des interactions'
     },
     {
+      name: 'statut',
+      type: 'VARCHAR(100)',
+      nullable: true,
+      default: "'Prospect à contacter'",
+      description: 'Statut du prospect'
+    },
+    {
+      name: 'etape_suivi',
+      type: 'VARCHAR(32)',
+      nullable: true,
+      default: "'à contacter'",
+      description: 'Étape de suivi actuelle'
+    },
+    {
       name: 'date_creation',
       type: 'TIMESTAMP',
       nullable: true,
       default: 'CURRENT_TIMESTAMP',
       description: 'Date de création du prospect'
+    },
+    {
+      name: 'date_modification',
+      type: 'TIMESTAMP',
+      nullable: true,
+      default: 'CURRENT_TIMESTAMP',
+      description: 'Date de dernière modification (mise à jour automatique)'
+    }
+  ];
+
+  // Tables de référence
+  const referenceTables = [
+    {
+      name: 'categories_poste',
+      description: 'Catégories de poste disponibles',
+      columns: ['id', 'nom', 'actif'],
+      count: 22,
+      examples: ['Direction', 'Comptable/Financier', 'Founder', 'Technique']
+    },
+    {
+      name: 'tailles_entreprise',
+      description: 'Tailles d\'entreprise standardisées',
+      columns: ['id', 'nom', 'actif'],
+      count: 8,
+      examples: ['1-10', '11-50', '51-200', '201-500']
+    },
+    {
+      name: 'secteurs',
+      description: 'Secteurs d\'activité économiques',
+      columns: ['id', 'nom', 'actif'],
+      count: 25,
+      examples: ['Technology', 'Finance', 'Healthcare', 'Education']
+    },
+    {
+      name: 'pays',
+      description: 'Pays disponibles pour les prospects',
+      columns: ['id', 'nom', 'actif'],
+      count: 2,
+      examples: ['Luxembourg', 'Suisse']
+    },
+    {
+      name: 'notes',
+      description: 'Système de bloc notes hybride',
+      columns: ['id', 'content', 'created_at', 'updated_at'],
+      count: 1,
+      examples: ['Contenu HTML du bloc notes']
     }
   ];
 
@@ -193,7 +263,7 @@ const SystemDashboard = () => {
       ],
       response: 'Object avec prospects[] et pagination{} - Liste paginée des prospects',
       exampleRequest: 'curl "http://localhost:3003/api/prospects?page=1&limit=20"',
-      exampleResponse: '{"prospects":[{"id":1,"nom":"Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":50,"totalPages":3}}',
+      exampleResponse: '{"prospects":[{"id":1,"nom_complet":"Jean Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":50,"totalPages":3}}',
       useCase: 'Charger la liste paginée des prospects dans l\'interface'
     },
     {
@@ -207,16 +277,16 @@ const SystemDashboard = () => {
         'secteur (optional) - Filtrer par secteur d\'activité',
         'pays (optional) - Filtrer par pays',
         'etape_suivi (optional) - Filtrer par étape de suivi',
-        'search (optional) - Recherche textuelle globale (nom, entreprise, email)',
+        'search (optional) - Recherche textuelle globale (nom_complet, entreprise, email)',
         'nom_complet (optional) - Recherche spécifique par nom complet',
-        'libelle_poste (optional) - Recherche par libellé de poste',
+        'poste_specifique (optional) - Recherche par poste spécifique',
         'entreprise (optional) - Recherche par entreprise',
         'page (optional) - Numéro de page (défaut: 1)',
         'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
       ],
       response: 'Object avec prospects[], pagination{} et filters{} - Résultats filtrés et paginés',
-      exampleRequest: 'curl "http://localhost:3003/api/prospects/filter?categorie_poste=Directeur&taille_entreprise=PME&search=tech"',
-      exampleResponse: '{"prospects":[{"id":1,"nom":"Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":5},"filters":{"categorie_poste":"Directeur","taille_entreprise":"PME","search":"tech"}}',
+      exampleRequest: 'curl "http://localhost:3003/api/prospects/filter?categorie_poste=Direction&taille_entreprise=51-200&search=tech"',
+      exampleResponse: '{"prospects":[{"id":1,"nom_complet":"Jean Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":5},"filters":{"categorie_poste":"Direction","taille_entreprise":"51-200","search":"tech"}}',
       useCase: 'Filtrage avancé des prospects avec critères multiples et recherche textuelle'
     },
     {
@@ -227,7 +297,7 @@ const SystemDashboard = () => {
       parameters: ['id (number) - ID unique du prospect'],
       response: 'Prospect | 404 si non trouvé',
       exampleRequest: 'curl http://localhost:3003/api/prospects/1',
-      exampleResponse: '{"id":1,"nom":"Dupont","prenom":"Jean",...}',
+      exampleResponse: '{"id":1,"nom_complet":"Jean Dupont","entreprise":"TechCorp",...}',
       useCase: 'Afficher les détails d\'un prospect pour édition'
     },
     {
@@ -236,25 +306,42 @@ const SystemDashboard = () => {
       fullUrl: 'http://localhost:3003/api/prospects',
       description: 'Créer un nouveau prospect en base de données',
       parameters: [
-        'nom (required) - Nom de famille',
-        'prenom (optional) - Prénom',
+        'nom_complet (required) - Nom complet du prospect',
+        'entreprise (optional) - Nom de l\'entreprise',
+        'categorie_poste (optional) - Catégorie de poste',
+        'poste_specifique (optional) - Poste spécifique',
+        'pays (optional) - Pays (défaut: Luxembourg)',
+        'taille_entreprise (optional) - Taille de l\'entreprise',
+        'site_web (optional) - Site web de l\'entreprise',
+        'secteur (optional) - Secteur d\'activité',
         'email (optional) - Adresse email',
         'telephone (optional) - Numéro de téléphone',
-        'entreprise (optional) - Nom de l\'entreprise',
-        'typeEntreprise (optional) - Type d\'entreprise',
-        'role (optional) - Poste occupé',
-        'ville (optional) - Ville de résidence',
         'linkedin (optional) - URL LinkedIn',
         'interets (optional) - Centres d\'intérêt',
         'historique (optional) - Historique des interactions',
-        'etapeSuivi (optional) - Étape de suivi actuelle'
+        'etape_suivi (optional) - Étape de suivi (défaut: à contacter)'
       ],
-      response: 'Prospect (201) | 400 si nom manquant | 500 en cas d\'erreur',
+      response: 'Prospect (201) | 400 si nom_complet manquant | 500 en cas d\'erreur',
       exampleRequest: `curl -X POST http://localhost:3003/api/prospects \\
   -H "Content-Type: application/json" \\
-  -d '{"nom":"Dupont","prenom":"Jean","email":"jean@email.com"}'`,
-      exampleResponse: '{"id":10,"nom":"Dupont","prenom":"Jean","email":"jean@email.com",...}',
+  -d '{"nom_complet":"Jean Dupont","entreprise":"TechCorp","categorie_poste":"Direction"}'`,
+      exampleResponse: '{"id":10,"nom_complet":"Jean Dupont","entreprise":"TechCorp",...}',
       useCase: 'Ajouter un nouveau prospect via le formulaire'
+    },
+    {
+      method: 'POST',
+      path: '/api/prospects/bulk',
+      fullUrl: 'http://localhost:3003/api/prospects/bulk',
+      description: 'Import en lot de prospects (transaction atomique)',
+      parameters: [
+        'Array de prospects - Tableau d\'objets prospect à importer'
+      ],
+      response: '{ "message": "X prospects importés avec succès", "count": number, "prospects": Array }',
+      exampleRequest: `curl -X POST http://localhost:3003/api/prospects/bulk \\
+  -H "Content-Type: application/json" \\
+  -d '[{"nom_complet":"Jean Dupont","entreprise":"TechCorp"}]'`,
+      exampleResponse: '{"message":"1 prospects importés avec succès","count":1,"prospects":[...]}',
+      useCase: 'Import massif de prospects depuis un fichier CSV ou Excel'
     },
     {
       method: 'PUT',
@@ -265,8 +352,8 @@ const SystemDashboard = () => {
       response: 'Prospect mis à jour | 404 si non trouvé | 500 en cas d\'erreur',
       exampleRequest: `curl -X PUT http://localhost:3003/api/prospects/1 \\
   -H "Content-Type: application/json" \\
-  -d '{"nom":"Dupont","prenom":"Jean-Pierre","etape_suivi":"OK"}'`,
-      exampleResponse: '{"id":1,"nom":"Dupont","prenom":"Jean-Pierre","etape_suivi":"OK",...}',
+  -d '{"nom_complet":"Jean-Pierre Dupont","etape_suivi":"en cours"}'`,
+      exampleResponse: '{"id":1,"nom_complet":"Jean-Pierre Dupont","etape_suivi":"en cours",...}',
       useCase: 'Modifier les informations d\'un prospect existant'
     },
     {
@@ -282,33 +369,43 @@ const SystemDashboard = () => {
     },
     {
       method: 'GET',
-      path: '/api/dashboard/stats',
-      fullUrl: 'http://localhost:3003/api/dashboard/stats',
-      description: 'Récupérer les statistiques complètes pour le dashboard',
-      response: 'DashboardStats - Métriques, répartitions et tendances',
-      exampleRequest: 'curl http://localhost:3003/api/dashboard/stats',
-      exampleResponse: '{"metrics":{"totalProspects":25,"activeProspects":15,...},"statusDistribution":[...]}',
-      useCase: 'Alimenter le dashboard avec les statistiques en temps réel'
+      path: '/api/categories-poste',
+      fullUrl: 'http://localhost:3003/api/categories-poste',
+      description: 'Récupérer les catégories de poste disponibles',
+      response: 'Array<CategoriePoste> - Liste des catégories actives',
+      exampleRequest: 'curl http://localhost:3003/api/categories-poste',
+      exampleResponse: '[{"id":1,"nom":"Direction","actif":true},{"id":2,"nom":"Comptable/Financier","actif":true}]',
+      useCase: 'Peupler les options du formulaire de filtrage'
     },
     {
       method: 'GET',
-      path: '/api/types-entreprise',
-      fullUrl: 'http://localhost:3003/api/types-entreprise',
-      description: 'Récupérer la liste des types d\'entreprise disponibles',
-      response: 'Array<TypeEntreprise> - Liste des types d\'entreprise actifs',
-      exampleRequest: 'curl http://localhost:3003/api/types-entreprise',
-      exampleResponse: '[{"id":1,"nom":"PME","actif":true},{"id":2,"nom":"Startup","actif":true}]',
-      useCase: 'Peupler les options du formulaire de création de prospect'
+      path: '/api/tailles-entreprise',
+      fullUrl: 'http://localhost:3003/api/tailles-entreprise',
+      description: 'Récupérer les tailles d\'entreprise disponibles',
+      response: 'Array<TailleEntreprise> - Liste des tailles actives',
+      exampleRequest: 'curl http://localhost:3003/api/tailles-entreprise',
+      exampleResponse: '[{"id":1,"nom":"1-10","actif":true},{"id":2,"nom":"11-50","actif":true}]',
+      useCase: 'Peupler les options du formulaire de filtrage'
     },
     {
-      method: 'POST',
-      path: '/api/fix-database',
-      fullUrl: 'http://localhost:3003/api/fix-database',
-      description: 'Corriger et optimiser la base de données (endpoint temporaire)',
-      response: '{ "message": "Base de données corrigée avec succès", "data": Array<Prospect> }',
-      exampleRequest: 'curl -X POST http://localhost:3003/api/fix-database',
-      exampleResponse: '{"message":"Base de données corrigée avec succès","data":[...]}',
-      useCase: 'Maintenance et correction des données en cas de problème'
+      method: 'GET',
+      path: '/api/secteurs',
+      fullUrl: 'http://localhost:3003/api/secteurs',
+      description: 'Récupérer les secteurs d\'activité disponibles',
+      response: 'Array<Secteur> - Liste des secteurs actifs',
+      exampleRequest: 'curl http://localhost:3003/api/secteurs',
+      exampleResponse: '[{"id":1,"nom":"Technology","actif":true},{"id":2,"nom":"Finance","actif":true}]',
+      useCase: 'Peupler les options du formulaire de filtrage'
+    },
+    {
+      method: 'GET',
+      path: '/api/pays',
+      fullUrl: 'http://localhost:3003/api/pays',
+      description: 'Récupérer les pays disponibles',
+      response: 'Array<Pays> - Liste des pays actifs',
+      exampleRequest: 'curl http://localhost:3003/api/pays',
+      exampleResponse: '[{"id":1,"nom":"Luxembourg","actif":true},{"id":2,"nom":"Suisse","actif":true}]',
+      useCase: 'Peupler les options du formulaire de filtrage'
     },
     {
       method: 'GET',
@@ -317,7 +414,7 @@ const SystemDashboard = () => {
       description: 'Récupérer le contenu du bloc notes depuis la base de données',
       response: '{ "content": "string" } - Contenu HTML du bloc notes',
       exampleRequest: 'curl http://localhost:3003/api/notes',
-      exampleResponse: '{"content":"<span style=\\"font-size: 12.8px;\\">je suis tres heureux car cela marche</span>"}',
+      exampleResponse: '{"content":"<span style=\\"font-size: 12.8px;\\">Contenu du bloc notes</span>"}',
       useCase: 'Synchronisation du bloc notes au chargement de la page'
     },
     {
@@ -334,57 +431,132 @@ const SystemDashboard = () => {
   -d '{"content":"<span style=\\"font-size: 12.8px;\\">Nouveau contenu du bloc notes</span>"}'`,
       exampleResponse: '{"success":true}',
       useCase: 'Sauvegarde automatique du bloc notes (système hybride localStorage + DB)'
+    },
+    {
+      method: 'POST',
+      path: '/api/fix-database',
+      fullUrl: 'http://localhost:3003/api/fix-database',
+      description: 'Vérifier et corriger la base de données (endpoint de maintenance)',
+      response: '{ "message": "Base de données vérifiée avec succès", "data": Array<Prospect> }',
+      exampleRequest: 'curl -X POST http://localhost:3003/api/fix-database',
+      exampleResponse: '{"message":"Base de données vérifiée avec succès","data":[...]}',
+      useCase: 'Maintenance et vérification des données en cas de problème'
     }
   ];
 
   // Database views with detailed explanations
   const databaseViews = [
     {
-      name: 'v_prospects_par_region',
-      description: 'Vue des prospects groupés par région avec compteurs automatiques',
-      detailedDescription: 'Cette vue calcule automatiquement le nombre total de prospects par région, ainsi que la répartition entre contacts conclus et à contacter. Elle est utilisée pour alimenter les graphiques du dashboard et fournir des statistiques géographiques en temps réel.',
-      columns: ['region', 'nombre_prospects', 'conclus', 'a_contacter'],
-      sqlQuery: `CREATE OR REPLACE VIEW v_prospects_par_region AS
-SELECT region, COUNT(*) as nombre_prospects, 
-       COUNT(CASE WHEN etape_suivi = 'OK' THEN 1 END) as conclus,
-       COUNT(CASE WHEN etape_suivi = 'à contacter' THEN 1 END) as a_contacter
-FROM prospects 
-GROUP BY region 
+      name: 'v_prospects_par_pays',
+      description: 'Vue des prospects groupés par pays avec compteurs automatiques',
+      detailedDescription: 'Cette vue calcule automatiquement le nombre total de prospects par pays, ainsi que la répartition entre clients et prospects à contacter. Elle est utilisée pour alimenter les graphiques du dashboard et fournir des statistiques géographiques en temps réel.',
+      columns: ['pays', 'nombre_prospects', 'clients', 'prospects'],
+      sqlQuery: `CREATE OR REPLACE VIEW v_prospects_par_pays AS
+SELECT pays, COUNT(*) as nombre_prospects,
+       COUNT(CASE WHEN statut = 'Client' THEN 1 END) as clients,
+       COUNT(CASE WHEN statut = 'Prospect à contacter' THEN 1 END) as prospects
+FROM prospects
+GROUP BY pays
 ORDER BY nombre_prospects DESC;`,
-      useCase: 'Dashboard - Statistiques géographiques, rapports régionaux, analyse de répartition',
-      performance: 'Optimisé avec index sur la colonne region'
+      useCase: 'Dashboard - Statistiques géographiques, rapports par pays, analyse de répartition',
+      performance: 'Optimisé avec index sur la colonne pays'
+    },
+    {
+      name: 'v_prospects_par_secteur',
+      description: 'Vue des prospects groupés par secteur d\'activité',
+      detailedDescription: 'Cette vue fournit une analyse sectorielle des prospects avec comptage automatique des clients et prospects par secteur. Idéale pour l\'analyse de marché et la segmentation commerciale.',
+      columns: ['secteur', 'nombre_prospects', 'clients', 'prospects'],
+      sqlQuery: `CREATE OR REPLACE VIEW v_prospects_par_secteur AS
+SELECT secteur, COUNT(*) as nombre_prospects,
+       COUNT(CASE WHEN statut = 'Client' THEN 1 END) as clients,
+       COUNT(CASE WHEN statut = 'Prospect à contacter' THEN 1 END) as prospects
+FROM prospects
+WHERE secteur IS NOT NULL
+GROUP BY secteur
+ORDER BY nombre_prospects DESC;`,
+      useCase: 'Analyse sectorielle, segmentation commerciale, rapports de marché',
+      performance: 'Optimisé avec index sur la colonne secteur'
+    },
+    {
+      name: 'v_prospects_par_taille_entreprise',
+      description: 'Vue des prospects groupés par taille d\'entreprise',
+      detailedDescription: 'Cette vue analyse la répartition des prospects selon la taille de leur entreprise, permettant d\'identifier les segments de marché les plus représentés.',
+      columns: ['taille_entreprise', 'nombre_prospects', 'clients', 'prospects'],
+      sqlQuery: `CREATE OR REPLACE VIEW v_prospects_par_taille_entreprise AS
+SELECT taille_entreprise, COUNT(*) as nombre_prospects,
+       COUNT(CASE WHEN statut = 'Client' THEN 1 END) as clients,
+       COUNT(CASE WHEN statut = 'Prospect à contacter' THEN 1 END) as prospects
+FROM prospects
+WHERE taille_entreprise IS NOT NULL
+GROUP BY taille_entreprise
+ORDER BY nombre_prospects DESC;`,
+      useCase: 'Analyse de segments, ciblage commercial, rapports de taille d\'entreprise',
+      performance: 'Optimisé avec index sur la colonne taille_entreprise'
     },
     {
       name: 'v_prospects_a_contacter',
       description: 'Vue des prospects à contacter triés par priorité',
       detailedDescription: 'Cette vue filtre automatiquement les prospects ayant l\'étape "à contacter" et les trie par date de création (plus anciens en premier). Elle fournit une liste prête à l\'emploi pour le suivi commercial.',
-      columns: ['id', 'nom', 'prenom', 'email', 'telephone', 'entreprise', 'ville', 'region', 'date_creation'],
+      columns: ['id', 'nom_complet', 'entreprise', 'categorie_poste', 'poste_specifique', 'pays', 'taille_entreprise', 'secteur', 'email', 'telephone', 'date_creation'],
       sqlQuery: `CREATE OR REPLACE VIEW v_prospects_a_contacter AS
-SELECT id, nom, prenom, email, telephone, entreprise, ville, region, date_creation
-FROM prospects 
-WHERE etape_suivi = 'à contacter' 
+SELECT id, nom_complet, entreprise, categorie_poste, poste_specifique, 
+       pays, taille_entreprise, secteur, email, telephone, date_creation
+FROM prospects
+WHERE statut = 'Prospect à contacter'
 ORDER BY date_creation ASC;`,
       useCase: 'Liste de suivi commercial, rappels automatiques, prioritisation des contacts',
-      performance: 'Optimisé avec index sur etape_suivi et date_creation'
+      performance: 'Optimisé avec index sur statut et date_creation'
     }
   ];
 
   const databaseIndexes = [
     { 
-      name: 'idx_prospects_region', 
-      column: 'region', 
-      description: 'Index sur la région pour les requêtes géographiques',
-      detailedDescription: 'Optimise les recherches et regroupements par région. Crucial pour les statistiques géographiques et la vue v_prospects_par_region.',
-      impact: 'Rend les statistiques régionales instantanées',
-      sqlQuery: 'CREATE INDEX idx_prospects_region ON prospects(region);'
+      name: 'idx_prospects_nom_complet', 
+      column: 'nom_complet', 
+      description: 'Index sur le nom complet pour les recherches textuelles',
+      detailedDescription: 'Optimise les recherches par nom complet, utilisé dans le filtrage et la recherche textuelle.',
+      impact: 'Recherche par nom 10x plus rapide',
+      sqlQuery: 'CREATE INDEX idx_prospects_nom_complet ON prospects(nom_complet);'
     },
     { 
-      name: 'idx_prospects_date_creation', 
-      column: 'date_creation', 
-      description: 'Index sur la date de création pour le tri chronologique',
-      detailedDescription: 'Accélère le tri par date de création, utilisé dans la liste principale des prospects et la vue v_prospects_a_contacter.',
-      impact: 'Tri par date 50x plus rapide',
-      sqlQuery: 'CREATE INDEX idx_prospects_date_creation ON prospects(date_creation);'
+      name: 'idx_prospects_entreprise', 
+      column: 'entreprise', 
+      description: 'Index sur l\'entreprise pour les recherches et regroupements',
+      detailedDescription: 'Accélère les recherches par entreprise et les statistiques d\'entreprise.',
+      impact: 'Recherche par entreprise 15x plus rapide',
+      sqlQuery: 'CREATE INDEX idx_prospects_entreprise ON prospects(entreprise);'
+    },
+    { 
+      name: 'idx_prospects_categorie_poste', 
+      column: 'categorie_poste', 
+      description: 'Index sur la catégorie de poste pour le filtrage',
+      detailedDescription: 'Optimise le filtrage par catégorie de poste, essentiel pour l\'API de filtrage.',
+      impact: 'Filtrage par catégorie instantané',
+      sqlQuery: 'CREATE INDEX idx_prospects_categorie_poste ON prospects(categorie_poste);'
+    },
+    { 
+      name: 'idx_prospects_pays', 
+      column: 'pays', 
+      description: 'Index sur le pays pour les requêtes géographiques',
+      detailedDescription: 'Optimise les recherches et regroupements par pays. Crucial pour les statistiques géographiques.',
+      impact: 'Rend les statistiques par pays instantanées',
+      sqlQuery: 'CREATE INDEX idx_prospects_pays ON prospects(pays);'
+    },
+    { 
+      name: 'idx_prospects_taille_entreprise', 
+      column: 'taille_entreprise', 
+      description: 'Index sur la taille d\'entreprise pour le filtrage',
+      detailedDescription: 'Accélère le filtrage par taille d\'entreprise et les statistiques de segmentation.',
+      impact: 'Filtrage par taille instantané',
+      sqlQuery: 'CREATE INDEX idx_prospects_taille_entreprise ON prospects(taille_entreprise);'
+    },
+    { 
+      name: 'idx_prospects_secteur', 
+      column: 'secteur', 
+      description: 'Index sur le secteur pour le filtrage et l\'analyse',
+      detailedDescription: 'Optimise le filtrage par secteur et les analyses sectorielles.',
+      impact: 'Filtrage par secteur instantané',
+      sqlQuery: 'CREATE INDEX idx_prospects_secteur ON prospects(secteur);'
     },
     { 
       name: 'idx_prospects_email', 
@@ -393,8 +565,142 @@ ORDER BY date_creation ASC;`,
       detailedDescription: 'Permet des recherches ultra-rapides par adresse email. Essentiel pour éviter les doublons et les recherches de contacts.',
       impact: 'Recherche par email en moins de 1ms',
       sqlQuery: 'CREATE INDEX idx_prospects_email ON prospects(email);'
+    },
+    { 
+      name: 'idx_prospects_statut', 
+      column: 'statut', 
+      description: 'Index sur le statut pour le filtrage et les vues',
+      detailedDescription: 'Accélère le filtrage par statut et optimise la vue v_prospects_a_contacter.',
+      impact: 'Filtrage par statut instantané',
+      sqlQuery: 'CREATE INDEX idx_prospects_statut ON prospects(statut);'
+    },
+    { 
+      name: 'idx_prospects_date_creation', 
+      column: 'date_creation', 
+      description: 'Index sur la date de création pour le tri chronologique',
+      detailedDescription: 'Accélère le tri par date de création, utilisé dans la liste principale des prospects et la vue v_prospects_a_contacter.',
+      impact: 'Tri par date 50x plus rapide',
+      sqlQuery: 'CREATE INDEX idx_prospects_date_creation ON prospects(date_creation);'
     }
   ];
+
+  // Technologies utilisées
+  const technologies = {
+    frontend: [
+      { name: 'React 18', version: '18.x', description: 'Framework JavaScript pour l\'interface utilisateur', icon: '⚛️' },
+      { name: 'TypeScript', version: '5.x', description: 'Langage de programmation typé pour JavaScript', icon: '🔷' },
+      { name: 'Material-UI (MUI)', version: '5.x', description: 'Bibliothèque de composants UI React', icon: '🎨' },
+      { name: 'Vite', version: '4.x', description: 'Build tool et serveur de développement', icon: '⚡' },
+      { name: 'React Router', version: '6.x', description: 'Routage côté client pour React', icon: '🛣️' }
+    ],
+    backend: [
+      { name: 'Node.js', version: '18.x', description: 'Runtime JavaScript côté serveur', icon: '🟢' },
+      { name: 'Express.js', version: '4.x', description: 'Framework web pour Node.js', icon: '🚀' },
+      { name: 'TypeScript', version: '5.x', description: 'Langage de programmation typé', icon: '🔷' },
+      { name: 'PostgreSQL Driver (pg)', version: '8.x', description: 'Driver PostgreSQL pour Node.js', icon: '🐘' },
+      { name: 'CORS', version: '2.x', description: 'Middleware pour Cross-Origin Resource Sharing', icon: '🌐' }
+    ],
+    database: [
+      { name: 'PostgreSQL', version: '15.x', description: 'Base de données relationnelle open source', icon: '🐘' },
+      { name: 'pg-pool', version: '3.x', description: 'Pool de connexions PostgreSQL', icon: '🏊' },
+      { name: 'Index B-tree', version: undefined, description: 'Index de performance pour les requêtes rapides', icon: '📊' },
+      { name: 'Vues SQL', version: undefined, description: 'Tables virtuelles pour les requêtes complexes', icon: '👁️' },
+      { name: 'Triggers', version: undefined, description: 'Fonctions automatiques pour la maintenance des données', icon: '⚡' }
+    ],
+    tools: [
+      { name: 'Git', version: undefined, description: 'Système de contrôle de version', icon: '📝' },
+      { name: 'GitHub', version: undefined, description: 'Plateforme d\'hébergement Git', icon: '🐙' },
+      { name: 'npm', version: undefined, description: 'Gestionnaire de paquets Node.js', icon: '📦' },
+      { name: 'ESLint', version: undefined, description: 'Linter pour la qualité du code JavaScript/TypeScript', icon: '🔍' },
+      { name: 'Vite Dev Server', version: undefined, description: 'Serveur de développement avec HMR', icon: '🔥' }
+    ]
+  };
+
+  // Spécifications fonctionnelles
+  const functionalSpecs = {
+    coreFeatures: [
+      {
+        name: 'Gestion des Prospects',
+        description: 'CRUD complet pour la gestion des prospects',
+        features: [
+          'Création de nouveaux prospects avec validation',
+          'Modification des informations existantes',
+          'Suppression sécurisée des prospects',
+          'Affichage détaillé des informations',
+          'Import en lot de prospects (CSV/Excel)'
+        ]
+      },
+      {
+        name: 'Système de Filtrage Avancé',
+        description: 'Filtrage multi-critères avec recherche textuelle',
+        features: [
+          'Filtrage par catégorie de poste (22 options)',
+          'Filtrage par taille d\'entreprise (8 options)',
+          'Filtrage par secteur d\'activité (25 options)',
+          'Filtrage par pays (Luxembourg, Suisse)',
+          'Recherche textuelle globale et spécifique',
+          'Pagination intelligente des résultats'
+        ]
+      },
+      {
+        name: 'Interface Utilisateur Moderne',
+        description: 'Interface responsive et intuitive',
+        features: [
+          'Design Material-UI moderne et cohérent',
+          'Interface responsive (mobile, tablette, desktop)',
+          'Navigation intuitive avec menu latéral',
+          'Composants réutilisables et modulaires',
+          'Feedback visuel pour les actions utilisateur'
+        ]
+      },
+      {
+        name: 'Système de Bloc Notes',
+        description: 'Bloc notes hybride avec synchronisation automatique',
+        features: [
+          'Sauvegarde automatique en base de données',
+          'Synchronisation localStorage + DB',
+          'Récupération en cas de perte du cache',
+          'Interface d\'édition riche (HTML)',
+          'Persistance des données'
+        ]
+      }
+    ],
+    technicalFeatures: [
+      {
+        name: 'API REST Complète',
+        description: 'API backend robuste et documentée',
+        features: [
+          '15+ endpoints API documentés',
+          'Gestion des erreurs et codes de statut HTTP',
+          'Validation des données côté serveur',
+          'Pagination automatique des résultats',
+          'Filtrage dynamique avec requêtes SQL optimisées'
+        ]
+      },
+      {
+        name: 'Base de Données Optimisée',
+        description: 'PostgreSQL avec optimisations de performance',
+        features: [
+          '9 index de performance pour requêtes rapides',
+          '4 vues SQL pour statistiques automatiques',
+          'Triggers pour maintenance automatique des données',
+          'Contraintes de données et validation',
+          'Transactions atomiques pour la cohérence'
+        ]
+      },
+      {
+        name: 'Architecture Modulaire',
+        description: 'Code organisé et maintenable',
+        features: [
+          'Séparation frontend/backend claire',
+          'Composants React réutilisables',
+          'Types TypeScript pour la sécurité',
+          'Configuration centralisée',
+          'Gestion d\'état optimisée'
+        ]
+      }
+    ]
+  };
 
   const getMethodColor = (method: string) => {
     switch (method) {
@@ -455,7 +761,7 @@ ORDER BY date_creation ASC;`,
             
             <Alert severity="success" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Tables :</strong> prospects ({databaseColumns.length} colonnes) + notes (4 colonnes) - PostgreSQL
+                <strong>Tables :</strong> prospects ({prospectsColumns.length} colonnes) + 5 tables de référence + notes (4 colonnes) - PostgreSQL
               </Typography>
             </Alert>
 
@@ -471,7 +777,7 @@ ORDER BY date_creation ASC;`,
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {databaseColumns.map((column) => (
+                  {prospectsColumns.map((column) => (
                     <TableRow key={column.name}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
@@ -1049,17 +1355,140 @@ ORDER BY date_creation ASC;`,
           </CardContent>
         </Card>
 
+        {/* Technologies Stack */}
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <BuildIcon sx={{ mr: 1, color: '#4CAF50' }} />
+              <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+                🛠️ Stack Technologique
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3 }}>
+              {Object.entries(technologies).map(([category, techs]) => (
+                <Card key={category} variant="outlined" sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, textTransform: 'capitalize' }}>
+                      {category === 'frontend' ? '🎨 Frontend' : 
+                       category === 'backend' ? '⚙️ Backend' :
+                       category === 'database' ? '🗄️ Base de Données' : '🔧 Outils'}
+                    </Typography>
+                    <Stack spacing={1}>
+                      {techs.map((tech, index) => (
+                        <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" sx={{ minWidth: 30 }}>
+                            {tech.icon}
+                          </Typography>
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {tech.name} {tech.version && `(${tech.version})`}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {tech.description}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Spécifications Fonctionnelles */}
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <DataObjectIcon sx={{ mr: 1, color: '#4CAF50' }} />
+              <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+                📋 Spécifications Fonctionnelles
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 3 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#4CAF50' }}>
+                  🎯 Fonctionnalités Principales
+                </Typography>
+                <Stack spacing={2}>
+                  {functionalSpecs.coreFeatures.map((feature, index) => (
+                    <Card key={index} variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                          {feature.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {feature.description}
+                        </Typography>
+                        <List dense>
+                          {feature.features.map((item, idx) => (
+                            <ListItem key={idx} sx={{ py: 0 }}>
+                              <ListItemIcon sx={{ minWidth: 20 }}>
+                                <CodeIcon fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={item} 
+                                primaryTypographyProps={{ variant: 'body2' }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              </Box>
+
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#4CAF50' }}>
+                  ⚙️ Fonctionnalités Techniques
+                </Typography>
+                <Stack spacing={2}>
+                  {functionalSpecs.technicalFeatures.map((feature, index) => (
+                    <Card key={index} variant="outlined">
+                      <CardContent>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                          {feature.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {feature.description}
+                        </Typography>
+                        <List dense>
+                          {feature.features.map((item, idx) => (
+                            <ListItem key={idx} sx={{ py: 0 }}>
+                              <ListItemIcon sx={{ minWidth: 20 }}>
+                                <CodeIcon fontSize="small" />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary={item} 
+                                primaryTypographyProps={{ variant: 'body2' }}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
         {/* System Information */}
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
-              📋 Résumé de l'Architecture Système
+              📊 Résumé de l'Architecture Système
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
               <Box sx={{ textAlign: 'center', p: 2, border: '1px solid #e0e0e0', borderRadius: 1, minWidth: 150 }}>
                 <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
-                  {databaseColumns.length}
+                  {prospectsColumns.length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Colonnes DB
@@ -1102,6 +1531,18 @@ ORDER BY date_creation ASC;`,
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Performance
+                </Typography>
+              </Box>
+
+              <Box sx={{ textAlign: 'center', p: 2, border: '1px solid #e0e0e0', borderRadius: 1, minWidth: 150 }}>
+                <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
+                  {referenceTables.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Tables Référence
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Données maîtres
                 </Typography>
               </Box>
             </Box>
