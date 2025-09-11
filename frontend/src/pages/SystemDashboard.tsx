@@ -64,169 +64,410 @@ const SystemDashboard = () => {
     navigator.clipboard.writeText(text);
   };
 
-  // Database schema definition - Table principale prospects
-  const prospectsColumns: DatabaseColumn[] = [
+  // Database schema definition - Tables principales (nouveau schéma Lemlist)
+  
+  // Colonnes de la table contacts
+  const contactsColumns: DatabaseColumn[] = [
     {
       name: 'id',
       type: 'SERIAL PRIMARY KEY',
       nullable: false,
       default: 'AUTO_INCREMENT',
-      description: 'Identifiant unique du prospect'
+      description: 'Identifiant unique du contact'
     },
     {
-      name: 'nom_complet',
-      type: 'VARCHAR(255)',
+      name: 'lead_id',
+      type: 'VARCHAR(255) UNIQUE',
       nullable: false,
       default: null,
-      description: 'Nom complet du prospect (nom + prénom)'
+      description: 'ID unique Lemlist du contact'
     },
     {
-      name: 'entreprise',
+      name: 'full_name',
       type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Nom de l\'entreprise'
+      description: 'Nom complet du contact'
     },
     {
-      name: 'categorie_poste',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: null,
-      description: 'Catégorie de poste (Direction, Comptable/Financier, etc.)'
-    },
-    {
-      name: 'poste_specifique',
+      name: 'canonical_shorthand_name',
       type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Poste spécifique occupé'
+      description: 'Nom court canonique'
     },
     {
-      name: 'pays',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: "'Luxembourg'",
-      description: 'Pays du prospect'
-    },
-    {
-      name: 'taille_entreprise',
-      type: 'VARCHAR(50)',
+      name: 'profile_picture_url',
+      type: 'TEXT',
       nullable: true,
       default: null,
-      description: 'Taille de l\'entreprise (1-10, 11-50, etc.)'
+      description: 'URL de la photo de profil'
     },
     {
-      name: 'site_web',
-      type: 'VARCHAR(255)',
+      name: 'headline',
+      type: 'TEXT',
       nullable: true,
       default: null,
-      description: 'Site web de l\'entreprise'
-    },
-    {
-      name: 'secteur',
-      type: 'VARCHAR(100)',
-      nullable: true,
-      default: null,
-      description: 'Secteur d\'activité de l\'entreprise'
-    },
-    {
-      name: 'mx_record_exists',
-      type: 'BOOLEAN',
-      nullable: true,
-      default: 'false',
-      description: 'Vérification de l\'existence du MX record email'
+      description: 'Titre professionnel'
     },
     {
       name: 'email',
       type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Adresse email du prospect'
+      description: 'Adresse email'
     },
     {
-      name: 'telephone',
+      name: 'phone',
       type: 'VARCHAR(50)',
       nullable: true,
       default: null,
       description: 'Numéro de téléphone'
     },
     {
-      name: 'linkedin',
+      name: 'linkedin_url',
       type: 'TEXT',
       nullable: true,
       default: null,
       description: 'URL du profil LinkedIn'
     },
     {
-      name: 'interets',
-      type: 'TEXT',
+      name: 'linkedin_short',
+      type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Centres d\'intérêt du prospect'
+      description: 'Nom court LinkedIn'
     },
     {
-      name: 'historique',
-      type: 'TEXT',
+      name: 'location',
+      type: 'VARCHAR(255)',
       nullable: true,
       default: null,
-      description: 'Historique des interactions'
+      description: 'Localisation'
     },
     {
-      name: 'statut',
+      name: 'country',
       type: 'VARCHAR(100)',
       nullable: true,
-      default: "'Prospect à contacter'",
-      description: 'Statut du prospect'
+      default: null,
+      description: 'Pays'
     },
     {
-      name: 'etape_suivi',
-      type: 'VARCHAR(32)',
+      name: 'current_company_name',
+      type: 'VARCHAR(255)',
       nullable: true,
-      default: "'à contacter'",
-      description: 'Étape de suivi actuelle'
+      default: null,
+      description: 'Nom de l\'entreprise actuelle'
     },
     {
-      name: 'date_creation',
+      name: 'current_company_industry',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Secteur de l\'entreprise actuelle'
+    },
+    {
+      name: 'experience_count',
+      type: 'INTEGER',
+      nullable: true,
+      default: null,
+      description: 'Nombre d\'expériences'
+    },
+    {
+      name: 'connections_count_bucket',
+      type: 'VARCHAR(50)',
+      nullable: true,
+      default: null,
+      description: 'Tranche de nombre de connexions'
+    },
+    {
+      name: 'lead_quality_score',
+      type: 'DECIMAL(3,2)',
+      nullable: true,
+      default: null,
+      description: 'Score de qualité du lead'
+    },
+    {
+      name: 'years_of_experience',
+      type: 'INTEGER',
+      nullable: true,
+      default: null,
+      description: 'Années d\'expérience'
+    },
+    {
+      name: 'created_at',
       type: 'TIMESTAMP',
       nullable: true,
       default: 'CURRENT_TIMESTAMP',
-      description: 'Date de création du prospect'
+      description: 'Date de création'
     },
     {
-      name: 'date_modification',
+      name: 'updated_at',
       type: 'TIMESTAMP',
       nullable: true,
       default: 'CURRENT_TIMESTAMP',
-      description: 'Date de dernière modification (mise à jour automatique)'
+      description: 'Date de dernière modification'
     }
   ];
 
-  // Tables de référence
+  // Colonnes de la table companies
+  const companiesColumns: DatabaseColumn[] = [
+    {
+      name: 'id',
+      type: 'SERIAL PRIMARY KEY',
+      nullable: false,
+      default: 'AUTO_INCREMENT',
+      description: 'Identifiant unique de l\'entreprise'
+    },
+    {
+      name: 'company_name',
+      type: 'VARCHAR(255)',
+      nullable: false,
+      default: null,
+      description: 'Nom de l\'entreprise'
+    },
+    {
+      name: 'company_shorthand_name',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Nom court de l\'entreprise'
+    },
+    {
+      name: 'logo_url',
+      type: 'TEXT',
+      nullable: true,
+      default: null,
+      description: 'URL du logo'
+    },
+    {
+      name: 'linkedin_url',
+      type: 'TEXT',
+      nullable: true,
+      default: null,
+      description: 'URL LinkedIn de l\'entreprise'
+    },
+    {
+      name: 'company_followers_count',
+      type: 'INTEGER',
+      nullable: true,
+      default: null,
+      description: 'Nombre de followers LinkedIn'
+    },
+    {
+      name: 'company_founded',
+      type: 'INTEGER',
+      nullable: true,
+      default: null,
+      description: 'Année de fondation'
+    },
+    {
+      name: 'company_domain',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Domaine de l\'entreprise'
+    },
+    {
+      name: 'company_industry',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Secteur d\'activité'
+    },
+    {
+      name: 'company_subindustry',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Sous-secteur d\'activité'
+    },
+    {
+      name: 'employees_count_growth',
+      type: 'VARCHAR(50)',
+      nullable: true,
+      default: null,
+      description: 'Croissance du nombre d\'employés'
+    },
+    {
+      name: 'company_url',
+      type: 'TEXT',
+      nullable: true,
+      default: null,
+      description: 'Site web de l\'entreprise'
+    },
+    {
+      name: 'created_at',
+      type: 'TIMESTAMP',
+      nullable: true,
+      default: 'CURRENT_TIMESTAMP',
+      description: 'Date de création'
+    },
+    {
+      name: 'updated_at',
+      type: 'TIMESTAMP',
+      nullable: true,
+      default: 'CURRENT_TIMESTAMP',
+      description: 'Date de dernière modification'
+    }
+  ];
+
+  // Colonnes de la table experiences
+  const experiencesColumns: DatabaseColumn[] = [
+    {
+      name: 'id',
+      type: 'SERIAL PRIMARY KEY',
+      nullable: false,
+      default: 'AUTO_INCREMENT',
+      description: 'Identifiant unique de l\'expérience'
+    },
+    {
+      name: 'contact_id',
+      type: 'INTEGER REFERENCES contacts(id)',
+      nullable: false,
+      default: null,
+      description: 'Référence vers le contact'
+    },
+    {
+      name: 'company_id',
+      type: 'INTEGER REFERENCES companies(id)',
+      nullable: true,
+      default: null,
+      description: 'Référence vers l\'entreprise'
+    },
+    {
+      name: 'title',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Titre du poste'
+    },
+    {
+      name: 'company_name',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Nom de l\'entreprise'
+    },
+    {
+      name: 'location',
+      type: 'VARCHAR(255)',
+      nullable: true,
+      default: null,
+      description: 'Localisation du poste'
+    },
+    {
+      name: 'date_from',
+      type: 'VARCHAR(50)',
+      nullable: true,
+      default: null,
+      description: 'Date de début'
+    },
+    {
+      name: 'date_to',
+      type: 'VARCHAR(50)',
+      nullable: true,
+      default: null,
+      description: 'Date de fin'
+    },
+    {
+      name: 'duration',
+      type: 'VARCHAR(100)',
+      nullable: true,
+      default: null,
+      description: 'Durée du poste'
+    },
+    {
+      name: 'description',
+      type: 'TEXT',
+      nullable: true,
+      default: null,
+      description: 'Description du poste'
+    },
+    {
+      name: 'is_current',
+      type: 'BOOLEAN',
+      nullable: true,
+      default: 'false',
+      description: 'Poste actuel'
+    },
+    {
+      name: 'order_in_profile',
+      type: 'INTEGER',
+      nullable: true,
+      default: null,
+      description: 'Ordre dans le profil'
+    },
+    {
+      name: 'created_at',
+      type: 'TIMESTAMP',
+      nullable: true,
+      default: 'CURRENT_TIMESTAMP',
+      description: 'Date de création'
+    },
+    {
+      name: 'updated_at',
+      type: 'TIMESTAMP',
+      nullable: true,
+      default: 'CURRENT_TIMESTAMP',
+      description: 'Date de dernière modification'
+    }
+  ];
+
+  // Tables de référence et nouvelles tables Lemlist
   const referenceTables = [
     {
+      name: 'contact_languages',
+      description: 'Langues parlées par les contacts',
+      columns: ['id', 'contact_id', 'language', 'proficiency'],
+      count: 200,
+      examples: ['Français', 'Anglais', 'Allemand', 'Espagnol']
+    },
+    {
+      name: 'contact_skills',
+      description: 'Compétences techniques des contacts',
+      columns: ['id', 'contact_id', 'skill', 'level'],
+      count: 500,
+      examples: ['JavaScript', 'Python', 'React', 'Node.js']
+    },
+    {
+      name: 'contact_interests',
+      description: 'Centres d\'intérêt des contacts',
+      columns: ['id', 'contact_id', 'interest'],
+      count: 300,
+      examples: ['Technologie', 'Finance', 'Marketing', 'Innovation']
+    },
+    {
+      name: 'contact_education',
+      description: 'Formation et éducation des contacts',
+      columns: ['id', 'contact_id', 'institution', 'degree', 'field', 'start_year', 'end_year'],
+      count: 150,
+      examples: ['Université de Luxembourg', 'Master en Informatique', 'MBA']
+    },
+    {
       name: 'categories_poste',
-      description: 'Catégories de poste disponibles',
+      description: 'Catégories de poste disponibles (legacy)',
       columns: ['id', 'nom', 'actif'],
       count: 22,
       examples: ['Direction', 'Comptable/Financier', 'Founder', 'Technique']
     },
     {
       name: 'tailles_entreprise',
-      description: 'Tailles d\'entreprise standardisées',
+      description: 'Tailles d\'entreprise standardisées (legacy)',
       columns: ['id', 'nom', 'actif'],
       count: 8,
       examples: ['1-10', '11-50', '51-200', '201-500']
     },
     {
       name: 'secteurs',
-      description: 'Secteurs d\'activité économiques',
+      description: 'Secteurs d\'activité économiques (legacy)',
       columns: ['id', 'nom', 'actif'],
       count: 25,
       examples: ['Technology', 'Finance', 'Healthcare', 'Education']
     },
     {
       name: 'pays',
-      description: 'Pays disponibles pour les prospects',
+      description: 'Pays disponibles (legacy)',
       columns: ['id', 'nom', 'actif'],
       count: 2,
       examples: ['Luxembourg', 'Suisse']
@@ -254,51 +495,99 @@ const SystemDashboard = () => {
     },
     {
       method: 'GET',
-      path: '/api/prospects',
-      fullUrl: 'http://localhost:3003/api/prospects',
-      description: 'Récupérer tous les prospects avec pagination et tri par date de création',
+      path: '/api/contacts',
+      fullUrl: 'http://localhost:3003/api/contacts',
+      description: 'Récupérer tous les contacts avec pagination et tri par ID (plus récents en premier)',
       parameters: [
         'page (optional) - Numéro de page (défaut: 1)',
         'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
       ],
-      response: 'Object avec prospects[] et pagination{} - Liste paginée des prospects',
-      exampleRequest: 'curl "http://localhost:3003/api/prospects?page=1&limit=20"',
-      exampleResponse: '{"prospects":[{"id":1,"nom_complet":"Jean Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":50,"totalPages":3}}',
-      useCase: 'Charger la liste paginée des prospects dans l\'interface'
+      response: 'Object avec contacts[] et pagination{} - Liste paginée des contacts avec toutes les données Lemlist',
+      exampleRequest: 'curl "http://localhost:3003/api/contacts?page=1&limit=20"',
+      exampleResponse: '{"contacts":[{"id":1,"full_name":"Hervé Pické","headline":"CISO",...}],"pagination":{"page":1,"limit":20,"totalCount":100,"totalPages":5}}',
+      useCase: 'Charger la liste paginée des contacts dans l\'interface'
     },
     {
       method: 'GET',
-      path: '/api/prospects/filter',
-      fullUrl: 'http://localhost:3003/api/prospects/filter',
-      description: 'Filtrer les prospects avec critères multiples et pagination avancée',
+      path: '/api/companies',
+      fullUrl: 'http://localhost:3003/api/companies',
+      description: 'Récupérer toutes les entreprises avec pagination',
       parameters: [
-        'categorie_poste (optional) - Filtrer par catégorie de poste',
-        'taille_entreprise (optional) - Filtrer par taille d\'entreprise',
-        'secteur (optional) - Filtrer par secteur d\'activité',
-        'pays (optional) - Filtrer par pays',
-        'etape_suivi (optional) - Filtrer par étape de suivi',
-        'search (optional) - Recherche textuelle globale (nom_complet, entreprise, email)',
-        'nom_complet (optional) - Recherche spécifique par nom complet',
-        'poste_specifique (optional) - Recherche par poste spécifique',
-        'entreprise (optional) - Recherche par entreprise',
         'page (optional) - Numéro de page (défaut: 1)',
         'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
       ],
-      response: 'Object avec prospects[], pagination{} et filters{} - Résultats filtrés et paginés',
-      exampleRequest: 'curl "http://localhost:3003/api/prospects/filter?categorie_poste=Direction&taille_entreprise=51-200&search=tech"',
-      exampleResponse: '{"prospects":[{"id":1,"nom_complet":"Jean Dupont",...}],"pagination":{"page":1,"limit":20,"totalCount":5},"filters":{"categorie_poste":"Direction","taille_entreprise":"51-200","search":"tech"}}',
-      useCase: 'Filtrage avancé des prospects avec critères multiples et recherche textuelle'
+      response: 'Object avec companies[] et pagination{} - Liste paginée des entreprises',
+      exampleRequest: 'curl "http://localhost:3003/api/companies?page=1&limit=20"',
+      exampleResponse: '{"companies":[{"id":1,"company_name":"Luxembourg House of Cybersecurity",...}],"pagination":{"page":1,"limit":20,"totalCount":50,"totalPages":3}}',
+      useCase: 'Charger la liste paginée des entreprises dans l\'interface'
     },
     {
       method: 'GET',
-      path: '/api/prospects/:id',
-      fullUrl: 'http://localhost:3003/api/prospects/1',
-      description: 'Récupérer un prospect spécifique par son ID',
-      parameters: ['id (number) - ID unique du prospect'],
-      response: 'Prospect | 404 si non trouvé',
-      exampleRequest: 'curl http://localhost:3003/api/prospects/1',
-      exampleResponse: '{"id":1,"nom_complet":"Jean Dupont","entreprise":"TechCorp",...}',
-      useCase: 'Afficher les détails d\'un prospect pour édition'
+      path: '/api/contacts/search',
+      fullUrl: 'http://localhost:3003/api/contacts/search',
+      description: 'Recherche avancée de contacts avec recherche textuelle insensible aux accents',
+      parameters: [
+        'q (required) - Terme de recherche (nom, titre, entreprise, localisation)',
+        'page (optional) - Numéro de page (défaut: 1)',
+        'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
+      ],
+      response: 'Object avec contacts[] et pagination{} - Résultats de recherche paginés',
+      exampleRequest: 'curl "http://localhost:3003/api/contacts/search?q=hervé&page=1&limit=20"',
+      exampleResponse: '{"contacts":[{"id":1,"full_name":"Hervé Pické","headline":"CISO",...}],"pagination":{"page":1,"limit":20,"totalCount":1,"totalPages":1}}',
+      useCase: 'Recherche de contacts par nom, titre, entreprise ou localisation'
+    },
+    {
+      method: 'GET',
+      path: '/api/companies/search',
+      fullUrl: 'http://localhost:3003/api/companies/search',
+      description: 'Recherche d\'entreprises avec recherche textuelle',
+      parameters: [
+        'q (required) - Terme de recherche (nom d\'entreprise, secteur)',
+        'page (optional) - Numéro de page (défaut: 1)',
+        'limit (optional) - Nombre d\'éléments par page (défaut: 20)'
+      ],
+      response: 'Object avec companies[] et pagination{} - Résultats de recherche paginés',
+      exampleRequest: 'curl "http://localhost:3003/api/companies/search?q=cybersecurity&page=1&limit=20"',
+      exampleResponse: '{"companies":[{"id":1,"company_name":"Luxembourg House of Cybersecurity",...}],"pagination":{"page":1,"limit":20,"totalCount":1,"totalPages":1}}',
+      useCase: 'Recherche d\'entreprises par nom ou secteur'
+    },
+    {
+      method: 'GET',
+      path: '/api/contacts/:id',
+      fullUrl: 'http://localhost:3003/api/contacts/1',
+      description: 'Récupérer un contact spécifique par son ID avec toutes les données complètes',
+      parameters: ['id (number) - ID unique du contact'],
+      response: 'Contact complet avec expériences, compétences, langues, éducation | 404 si non trouvé',
+      exampleRequest: 'curl http://localhost:3003/api/contacts/1',
+      exampleResponse: '{"id":1,"full_name":"Hervé Pické","headline":"CISO","experiences":[...],"languages":[...],"skills":[...]}',
+      useCase: 'Afficher la fiche contact complète avec toutes les données Lemlist'
+    },
+    {
+      method: 'GET',
+      path: '/api/companies/:id',
+      fullUrl: 'http://localhost:3003/api/companies/1',
+      description: 'Récupérer une entreprise spécifique par son ID avec ses employés',
+      parameters: ['id (number) - ID unique de l\'entreprise'],
+      response: 'Entreprise avec employés paginés | 404 si non trouvé',
+      exampleRequest: 'curl http://localhost:3003/api/companies/1',
+      exampleResponse: '{"id":1,"company_name":"Luxembourg House of Cybersecurity","employees":[...],"pagination":{...}}',
+      useCase: 'Afficher la fiche entreprise avec ses employés'
+    },
+    {
+      method: 'GET',
+      path: '/api/companies/:id/employees',
+      fullUrl: 'http://localhost:3003/api/companies/1/employees',
+      description: 'Récupérer les employés d\'une entreprise avec pagination',
+      parameters: [
+        'id (number) - ID unique de l\'entreprise',
+        'page (optional) - Numéro de page (défaut: 1)',
+        'limit (optional) - Nombre d\'employés par page (défaut: 50)',
+        'current_only (optional) - Seulement les employés actuels (défaut: false)'
+      ],
+      response: 'Object avec employees[] et pagination{} - Employés paginés',
+      exampleRequest: 'curl "http://localhost:3003/api/companies/1/employees?page=1&limit=20"',
+      exampleResponse: '{"employees":[{"id":1,"title":"CISO","full_name":"Hervé Pické",...}],"pagination":{"page":1,"limit":20,"total":1,"pages":1}}',
+      useCase: 'Afficher la liste des employés d\'une entreprise avec pagination'
     },
     {
       method: 'POST',
@@ -455,7 +744,7 @@ const SystemDashboard = () => {
 SELECT pays, COUNT(*) as nombre_prospects,
        COUNT(CASE WHEN statut = 'Client' THEN 1 END) as clients,
        COUNT(CASE WHEN statut = 'Prospect à contacter' THEN 1 END) as prospects
-FROM prospects
+FROM prospects 
 GROUP BY pays
 ORDER BY nombre_prospects DESC;`,
       useCase: 'Dashboard - Statistiques géographiques, rapports par pays, analyse de répartition',
@@ -501,7 +790,7 @@ ORDER BY nombre_prospects DESC;`,
       sqlQuery: `CREATE OR REPLACE VIEW v_prospects_a_contacter AS
 SELECT id, nom_complet, entreprise, categorie_poste, poste_specifique, 
        pays, taille_entreprise, secteur, email, telephone, date_creation
-FROM prospects
+FROM prospects 
 WHERE statut = 'Prospect à contacter'
 ORDER BY date_creation ASC;`,
       useCase: 'Liste de suivi commercial, rappels automatiques, prioritisation des contacts',
@@ -761,10 +1050,15 @@ ORDER BY date_creation ASC;`,
             
             <Alert severity="success" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Tables :</strong> prospects ({prospectsColumns.length} colonnes) + 5 tables de référence + notes (4 colonnes) - PostgreSQL
+                <strong>Tables principales :</strong> contacts ({contactsColumns.length} colonnes), companies ({companiesColumns.length} colonnes), experiences ({experiencesColumns.length} colonnes) + 9 tables de référence - PostgreSQL
               </Typography>
             </Alert>
 
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6">📊 Table CONTACTS ({contactsColumns.length} colonnes)</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
             <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
               <Table stickyHeader size="small">
                 <TableHead>
@@ -777,7 +1071,7 @@ ORDER BY date_creation ASC;`,
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {prospectsColumns.map((column) => (
+                      {contactsColumns.map((column) => (
                     <TableRow key={column.name}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
@@ -815,11 +1109,129 @@ ORDER BY date_creation ASC;`,
                 </TableBody>
               </Table>
             </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6">🏢 Table COMPANIES ({companiesColumns.length} colonnes)</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Colonne</strong></TableCell>
+                        <TableCell><strong>Type</strong></TableCell>
+                        <TableCell><strong>Nullable</strong></TableCell>
+                        <TableCell><strong>Défaut</strong></TableCell>
+                        <TableCell><strong>Description</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {companiesColumns.map((column) => (
+                        <TableRow key={column.name}>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                              {column.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={column.type} 
+                              size="small" 
+                              color={getTypeColor(column.type) as any}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={column.nullable ? 'Oui' : 'Non'} 
+                              size="small" 
+                              color={column.nullable ? 'default' : 'error'}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {column.default || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                              {column.description}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="h6">💼 Table EXPERIENCES ({experiencesColumns.length} colonnes)</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Colonne</strong></TableCell>
+                        <TableCell><strong>Type</strong></TableCell>
+                        <TableCell><strong>Nullable</strong></TableCell>
+                        <TableCell><strong>Défaut</strong></TableCell>
+                        <TableCell><strong>Description</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {experiencesColumns.map((column) => (
+                        <TableRow key={column.name}>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                              {column.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={column.type} 
+                              size="small" 
+                              color={getTypeColor(column.type) as any}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={column.nullable ? 'Oui' : 'Non'} 
+                              size="small" 
+                              color={column.nullable ? 'default' : 'error'}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {column.default || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                              {column.description}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
 
             <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                <strong>Fonctionnalités automatiques :</strong> ID auto-incrémenté, calcul automatique de la région, 
-                horodatage automatique, validation des contraintes.
+                <strong>Fonctionnalités automatiques :</strong> ID auto-incrémenté, relations entre tables, 
+                horodatage automatique, validation des contraintes, pagination optimisée.
               </Typography>
             </Box>
 
@@ -1488,13 +1900,13 @@ ORDER BY date_creation ASC;`,
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
               <Box sx={{ textAlign: 'center', p: 2, border: '1px solid #e0e0e0', borderRadius: 1, minWidth: 150 }}>
                 <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
-                  {prospectsColumns.length}
+                  {contactsColumns.length + companiesColumns.length + experiencesColumns.length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Colonnes DB
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Table: prospects
+                  Tables: contacts, companies, experiences
                 </Typography>
               </Box>
               

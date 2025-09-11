@@ -584,7 +584,6 @@ app.get('/api/companies/:id/employees', async (req, res) => {
         e.title,
         cont.full_name,
         cont.email,
-        cont.phone,
         e.is_current,
         e.date_from,
         e.date_to,
