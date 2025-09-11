@@ -211,37 +211,37 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
               fontWeight: 'bold'
             }}
           >
-            {contact.full_name.split(' ').map(n => n[0]).join('')}
+            {(contact.full_name || '?').split(' ').map(n => n[0]).join('')}
           </Avatar>
           <Box>
             <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
-              {contact.full_name}
+              {contact.full_name || 'Nom non disponible'}
             </Typography>
             <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-              {contact.headline}
+              {contact.headline || 'Titre non disponible'}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
               <LocationIcon color="action" fontSize="small" />
               <Typography variant="body2" color="text.secondary">
-                {contact.location}, {contact.country}
+                {contact.location || 'Localisation non disponible'}, {contact.country || 'Pays non disponible'}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Chip
-                label={contact.department}
+                label={contact.department || 'Non spécifié'}
                 size="small"
                 sx={{ 
-                  bgcolor: getDepartmentColor(contact.department),
+                  bgcolor: getDepartmentColor(contact.department || ''),
                   color: '#333',
                   fontWeight: 500
                 }}
               />
               <Chip
                 icon={<StarIcon />}
-                label={`Score: ${contact.lead_quality_score}/100`}
+                label={`Score: ${contact.lead_quality_score || 0}/100`}
                 size="small"
                 sx={{ 
-                  bgcolor: getQualityColor(contact.lead_quality_score),
+                  bgcolor: getQualityColor(contact.lead_quality_score || 0),
                   color: 'white',
                   fontWeight: 500
                 }}
@@ -296,7 +296,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       Nom complet
                     </Typography>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {contact.full_name}
+                      {contact.full_name || 'Nom non disponible'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -312,7 +312,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       Localisation
                     </Typography>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {contact.location}, {contact.country}
+                      {contact.location || 'Localisation non disponible'}, {contact.country || 'Pays non disponible'}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -320,7 +320,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       Années d'expérience
                     </Typography>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {contact.years_of_experience} ans
+                      {contact.years_of_experience || 0} ans
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -328,7 +328,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       Connexions LinkedIn
                     </Typography>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {contact.connections_count.toLocaleString()}
+                      {(contact.connections_count || 0).toLocaleString()}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -338,7 +338,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <LinearProgress
                         variant="determinate"
-                        value={contact.lead_quality_score}
+                        value={contact.lead_quality_score || 0}
                         sx={{ 
                           flexGrow: 1, 
                           height: 8, 
@@ -347,7 +347,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                         }}
                       />
                       <Typography variant="body2" sx={{ fontWeight: 500, minWidth: 35 }}>
-                        {contact.lead_quality_score}%
+                        {contact.lead_quality_score || 0}%
                       </Typography>
                     </Box>
                   </Grid>
@@ -697,3 +697,5 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
 };
 
 export default ContactDetail;
+
+
