@@ -499,38 +499,123 @@ app.get('/api/companies', async (req, res) => {
 app.get('/api/companies/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { page = 1, limit = 20, current_only = false } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
     
-    const result = await pool.query(`
-      SELECT 
-        c.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', e.id,
-              'title', e.title,
-              'full_name', cont.full_name,
-              'is_current', e.is_current,
-              'date_from', e.date_from,
-              'date_to', e.date_to,
-              'location', e.location
-            )
-          ) FILTER (WHERE e.id IS NOT NULL), 
-          '[]'::json
-        ) as employees
-      FROM companies c
-      LEFT JOIN experiences e ON c.id = e.company_id
-      LEFT JOIN contacts cont ON e.contact_id = cont.id
-      WHERE c.id = $1
-      GROUP BY c.id
+    // Récupérer les infos de l'entreprise
+    const companyResult = await pool.query(`
+      SELECT * FROM companies WHERE id = $1
     `, [id]);
-
-    if (result.rows.length === 0) {
+    
+    if (companyResult.rows.length === 0) {
       return res.status(404).json({ error: 'Entreprise non trouvée' });
     }
-
-    res.json(result.rows[0]);
+    
+    // Compter le total d'employés
+    const countQuery = current_only === 'true' 
+      ? `SELECT COUNT(DISTINCT e.id) as total FROM experiences e WHERE e.company_id = $1 AND e.is_current = true`
+      : `SELECT COUNT(DISTINCT e.id) as total FROM experiences e WHERE e.company_id = $1`;
+    
+    const countResult = await pool.query(countQuery, [id]);
+    const totalEmployees = parseInt(countResult.rows[0].total);
+    
+    // Récupérer les employés avec pagination
+    const employeesQuery = current_only === 'true'
+      ? `
+        SELECT DISTINCT
+          e.id,
+          e.title,
+          cont.full_name,
+          e.is_current,
+          e.date_from,
+          e.date_to,
+          e.location
+        FROM experiences e
+        JOIN contacts cont ON e.contact_id = cont.id
+        WHERE e.company_id = $1 AND e.is_current = true
+        ORDER BY e.date_from DESC
+        LIMIT $2 OFFSET $3
+      `
+      : `
+        SELECT DISTINCT
+          e.id,
+          e.title,
+          cont.full_name,
+          e.is_current,
+          e.date_from,
+          e.date_to,
+          e.location
+        FROM experiences e
+        JOIN contacts cont ON e.contact_id = cont.id
+        WHERE e.company_id = $1
+        ORDER BY e.is_current DESC, e.date_from DESC
+        LIMIT $2 OFFSET $3
+      `;
+    
+    const employeesResult = await pool.query(employeesQuery, [id, parseInt(limit as string), offset]);
+    
+    res.json({
+      ...companyResult.rows[0],
+      employees: employeesResult.rows,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: totalEmployees,
+        pages: Math.ceil(totalEmployees / parseInt(limit as string))
+      }
+    });
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'entreprise:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Récupérer les employés d'une entreprise (endpoint séparé)
+app.get('/api/companies/:id/employees', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 50, current_only = false } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+    
+    // Requête simple pour tester
+    const employeesQuery = `
+      SELECT 
+        e.id,
+        e.title,
+        cont.full_name,
+        cont.email,
+        cont.phone,
+        e.is_current,
+        e.date_from,
+        e.date_to,
+        e.location
+      FROM experiences e
+      JOIN contacts cont ON e.contact_id = cont.id
+      WHERE e.company_id = $1
+      ORDER BY e.is_current DESC, e.date_from DESC
+      LIMIT $2 OFFSET $3
+    `;
+    
+    const employeesResult = await pool.query(employeesQuery, [id, parseInt(limit as string), offset]);
+    
+    // Compter le total
+    const countResult = await pool.query(
+      'SELECT COUNT(DISTINCT e.id) as total FROM experiences e WHERE e.company_id = $1', 
+      [id]
+    );
+    const totalEmployees = parseInt(countResult.rows[0].total);
+    
+    res.json({
+      employees: employeesResult.rows,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: totalEmployees,
+        pages: Math.ceil(totalEmployees / parseInt(limit as string))
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des employés:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
