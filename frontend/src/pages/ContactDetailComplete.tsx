@@ -422,48 +422,140 @@ const ContactDetailComplete: React.FC<ContactDetailProps> = ({ contactId, onClos
           {contact.experiences && contact.experiences.length > 0 ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {contact.experiences
-                .sort((a, b) => (a.order_in_profile || 0) - (b.order_in_profile || 0))
+                .sort((a, b) => {
+                  // Trier par ordre chronologique : plus récentes en premier
+                  // D'abord les postes actuels, puis par date de fin décroissante
+                  if (a.is_current && !b.is_current) return -1;
+                  if (!a.is_current && b.is_current) return 1;
+                  
+                  const dateA = a.date_to ? new Date(a.date_to) : new Date();
+                  const dateB = b.date_to ? new Date(b.date_to) : new Date();
+                  return dateB.getTime() - dateA.getTime();
+                })
                 .map((exp, index) => (
-                  <Paper key={exp.id} elevation={2} sx={{ p: 3 }}>
+                  <Paper key={exp.id} elevation={2} sx={{ 
+                    p: 3, 
+                    border: exp.is_current ? '2px solid #4CAF50' : '1px solid #e0e0e0',
+                    borderRadius: 2,
+                    position: 'relative',
+                    '&:hover': {
+                      boxShadow: 4,
+                      transform: 'translateY(-2px)',
+                      transition: 'all 0.2s ease-in-out'
+                    }
+                  }}>
+                    {exp.is_current && (
+                      <Chip
+                        label="POSTE ACTUEL"
+                        color="success"
+                        size="small"
+                        sx={{ 
+                          position: 'absolute', 
+                          top: -8, 
+                          right: 16,
+                          fontWeight: 'bold',
+                          fontSize: '0.7rem'
+                        }}
+                      />
+                    )}
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 1,
+                          color: exp.is_current ? '#2E7D32' : 'text.primary'
+                        }}>
                           {exp.title || 'Titre non spécifié'}
                         </Typography>
-                        <Typography variant="h6" color="primary" sx={{ mb: 1, cursor: 'pointer' }}
-                          onClick={() => exp.company_id && handleCompanyClick(exp.company_id)}>
+                        <Typography 
+                          variant="h6" 
+                          color="primary" 
+                          sx={{ 
+                            mb: 1, 
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            '&:hover': {
+                              textDecoration: 'underline'
+                            }
+                          }}
+                          onClick={() => exp.company_id && handleCompanyClick(exp.company_id)}
+                        >
                           {exp.company_name || 'Entreprise non spécifiée'}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {exp.location || 'Localisation non spécifiée'} • {exp.duration || 'Durée non spécifiée'}
-                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+                          {exp.location && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <LocationIcon fontSize="small" color="action" />
+                              <Typography variant="body2" color="text.secondary">
+                                {exp.location}
+                              </Typography>
+                            </Box>
+                          )}
+                          {exp.duration && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CalendarIcon fontSize="small" color="action" />
+                              <Typography variant="body2" color="text.secondary">
+                                {exp.duration}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                         {exp.description && (
-                          <Typography variant="body2" sx={{ mb: 2, lineHeight: 1.6 }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              mb: 2, 
+                              lineHeight: 1.6,
+                              fontStyle: 'italic',
+                              color: 'text.secondary',
+                              backgroundColor: '#f5f5f5',
+                              padding: 2,
+                              borderRadius: 1
+                            }}
+                          >
                             {exp.description.replace(/<[^>]*>/g, '')}
                           </Typography>
                         )}
                       </Box>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Chip
-                          label={exp.is_current ? 'Poste actuel' : 'Poste précédent'}
-                          color={exp.is_current ? 'success' : 'default'}
-                          size="small"
-                          sx={{ mb: 1 }}
-                        />
-                        <Typography variant="body2" color="text.secondary">
+                      <Box sx={{ textAlign: 'right', minWidth: '120px' }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                           {formatDate(exp.date_from)} - {formatDate(exp.date_to)}
                         </Typography>
+                        {exp.job_category && (
+                          <Chip 
+                            label={exp.job_category} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                            sx={{ mb: 1, display: 'block' }}
+                          />
+                        )}
                       </Box>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {exp.job_category && (
-                        <Chip label={exp.job_category} size="small" variant="outlined" />
-                      )}
                       {exp.company_industry && (
-                        <Chip label={exp.company_industry} size="small" variant="outlined" />
+                        <Chip 
+                          label={exp.company_industry} 
+                          size="small" 
+                          variant="outlined" 
+                          color="secondary"
+                        />
                       )}
                       {exp.company_size && (
-                        <Chip label={exp.company_size} size="small" variant="outlined" />
+                        <Chip 
+                          label={exp.company_size} 
+                          size="small" 
+                          variant="outlined" 
+                          color="info"
+                        />
+                      )}
+                      {exp.department && (
+                        <Chip 
+                          label={exp.department} 
+                          size="small" 
+                          variant="outlined" 
+                          color="warning"
+                        />
                       )}
                     </Box>
                   </Paper>

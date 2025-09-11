@@ -66,8 +66,9 @@ app.get('/api/contacts', async (req, res) => {
               'location', e.location,
               'is_current', e.is_current,
               'order_in_profile', e.order_in_profile,
+              'is_current', e.is_current,
               'job_category', e.job_category,
-              'company_name', e.company_name,
+              'company_name', COALESCE(comp.company_name, e.company_name),
               'company_id', e.company_id,
               'company_industry', e.company_industry,
               'company_size', e.company_size,
@@ -125,6 +126,7 @@ app.get('/api/contacts', async (req, res) => {
         ) as education
       FROM contacts c
       LEFT JOIN experiences e ON c.id = e.contact_id
+      LEFT JOIN companies comp ON e.company_id = comp.id
       LEFT JOIN contact_languages l ON c.id = l.contact_id
       LEFT JOIN contact_skills s ON c.id = s.contact_id
       LEFT JOIN contact_interests i ON c.id = i.contact_id
@@ -192,8 +194,9 @@ app.get('/api/contacts/search', async (req, res) => {
               'location', e.location,
               'is_current', e.is_current,
               'order_in_profile', e.order_in_profile,
+              'is_current', e.is_current,
               'job_category', e.job_category,
-              'company_name', e.company_name,
+              'company_name', COALESCE(comp.company_name, e.company_name),
               'company_id', e.company_id,
               'company_industry', e.company_industry,
               'company_size', e.company_size,
@@ -258,6 +261,7 @@ app.get('/api/contacts/search', async (req, res) => {
         ) as education
       FROM contacts c
       LEFT JOIN experiences e ON c.id = e.contact_id
+      LEFT JOIN companies comp ON e.company_id = comp.id
       LEFT JOIN contact_languages l ON c.id = l.contact_id
       LEFT JOIN contact_skills s ON c.id = s.contact_id
       LEFT JOIN contact_interests i ON c.id = i.contact_id
@@ -309,8 +313,9 @@ app.get('/api/contacts/:id', async (req, res) => {
               'location', e.location,
               'is_current', e.is_current,
               'order_in_profile', e.order_in_profile,
+              'is_current', e.is_current,
               'job_category', e.job_category,
-              'company_name', e.company_name,
+              'company_name', COALESCE(comp.company_name, e.company_name),
               'company_id', e.company_id,
               'company_industry', e.company_industry,
               'company_size', e.company_size,
@@ -375,6 +380,7 @@ app.get('/api/contacts/:id', async (req, res) => {
         ) as education
       FROM contacts c
       LEFT JOIN experiences e ON c.id = e.contact_id
+      LEFT JOIN companies comp ON e.company_id = comp.id
       LEFT JOIN contact_languages l ON c.id = l.contact_id
       LEFT JOIN contact_skills s ON c.id = s.contact_id
       LEFT JOIN contact_interests i ON c.id = i.contact_id
@@ -414,7 +420,7 @@ app.get('/api/contacts/search', async (req, res) => {
             DISTINCT jsonb_build_object(
               'id', e.id,
               'title', e.title,
-              'company_name', e.company_name,
+              'company_name', COALESCE(comp.company_name, e.company_name),
               'is_current', e.is_current
             )
           ) FILTER (WHERE e.id IS NOT NULL), 
