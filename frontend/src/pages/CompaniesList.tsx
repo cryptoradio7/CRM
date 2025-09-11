@@ -79,8 +79,8 @@ const CompaniesList = () => {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      const data = await companiesApi.getAll();
-      setCompanies(data);
+      const response = await companiesApi.getAll();
+      setCompanies(response.companies || []);
     } catch (error) {
       setError('Erreur lors du chargement des entreprises');
       console.error('Erreur:', error);
