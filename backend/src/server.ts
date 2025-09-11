@@ -508,7 +508,7 @@ app.get('/api/companies/:id', async (req, res) => {
             DISTINCT jsonb_build_object(
               'id', e.id,
               'title', e.title,
-              'full_name', e.full_name,
+              'full_name', cont.full_name,
               'is_current', e.is_current,
               'date_from', e.date_from,
               'date_to', e.date_to,
