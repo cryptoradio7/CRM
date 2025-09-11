@@ -7,8 +7,10 @@ import ProspectsList from './pages/ProspectsList';
 import ProspectForm from './pages/ProspectForm';
 import ContactsList from './pages/ContactsList';
 import ContactDetail from './pages/ContactDetail';
+import ContactDetailComplete from './pages/ContactDetailComplete';
 import ContactForm from './pages/ContactForm';
 import CompaniesList from './pages/CompaniesList';
+import CompanyDetailComplete from './pages/CompanyDetailComplete';
 import CompanyForm from './pages/CompanyForm';
 import SystemDashboard from './pages/SystemDashboard';
 import './App.css';
@@ -80,8 +82,25 @@ const ContactDetailWrapper = () => {
   };
 
   return (
-    <ContactDetail 
+    <ContactDetailComplete 
       contactId={parseInt(id || '0')} 
+      onClose={handleClose} 
+    />
+  );
+};
+
+// Wrapper pour CompanyDetail avec navigation
+const CompanyDetailWrapper = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
+  const handleClose = () => {
+    navigate('/companies');
+  };
+
+  return (
+    <CompanyDetailComplete 
+      companyId={parseInt(id || '0')} 
       onClose={handleClose} 
     />
   );
@@ -102,8 +121,8 @@ function App() {
               <Route path="/contacts/new" element={<ContactForm />} />
               <Route path="/contacts/:id/edit" element={<ContactForm />} />
               <Route path="/companies" element={<CompaniesList />} />
+              <Route path="/companies/:id" element={<CompanyDetailWrapper />} />
               <Route path="/companies/new" element={<CompanyForm />} />
-              <Route path="/companies/:id" element={<CompanyForm />} />
               <Route path="/companies/:id/edit" element={<CompanyForm />} />
               <Route path="/prospects" element={<ProspectsList />} />
               <Route path="/prospects/new" element={<ProspectForm />} />

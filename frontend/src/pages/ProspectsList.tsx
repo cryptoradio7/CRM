@@ -239,68 +239,68 @@ const ProspectsList = () => {
       const allProspects = data.prospects;
 
       if (allProspects.length === 0) {
-        setSnackbar({
-          open: true,
-          message: 'Aucun contact à exporter',
-          severity: 'warning'
-        });
-        return;
-      }
-
-      // En-têtes CSV
-      const headers = [
-        'Nom complet',
-        'Catégorie de poste',
-        'Libellé du poste',
-        'Email',
-        'LinkedIn',
-        'Entreprise', 
-        'Taille entreprise',
-        'Secteur',
-        'Étape de suivi',
-        'Intérêts',
-        'Historique',
-        'Date création'
-      ];
-
-      // Données CSV
-      const csvData = allProspects.map((prospect: any) => [
-        prospect.nom_complet || '',
-        prospect.categorie_poste || '',
-        prospect.poste_specifique || '',
-        prospect.email || '',
-        prospect.linkedin || '',
-        prospect.entreprise || '',
-        prospect.taille_entreprise || '',
-        prospect.secteur || '',
-        prospect.etape_suivi || '',
-        prospect.interets || '',
-        prospect.historique || '',
-        prospect.date_creation ? new Date(prospect.date_creation).toLocaleDateString('fr-FR') : ''
-      ]);
-
-      // Créer le contenu CSV
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map((row: any) => row.map((field: any) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
-      ].join('\n');
-
-      // Créer et télécharger le fichier
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `contacts_complet_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
       setSnackbar({
         open: true,
-        message: `${allProspects.length} contact(s) de la base complète exporté(s) avec succès`,
-        severity: 'success'
+        message: 'Aucun contact à exporter',
+        severity: 'warning'
       });
+      return;
+    }
+
+    // En-têtes CSV
+    const headers = [
+      'Nom complet',
+      'Catégorie de poste',
+      'Libellé du poste',
+      'Email',
+      'LinkedIn',
+      'Entreprise', 
+      'Taille entreprise',
+      'Secteur',
+      'Étape de suivi',
+      'Intérêts',
+      'Historique',
+      'Date création'
+    ];
+
+    // Données CSV
+      const csvData = allProspects.map((prospect: any) => [
+      prospect.nom_complet || '',
+      prospect.categorie_poste || '',
+      prospect.poste_specifique || '',
+      prospect.email || '',
+      prospect.linkedin || '',
+      prospect.entreprise || '',
+      prospect.taille_entreprise || '',
+      prospect.secteur || '',
+      prospect.etape_suivi || '',
+      prospect.interets || '',
+      prospect.historique || '',
+      prospect.date_creation ? new Date(prospect.date_creation).toLocaleDateString('fr-FR') : ''
+    ]);
+
+    // Créer le contenu CSV
+    const csvContent = [
+      headers.join(','),
+        ...csvData.map((row: any) => row.map((field: any) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    // Créer et télécharger le fichier
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+      link.setAttribute('download', `contacts_complet_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setSnackbar({
+      open: true,
+        message: `${allProspects.length} contact(s) de la base complète exporté(s) avec succès`,
+      severity: 'success'
+    });
     } catch (error) {
       console.error('Erreur lors de l\'export complet:', error);
       setSnackbar({
@@ -425,13 +425,13 @@ const ProspectsList = () => {
 
   const fetchProspects = async () => {
     try {
-      setLoading(true);
+        setLoading(true);
 
       // Charger TOUS les contacts d'un coup (pas de pagination côté serveur)
       const response = await fetch(`http://localhost:3003/api/prospects?page=1&limit=10000`);
       if (response.ok) {
         const data = await response.json();
-        setProspects(data.prospects);
+          setProspects(data.prospects);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des prospects:', error);
