@@ -113,6 +113,15 @@ export const companiesApi = {
     const response = await fetch(`${API_BASE_URL}/companies/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
     if (!response.ok) throw new Error('Erreur lors de la recherche d\'entreprises');
     return response.json() as Promise<SearchResponse<any>>;
+  },
+
+  // Supprimer une entreprise
+  async delete(id: number) {
+    const response = await fetch(`${API_BASE_URL}/companies/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Erreur lors de la suppression de l\'entreprise');
+    return response.json() as Promise<{ message: string }>;
   }
 };
 
@@ -232,3 +241,5 @@ export default {
   followUpStages: followUpStagesApi,
   prospects: prospectsApi
 };
+
+
