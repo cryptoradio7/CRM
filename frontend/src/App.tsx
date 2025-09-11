@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -6,6 +5,10 @@ import { Box } from '@mui/material';
 import Header from './components/Header';
 import ProspectsList from './pages/ProspectsList';
 import ProspectForm from './pages/ProspectForm';
+import ContactsList from './pages/ContactsList';
+import ContactForm from './pages/ContactForm';
+import CompaniesList from './pages/CompaniesList';
+import CompanyForm from './pages/CompanyForm';
 import SystemDashboard from './pages/SystemDashboard';
 import './App.css';
 
@@ -75,7 +78,14 @@ function App() {
           <Header />
           <Box component="main" sx={{ flex: 1, p: 3, width: '100%' }}>
             <Routes>
-              <Route path="/" element={<Navigate to="/prospects" replace />} />
+              <Route path="/" element={<Navigate to="/contacts" replace />} />
+              <Route path="/contacts" element={<ContactsList />} />
+              <Route path="/contacts/new" element={<ContactForm />} />
+              <Route path="/contacts/:id/edit" element={<ContactForm />} />
+              <Route path="/companies" element={<CompaniesList />} />
+              <Route path="/companies/new" element={<CompanyForm />} />
+              <Route path="/companies/:id" element={<CompanyForm />} />
+              <Route path="/companies/:id/edit" element={<CompanyForm />} />
               <Route path="/prospects" element={<ProspectsList />} />
               <Route path="/prospects/new" element={<ProspectForm />} />
               <Route path="/prospects/:id/edit" element={<ProspectForm />} />

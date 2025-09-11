@@ -524,6 +524,490 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
+// =====================================================
+// NOUVELLES APIs - CONTACTS LEMLIST
+// =====================================================
+
+// GET - Récupérer tous les contacts avec pagination
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    
+    // Récupérer le nombre total de contacts
+    const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Récupérer les contacts paginés avec leurs expériences
+    const result = await pool.query(`
+      SELECT c.*, 
+             COUNT(e.id) as experience_count,
+             STRING_AGG(DISTINCT comp.company_name, ', ') as companies
+      FROM contacts c
+      LEFT JOIN experiences e ON c.id = e.contact_id
+      LEFT JOIN companies comp ON e.company_id = comp.id
+      GROUP BY c.id
+      ORDER BY c.full_name ASC 
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    
+    res.json({
+      contacts: result.rows,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page < Math.ceil(totalCount / limit),
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (err) {
+    console.error('Erreur lors du chargement des contacts:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Récupérer un contact par ID avec toutes ses données
+app.get('/api/contacts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Récupérer le contact principal
+    const contactResult = await pool.query('SELECT * FROM contacts WHERE id = $1', [id]);
+    
+    if (contactResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Contact non trouvé' });
+    }
+    
+    const contact = contactResult.rows[0];
+    
+    // Récupérer les expériences avec toutes les données des entreprises
+    const experiencesResult = await pool.query(`
+      SELECT e.*, 
+             comp.company_name, comp.company_industry, comp.company_size,
+             comp.company_description, comp.company_subindustry,
+             comp.company_website_url, comp.headquarters_city,
+             comp.headquarters_country, comp.employee_count,
+             comp.revenue_bucket, comp.company_type
+      FROM experiences e
+      LEFT JOIN companies comp ON e.company_id = comp.id
+      WHERE e.contact_id = $1
+      ORDER BY e.order_in_profile ASC
+    `, [id]);
+    
+    // Récupérer les langues
+    const languagesResult = await pool.query(`
+      SELECT * FROM contact_languages 
+      WHERE contact_id = $1 
+      ORDER BY order_in_profile ASC
+    `, [id]);
+    
+    // Récupérer les compétences
+    const skillsResult = await pool.query(`
+      SELECT * FROM contact_skills 
+      WHERE contact_id = $1 
+      ORDER BY order_in_profile ASC
+    `, [id]);
+    
+    // Récupérer les intérêts
+    const interestsResult = await pool.query(`
+      SELECT * FROM contact_interests 
+      WHERE contact_id = $1 
+      ORDER BY order_in_profile ASC
+    `, [id]);
+    
+    res.json({
+      ...contact,
+      experiences: experiencesResult.rows,
+      languages: languagesResult.rows,
+      skills: skillsResult.rows,
+      interests: interestsResult.rows
+    });
+  } catch (err) {
+    console.error('Erreur lors de la récupération du contact:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Rechercher des contacts
+app.get('/api/contacts/search', async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 20;
+    const offset = (pageNum - 1) * limitNum;
+    
+    if (!q || q.toString().trim() === '') {
+      return res.status(400).json({ error: 'Paramètre de recherche requis' });
+    }
+    
+    const searchTerm = `%${q.toString().toLowerCase()}%`;
+    
+    // Compter les résultats
+    const countResult = await pool.query(`
+      SELECT COUNT(*) FROM contacts 
+      WHERE LOWER(full_name) LIKE $1 
+         OR LOWER(headline) LIKE $1 
+         OR LOWER(location) LIKE $1
+    `, [searchTerm]);
+    
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Récupérer les résultats
+    const result = await pool.query(`
+      SELECT c.*, 
+             COUNT(e.id) as experience_count,
+             STRING_AGG(DISTINCT comp.company_name, ', ') as companies
+      FROM contacts c
+      LEFT JOIN experiences e ON c.id = e.contact_id
+      LEFT JOIN companies comp ON e.company_id = comp.id
+      WHERE LOWER(c.full_name) LIKE $1 
+         OR LOWER(c.headline) LIKE $1 
+         OR LOWER(c.location) LIKE $1
+      GROUP BY c.id
+      ORDER BY c.full_name ASC 
+      LIMIT $2 OFFSET $3
+    `, [searchTerm, limitNum, offset]);
+    
+    res.json({
+      contacts: result.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+        hasNextPage: pageNum < Math.ceil(totalCount / limitNum),
+        hasPrevPage: pageNum > 1
+      },
+      searchTerm: q
+    });
+  } catch (err) {
+    console.error('Erreur lors de la recherche de contacts:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =====================================================
+// APIs - ENTREPRISES
+// =====================================================
+
+// GET - Récupérer toutes les entreprises avec pagination
+app.get('/api/companies', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    
+    // Récupérer le nombre total d'entreprises
+    const countResult = await pool.query('SELECT COUNT(*) FROM companies');
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Récupérer les entreprises paginées avec le nombre de contacts
+    const result = await pool.query(`
+      SELECT c.*, 
+             COUNT(DISTINCT e.contact_id) as contact_count
+      FROM companies c
+      LEFT JOIN experiences e ON c.id = e.company_id
+      GROUP BY c.id
+      ORDER BY c.company_name ASC 
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    
+    res.json({
+      companies: result.rows,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNextPage: page < Math.ceil(totalCount / limit),
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (err) {
+    console.error('Erreur lors du chargement des entreprises:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Récupérer une entreprise par ID avec ses contacts
+app.get('/api/companies/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Récupérer l'entreprise principale
+    const companyResult = await pool.query('SELECT * FROM companies WHERE id = $1', [id]);
+    
+    if (companyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Entreprise non trouvée' });
+    }
+    
+    const company = companyResult.rows[0];
+    
+    // Récupérer les contacts associés
+    const contactsResult = await pool.query(`
+      SELECT DISTINCT c.id, c.full_name, c.headline, c.current_title_normalized, 
+             c.department, c.linkedin_url, e.title, e.is_current
+      FROM contacts c
+      JOIN experiences e ON c.id = e.contact_id
+      WHERE e.company_id = $1
+      ORDER BY e.is_current DESC, c.full_name ASC
+    `, [id]);
+    
+    res.json({
+      ...company,
+      contacts: contactsResult.rows
+    });
+  } catch (err) {
+    console.error('Erreur lors de la récupération de l\'entreprise:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET - Rechercher des entreprises
+app.get('/api/companies/search', async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 20;
+    const offset = (pageNum - 1) * limitNum;
+    
+    if (!q || q.toString().trim() === '') {
+      return res.status(400).json({ error: 'Paramètre de recherche requis' });
+    }
+    
+    const searchTerm = `%${q.toString().toLowerCase()}%`;
+    
+    // Compter les résultats
+    const countResult = await pool.query(`
+      SELECT COUNT(*) FROM companies 
+      WHERE LOWER(company_name) LIKE $1 
+         OR LOWER(company_industry) LIKE $1 
+         OR LOWER(headquarters_city) LIKE $1
+    `, [searchTerm]);
+    
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Récupérer les résultats
+    const result = await pool.query(`
+      SELECT c.*, 
+             COUNT(DISTINCT e.contact_id) as contact_count
+      FROM companies c
+      LEFT JOIN experiences e ON c.id = e.company_id
+      WHERE LOWER(c.company_name) LIKE $1 
+         OR LOWER(c.company_industry) LIKE $1 
+         OR LOWER(c.headquarters_city) LIKE $1
+      GROUP BY c.id
+      ORDER BY c.company_name ASC 
+      LIMIT $2 OFFSET $3
+    `, [searchTerm, limitNum, offset]);
+    
+    res.json({
+      companies: result.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+        hasNextPage: pageNum < Math.ceil(totalCount / limitNum),
+        hasPrevPage: pageNum > 1
+      },
+      searchTerm: q
+    });
+  } catch (err) {
+    console.error('Erreur lors de la recherche d\'entreprises:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =====================================================
+// APIs - NOTES DE CONTACTS
+// =====================================================
+
+// GET - Récupérer les notes d'un contact
+app.get('/api/contacts/:id/notes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      SELECT * FROM contact_notes 
+      WHERE contact_id = $1 
+      ORDER BY id DESC
+    `, [id]);
+    
+    res.json({ notes: result.rows });
+  } catch (err) {
+    console.error('Erreur lors du chargement des notes:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST - Créer une nouvelle note
+app.post('/api/contacts/:id/notes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note_content, note_type = 'general' } = req.body;
+    
+    if (!note_content || note_content.trim() === '') {
+      return res.status(400).json({ error: 'Le contenu de la note est requis' });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO contact_notes (contact_id, note_content, note_type)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [id, note_content.trim(), note_type]);
+    
+    res.status(201).json({ note: result.rows[0] });
+  } catch (err) {
+    console.error('Erreur lors de la création de la note:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT - Modifier une note
+app.put('/api/notes/:noteId', async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const { note_content, note_type } = req.body;
+    
+    if (!note_content || note_content.trim() === '') {
+      return res.status(400).json({ error: 'Le contenu de la note est requis' });
+    }
+    
+    const result = await pool.query(`
+      UPDATE contact_notes 
+      SET note_content = $1, note_type = $2
+      WHERE id = $3
+      RETURNING *
+    `, [note_content.trim(), note_type, noteId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note non trouvée' });
+    }
+    
+    res.json({ note: result.rows[0] });
+  } catch (err) {
+    console.error('Erreur lors de la modification de la note:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE - Supprimer une note
+app.delete('/api/notes/:noteId', async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    
+    const result = await pool.query(`
+      DELETE FROM contact_notes 
+      WHERE id = $1
+      RETURNING *
+    `, [noteId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note non trouvée' });
+    }
+    
+    res.json({ message: 'Note supprimée avec succès' });
+  } catch (err) {
+    console.error('Erreur lors de la suppression de la note:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// =====================================================
+// APIs - ÉTAPES DE SUIVI
+// =====================================================
+
+// GET - Récupérer toutes les étapes de suivi
+app.get('/api/follow-up-stages', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM follow_up_stages 
+      ORDER BY stage_order ASC
+    `);
+    
+    res.json({ stages: result.rows });
+  } catch (err) {
+    console.error('Erreur lors du chargement des étapes:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST - Créer une nouvelle étape
+app.post('/api/follow-up-stages', async (req, res) => {
+  try {
+    const { stage_name, stage_order, color = '#4CAF50', description } = req.body;
+    
+    if (!stage_name || stage_name.trim() === '') {
+      return res.status(400).json({ error: 'Le nom de l\'étape est requis' });
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO follow_up_stages (stage_name, stage_order, color, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [stage_name.trim(), stage_order, color, description]);
+    
+    res.status(201).json({ stage: result.rows[0] });
+  } catch (err) {
+    console.error('Erreur lors de la création de l\'étape:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// PUT - Modifier une étape
+app.put('/api/follow-up-stages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stage_name, stage_order, color, description } = req.body;
+    
+    if (!stage_name || stage_name.trim() === '') {
+      return res.status(400).json({ error: 'Le nom de l\'étape est requis' });
+    }
+    
+    const result = await pool.query(`
+      UPDATE follow_up_stages 
+      SET stage_name = $1, stage_order = $2, color = $3, description = $4
+      WHERE id = $5
+      RETURNING *
+    `, [stage_name.trim(), stage_order, color, description, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Étape non trouvée' });
+    }
+    
+    res.json({ stage: result.rows[0] });
+  } catch (err) {
+    console.error('Erreur lors de la modification de l\'étape:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// DELETE - Supprimer une étape
+app.delete('/api/follow-up-stages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query(`
+      DELETE FROM follow_up_stages 
+      WHERE id = $1
+      RETURNING *
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Étape non trouvée' });
+    }
+    
+    res.json({ message: 'Étape supprimée avec succès' });
+  } catch (err) {
+    console.error('Erreur lors de la suppression de l\'étape:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   console.log(`📊 API disponible sur http://localhost:${PORT}/api`);

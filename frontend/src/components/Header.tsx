@@ -57,7 +57,7 @@ const Header = () => {
         {/* Logo et nom */}
         <Box 
           component={RouterLink}
-          to="/prospects"
+          to="/contacts"
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -111,11 +111,27 @@ const Header = () => {
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <Button 
             component={RouterLink} 
+            to="/contacts"
+            sx={location.pathname === '/contacts' ? activeButtonStyle : baseButtonStyle}
+            disableRipple={false}
+          >
+            Contacts
+          </Button>
+          <Button 
+            component={RouterLink} 
+            to="/companies"
+            sx={location.pathname === '/companies' ? activeButtonStyle : baseButtonStyle}
+            disableRipple={false}
+          >
+            Entreprises
+          </Button>
+          <Button 
+            component={RouterLink} 
             to="/prospects"
             sx={location.pathname === '/prospects' ? activeButtonStyle : baseButtonStyle}
             disableRipple={false}
           >
-            Contacts
+            Prospects
           </Button>
           <Button 
             component={RouterLink} 
