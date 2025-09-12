@@ -576,12 +576,14 @@ const ContactsList = () => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🔄 handleDragOver appelé');
     setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('🔄 handleDragLeave appelé');
     setIsDragOver(false);
   };
 
@@ -590,13 +592,21 @@ const ContactsList = () => {
     e.stopPropagation();
     setIsDragOver(false);
 
+    console.log('🔄 handleDrop appelé');
     const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
+    console.log('📁 Fichiers détectés:', files.length);
+    
+    if (files.length === 0) {
+      console.log('❌ Aucun fichier détecté');
+      return;
+    }
 
     const file = files[0];
+    console.log('📄 Fichier sélectionné:', file.name, 'Taille:', file.size);
     
     // Vérifier que c'est un fichier JSON
     if (!file.name.toLowerCase().endsWith('.json')) {
+      console.log('❌ Fichier non JSON:', file.name);
       setSnackbar({
         open: true,
         message: 'Veuillez sélectionner un fichier JSON',
@@ -604,6 +614,8 @@ const ContactsList = () => {
       });
       return;
     }
+    
+    console.log('✅ Fichier JSON valide, début du traitement');
 
     // Vérifier la taille du fichier (limite à 500MB)
     if (file.size > 500 * 1024 * 1024) {
@@ -615,12 +627,14 @@ const ContactsList = () => {
       return;
     }
 
+    console.log('🚀 Appel de processFileImport');
     await processFileImport(file);
   };
 
   // Fonction pour traiter l'import de fichier
   const processFileImport = async (file: File) => {
     try {
+      console.log('📥 processFileImport démarré pour:', file.name);
       setIsImporting(true);
       setImportProgress(0);
 
