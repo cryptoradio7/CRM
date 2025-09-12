@@ -100,6 +100,11 @@ const ContactsList = () => {
   const saveTimeoutRef = useRef<number | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' });
 
+  // États pour le drag & drop
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
+
   const navigate = useNavigate();
   const searchTimeoutRef = useRef<number | undefined>(undefined);
 
@@ -235,6 +240,9 @@ const ContactsList = () => {
       const response = await contactsApi.getAll(1, 1000);
       console.log('Chargement des options de filtres...', response.contacts?.length, 'contacts');
       extractFilterOptions(response.contacts || []);
+      
+      // Mettre à jour le total de contacts
+      setTotalCount(response.pagination?.total || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des options de filtres:', error);
     } finally {
@@ -256,7 +264,7 @@ const ContactsList = () => {
       
       setContacts(response.contacts || []);
       setTotalPages(response.pagination?.totalPages || 1);
-      setTotalCount(response.pagination?.totalCount || 0);
+      setTotalCount(response.pagination?.total || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
       setSnackbar({ open: true, message: 'Erreur lors du chargement des contacts', severity: 'error' });
@@ -562,6 +570,165 @@ const ContactsList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Fonctions de gestion du drag & drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    const file = files[0];
+    
+    // Vérifier que c'est un fichier JSON
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setSnackbar({
+        open: true,
+        message: 'Veuillez sélectionner un fichier JSON',
+        severity: 'error'
+      });
+      return;
+    }
+
+    // Vérifier la taille du fichier (limite à 500MB)
+    if (file.size > 500 * 1024 * 1024) {
+      setSnackbar({
+        open: true,
+        message: 'Fichier trop volumineux (max 500MB)',
+        severity: 'error'
+      });
+      return;
+    }
+
+    await processFileImport(file);
+  };
+
+  // Fonction pour traiter l'import de fichier
+  const processFileImport = async (file: File) => {
+    try {
+      setIsImporting(true);
+      setImportProgress(0);
+
+      // Lire le fichier en chunks pour éviter de bloquer l'UI
+      const fileContent = await readFileAsText(file);
+      setImportProgress(50);
+
+      // Parser le JSON
+      const jsonData = JSON.parse(fileContent);
+      setImportProgress(75);
+
+      if (!Array.isArray(jsonData)) {
+        throw new Error('Le fichier JSON doit contenir un tableau de contacts');
+      }
+
+      // Traiter les données par chunks pour les gros fichiers
+      const CHUNK_SIZE = 1000;
+      const totalContacts = jsonData.length;
+      let processedContacts = 0;
+      let totalImported = 0;
+      let totalErrors = 0;
+
+      for (let i = 0; i < jsonData.length; i += CHUNK_SIZE) {
+        const chunk = jsonData.slice(i, i + CHUNK_SIZE);
+        
+        // Mettre à jour le progrès
+        const progress = 75 + (processedContacts / totalContacts) * 20;
+        setImportProgress(Math.min(progress, 95));
+        
+        try {
+          const response = await fetch('http://localhost:3003/api/contacts/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonData: chunk })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Erreur lors de l'import du chunk ${Math.floor(i/CHUNK_SIZE) + 1}`);
+          }
+
+          const result = await response.json();
+          totalImported += result.importedCount || 0;
+          totalErrors += result.errorCount || 0;
+          
+        } catch (error) {
+          console.error(`Erreur chunk ${Math.floor(i/CHUNK_SIZE) + 1}:`, error);
+          totalErrors += chunk.length;
+        }
+        
+        processedContacts += chunk.length;
+      }
+
+      setImportProgress(100);
+      
+      const result = {
+        success: true,
+        message: `Import terminé: ${totalImported} contacts importés, ${totalErrors} erreurs`,
+        importedCount: totalImported,
+        errorCount: totalErrors
+      };
+
+      setSnackbar({
+        open: true,
+        message: result.message,
+        severity: result.success ? 'success' : 'error'
+      });
+
+      // Recharger les contacts si l'import a réussi
+      if (result.success) {
+        loadContacts(currentPage, searchTerm);
+        loadFilterOptions();
+      }
+
+    } catch (error) {
+      console.error('Erreur lors de l\'import:', error);
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Erreur lors de l\'import',
+        severity: 'error'
+      });
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+    }
+  };
+
+  // Fonction pour lire un fichier en tant que texte
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const progress = (e.loaded / e.total) * 25; // 25% pour la lecture
+          setImportProgress(progress);
+        }
+      };
+
+      reader.onload = (e) => {
+        resolve(e.target?.result as string);
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Erreur lors de la lecture du fichier'));
+      };
+
+      reader.readAsText(file, 'utf-8');
+    });
   };
 
   // Effet pour charger les contacts
@@ -985,7 +1152,7 @@ const ContactsList = () => {
         
         {/* BLOC 1: MOTEUR DE RECHERCHE (30%) */}
         <Box sx={{ width: '30%' }}>
-          <Card sx={{ p: 1.5, height: '500px', display: 'flex', flexDirection: 'column' }}>
+          <Card sx={{ p: 1.5, height: '600px', display: 'flex', flexDirection: 'column' }}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
               <Box display="flex" alignItems="center">
                 <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
@@ -1045,9 +1212,9 @@ const ContactsList = () => {
                   <LinearProgress sx={{ width: '100%' }} />
                 </Box>
               ) : (
-                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', gap: 1.5, minHeight: '100%' }}>
                   {/* Section Critères Contact */}
-                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f8f9fa', flex: 1 }}>
+                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f8f9fa', flex: 1, height: 'fit-content', overflow: 'visible' }}>
                     <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#1976d2', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.85rem' }}>
                       <PersonIcon sx={{ fontSize: 18 }} />
                       Critères Contact
@@ -1187,7 +1354,7 @@ const ContactsList = () => {
                   </Card>
 
                   {/* Section Critères Entreprise des Contacts */}
-                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f3e5f5', flex: 1 }}>
+                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f3e5f5', flex: 1, height: 'fit-content', overflow: 'visible' }}>
                     <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#7b1fa2', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.85rem' }}>
                       <BusinessIcon sx={{ fontSize: 18 }} />
                       Critères Entreprise des Contacts
@@ -1385,7 +1552,7 @@ const ContactsList = () => {
 
         {/* BLOC 2: IMPORT/EXPORT (20%) */}
         <Box sx={{ width: '20%' }}>
-          <Card sx={{ p: 2, height: '500px', display: 'flex', flexDirection: 'column' }}>
+          <Card sx={{ p: 2, height: '600px', display: 'flex', flexDirection: 'column' }}>
             <Stack spacing={2} sx={{ flex: 1 }}>
             {/* Import JSON */}
             <Card sx={{ p: 2, textAlign: 'center' }}>
@@ -1400,26 +1567,49 @@ const ContactsList = () => {
               </Typography>
               <Box
                 sx={{
-                  border: '2px dashed #ccc',
+                  border: isDragOver ? '2px dashed #4CAF50' : '2px dashed #ccc',
                   borderRadius: 2,
                   p: 3,
                   cursor: 'pointer',
+                  backgroundColor: isDragOver ? '#f0f8f0' : 'transparent',
+                  transition: 'all 0.3s ease',
                   '&:hover': {
                     borderColor: '#4CAF50',
                     backgroundColor: '#f5f5f5'
                   }
                 }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
                 onClick={handleImportJson}
               >
-                <UploadIcon sx={{ fontSize: 40, color: '#ccc', mb: 1 }} />
+                <UploadIcon sx={{ fontSize: 40, color: isDragOver ? '#4CAF50' : '#ccc', mb: 1 }} />
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  Glisser-déposer JSON ou cliquer
+                  {isDragOver ? 'Relâchez le fichier JSON' : 'Glisser-déposer JSON ou cliquer'}
                 </Typography>
+                
+                {/* Barre de progression */}
+                {isImporting && (
+                  <Box sx={{ width: '100%', mb: 2 }}>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={importProgress} 
+                      sx={{ mb: 1 }}
+                    />
+                    <Typography variant="caption" color="textSecondary">
+                      {importProgress < 25 ? 'Lecture du fichier...' :
+                       importProgress < 50 ? 'Traitement des données...' :
+                       importProgress < 75 ? 'Parsing JSON...' :
+                       importProgress < 100 ? 'Import en cours...' : 'Import terminé!'}
+                </Typography>
+                  </Box>
+                )}
+                
                 <Button
                   variant="contained"
                   color="primary"
                   size="small"
-                  disabled={loading}
+                  disabled={loading || isImporting}
                   sx={{
                     backgroundColor: '#FF9800',
                     '&:hover': {
@@ -1427,7 +1617,7 @@ const ContactsList = () => {
                     }
                   }}
                 >
-                  {loading ? 'Import en cours...' : 'Importer JSON'}
+                  {isImporting ? 'Import en cours...' : loading ? 'Chargement...' : 'Importer JSON'}
                 </Button>
               </Box>
             </Card>
@@ -1498,7 +1688,7 @@ const ContactsList = () => {
             p: 2, 
             borderRadius: 2, 
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
-            height: '500px',
+            height: '600px',
             display: 'flex',
             flexDirection: 'column',
             width: '100%'

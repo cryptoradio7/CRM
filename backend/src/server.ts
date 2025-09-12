@@ -9,8 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 const pool = new Pool({
   user: process.env.DB_USER || 'egx',
@@ -729,24 +729,29 @@ app.get('/api/companies/export', async (req, res) => {
 // POST - Importer des contacts depuis un fichier JSON
 app.post('/api/contacts/import', async (req, res) => {
   try {
-    const { filePath } = req.body;
+    const { filePath, jsonData } = req.body;
     
-    if (!filePath) {
-      return res.status(400).json({ error: 'Chemin du fichier JSON requis' });
-    }
+    let dataToImport;
+    
+    if (jsonData) {
+      // Données JSON directement fournies (drag & drop)
+      dataToImport = jsonData;
+    } else if (filePath) {
+      // Chemin de fichier fourni (import classique)
+      const fs = require('fs');
+      const path = require('path');
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Fichier JSON non trouvé' });
+      }
 
-    // Vérifier que le fichier existe
-    const fs = require('fs');
-    const path = require('path');
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Fichier JSON non trouvé' });
+      // Lire et parser le fichier JSON
+      dataToImport = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } else {
+      return res.status(400).json({ error: 'Chemin du fichier JSON ou données JSON requises' });
     }
-
-    // Lire et parser le fichier JSON
-    const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     
-    if (!Array.isArray(jsonData)) {
+    if (!Array.isArray(dataToImport)) {
       return res.status(400).json({ error: 'Le fichier JSON doit contenir un tableau de contacts' });
     }
 
@@ -786,7 +791,7 @@ app.post('/api/contacts/import', async (req, res) => {
     };
 
     // Importer chaque contact
-    for (const contact of jsonData) {
+    for (const contact of dataToImport) {
       try {
         const contactData = extractContactData(contact);
         
@@ -830,7 +835,7 @@ app.post('/api/contacts/import', async (req, res) => {
               current_company_industry, current_company_subindustry, profile_picture_url,
               telephone, email, interests, historic, follow_up,
               date_creation, date_modification
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
           `, [
             contactData.lead_id, contactData.full_name, contactData.headline,
             contactData.summary, contactData.location, contactData.country,
@@ -857,13 +862,45 @@ app.post('/api/contacts/import', async (req, res) => {
       message: `Import terminé: ${importedCount} contacts importés/mis à jour, ${errorCount} erreurs`,
       importedCount,
       errorCount,
-      totalProcessed: jsonData.length,
+      totalProcessed: dataToImport.length,
       errors: errors.slice(0, 10) // Limiter à 10 erreurs pour la réponse
     });
 
   } catch (error) {
     console.error('Erreur lors de l\'import JSON:', error);
     res.status(500).json({ error: 'Erreur lors de l\'import JSON' });
+  }
+});
+
+// =====================================================
+// API NOTES
+// =====================================================
+
+// GET - Récupérer les notes
+app.get('/api/notes', async (req, res) => {
+  try {
+    // Pour l'instant, retourner des notes vides
+    // TODO: Implémenter la récupération depuis la base de données
+    res.json({ notes: '' });
+  } catch (error) {
+    console.error('Erreur lors de la récupération des notes:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST - Sauvegarder les notes
+app.post('/api/notes', async (req, res) => {
+  try {
+    const { notes } = req.body || {};
+    
+    // Pour l'instant, juste confirmer la réception
+    // TODO: Implémenter la sauvegarde en base de données
+    console.log('Notes reçues:', notes);
+    
+    res.json({ success: true, message: 'Notes sauvegardées' });
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde des notes:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
@@ -882,6 +919,8 @@ app.listen(PORT, () => {
   console.log(`   - GET /api/companies (avec pagination)`);
   console.log(`   - GET /api/companies/:id (fiche entreprise complète)`);
   console.log(`   - GET /api/companies/search (recherche avancée)`);
+  console.log(`   - GET /api/notes (récupérer les notes)`);
+  console.log(`   - POST /api/notes (sauvegarder les notes)`);
   console.log(`   - GET /api/contacts/export (export CSV)`);
   console.log(`   - GET /api/companies/export (export CSV)`);
 });
