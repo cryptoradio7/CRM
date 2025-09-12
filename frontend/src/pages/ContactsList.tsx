@@ -139,16 +139,27 @@ const ContactsList = () => {
           contact.headline?.toLowerCase().includes(filters.headline[0].toLowerCase())
         ),
         
-        // years_of_experience (avec regroupements)
+        // years_of_experience (avec tranches)
         filters.years_of_experience.length === 0 || filters.years_of_experience.some((expRange: string) => {
-          // Ignorer les séparateurs
-          if (expRange.startsWith('---')) return false;
-          
           const contactExp = contact.years_of_experience;
           if (!contactExp) return false;
           
-          // Comparaison exacte pour les valeurs numériques
-          return contactExp === parseInt(expRange);
+          // Gestion des tranches
+          if (expRange === '0-2 ans') {
+            return contactExp >= 0 && contactExp <= 2;
+          } else if (expRange === '3-5 ans') {
+            return contactExp >= 3 && contactExp <= 5;
+          } else if (expRange === '6-10 ans') {
+            return contactExp >= 6 && contactExp <= 10;
+          } else if (expRange === '11-15 ans') {
+            return contactExp >= 11 && contactExp <= 15;
+          } else if (expRange === '16-20 ans') {
+            return contactExp >= 16 && contactExp <= 20;
+          } else if (expRange === '20+ ans') {
+            return contactExp > 20;
+          }
+          
+          return false;
         }),
         
         // company_name (basé sur current_company_name ou experiences)
@@ -194,12 +205,12 @@ const ContactsList = () => {
   const formatYearsOfExperience = (years: number | null | undefined) => {
     if (!years) return '-';
     
-    if (years >= 0 && years <= 2) return `--- 0-2 ans ---\n${years} ans`;
-    if (years >= 3 && years <= 5) return `--- 3-5 ans ---\n${years} ans`;
-    if (years >= 6 && years <= 10) return `--- 6-10 ans ---\n${years} ans`;
-    if (years >= 11 && years <= 15) return `--- 11-15 ans ---\n${years} ans`;
-    if (years >= 16 && years <= 20) return `--- 16-20 ans ---\n${years} ans`;
-    if (years > 20) return `--- 20+ ans ---\n${years} ans`;
+    if (years >= 0 && years <= 2) return '0-2 ans';
+    if (years >= 3 && years <= 5) return '3-5 ans';
+    if (years >= 6 && years <= 10) return '6-10 ans';
+    if (years >= 11 && years <= 15) return '11-15 ans';
+    if (years >= 16 && years <= 20) return '16-20 ans';
+    if (years > 20) return '20+ ans';
     
     return `${years} ans`;
   };
@@ -213,50 +224,24 @@ const ContactsList = () => {
       years_of_experience: (() => {
         const years = [...new Set(contacts.map(c => c.years_of_experience).filter(Boolean))].sort((a, b) => (a || 0) - (b || 0));
         
-        // Créer des tranches avec séparateurs
+        // Créer des tranches basées sur les données disponibles
         const tranches = [];
         
-        // Tranche 0-2 ans
-        const tranche1 = years.filter(y => (y || 0) >= 0 && (y || 0) <= 2);
-        if (tranche1.length > 0) {
-          tranches.push('--- 0-2 ans ---');
-          tranches.push(...tranche1.map(String));
-        }
+        // Vérifier quelles tranches ont des données
+        const hasTranche1 = years.some(y => (y || 0) >= 0 && (y || 0) <= 2);
+        const hasTranche2 = years.some(y => (y || 0) >= 3 && (y || 0) <= 5);
+        const hasTranche3 = years.some(y => (y || 0) >= 6 && (y || 0) <= 10);
+        const hasTranche4 = years.some(y => (y || 0) >= 11 && (y || 0) <= 15);
+        const hasTranche5 = years.some(y => (y || 0) >= 16 && (y || 0) <= 20);
+        const hasTranche6 = years.some(y => (y || 0) > 20);
         
-        // Tranche 3-5 ans
-        const tranche2 = years.filter(y => (y || 0) >= 3 && (y || 0) <= 5);
-        if (tranche2.length > 0) {
-          tranches.push('--- 3-5 ans ---');
-          tranches.push(...tranche2.map(String));
-        }
-        
-        // Tranche 6-10 ans
-        const tranche3 = years.filter(y => (y || 0) >= 6 && (y || 0) <= 10);
-        if (tranche3.length > 0) {
-          tranches.push('--- 6-10 ans ---');
-          tranches.push(...tranche3.map(String));
-        }
-        
-        // Tranche 11-15 ans
-        const tranche4 = years.filter(y => (y || 0) >= 11 && (y || 0) <= 15);
-        if (tranche4.length > 0) {
-          tranches.push('--- 11-15 ans ---');
-          tranches.push(...tranche4.map(String));
-        }
-        
-        // Tranche 16-20 ans
-        const tranche5 = years.filter(y => (y || 0) >= 16 && (y || 0) <= 20);
-        if (tranche5.length > 0) {
-          tranches.push('--- 16-20 ans ---');
-          tranches.push(...tranche5.map(String));
-        }
-        
-        // Tranche 20+ ans
-        const tranche6 = years.filter(y => (y || 0) > 20);
-        if (tranche6.length > 0) {
-          tranches.push('--- 20+ ans ---');
-          tranches.push(...tranche6.map(String));
-        }
+        // Ajouter les tranches qui ont des données
+        if (hasTranche1) tranches.push('0-2 ans');
+        if (hasTranche2) tranches.push('3-5 ans');
+        if (hasTranche3) tranches.push('6-10 ans');
+        if (hasTranche4) tranches.push('11-15 ans');
+        if (hasTranche5) tranches.push('16-20 ans');
+        if (hasTranche6) tranches.push('20+ ans');
         
         return tranches as string[];
       })(),
@@ -291,7 +276,10 @@ const ContactsList = () => {
       extractFilterOptions(response.contacts || []);
       
       // Mettre à jour le total de contacts
-      setTotalCount(response.pagination?.totalCount || 0);
+      console.log('Filter options response:', response);
+      console.log('Filter options pagination:', response.pagination);
+      setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
+      console.log('Total count set from filter options:', response.pagination?.total || response.pagination?.totalCount || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des options de filtres:', error);
     } finally {
@@ -311,9 +299,15 @@ const ContactsList = () => {
         response = await contactsApi.getAll(page, 20);
       }
       
+      console.log('Response from loadContacts:', response);
+      console.log('Pagination:', response.pagination);
+      
       setContacts(response.contacts || []);
-      setTotalPages(response.pagination?.totalPages || 1);
-      setTotalCount(response.pagination?.totalCount || 0);
+      setTotalPages(response.pagination?.pages || response.pagination?.totalPages || 1);
+      setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
+      
+      console.log('Total pages set to:', response.pagination?.pages || response.pagination?.totalPages || 1);
+      console.log('Total count set to:', response.pagination?.total || response.pagination?.totalCount || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
       setSnackbar({ open: true, message: 'Erreur lors du chargement des contacts', severity: 'error' });
@@ -1032,8 +1026,7 @@ const ContactsList = () => {
             <TableRow 
               key={contact.id} 
               hover 
-              onClick={() => navigate(`/contacts/${contact.id}`)}
-              sx={{ cursor: 'pointer' }}
+              sx={{ cursor: 'default' }}
             >
               <TableCell padding="checkbox" sx={{ height: '32px', padding: '4px 8px' }}>
                 <Checkbox
@@ -1045,10 +1038,13 @@ const ContactsList = () => {
                   size="small"
                 />
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Tooltip title={contact.full_name || 'Non renseigné'} arrow>
-                  <Avatar 
-                    src={contact.profile_picture_url} 
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
+                <Tooltip title={`Voir fiche contact: ${contact.full_name || 'Non renseigné'}`} arrow>
+                <Avatar 
+                  src={contact.profile_picture_url} 
                     sx={{ 
                       width: 24, 
                       height: 24,
@@ -1063,12 +1059,15 @@ const ContactsList = () => {
                         boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
                       }
                     }}
-                  >
-                    {contact.full_name?.charAt(0)}
+                >
+                  {contact.full_name?.charAt(0)}
                   </Avatar>
                 </Tooltip>
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
                 <Tooltip title={contact.full_name || 'Non renseigné'} arrow>
                   <Typography 
                     variant="subtitle2" 
@@ -1085,26 +1084,11 @@ const ContactsList = () => {
                 </Typography>
                 </Tooltip>
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Tooltip title={formatYearsOfExperience(contact.years_of_experience)} arrow>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'pre-line',
-                      maxWidth: '100%',
-                      textAlign: 'center',
-                      lineHeight: 1.2
-                    }}
-                  >
-                    {formatYearsOfExperience(contact.years_of_experience)}
-                </Typography>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Tooltip title={contact.current_company_name || 'Non renseigné'} arrow>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
+                <Tooltip title={`${contact.years_of_experience || 0} ans d'expérience`} arrow>
                   <Typography 
                     variant="body2" 
                     sx={{ 
@@ -1112,14 +1096,43 @@ const ContactsList = () => {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      textAlign: 'center'
+                    }}
+                  >
+                    {formatYearsOfExperience(contact.years_of_experience)}
+                </Typography>
+                </Tooltip>
+              </TableCell>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => {
+                  if (contact.current_company_name) {
+                    // Naviguer vers la liste des entreprises avec filtre sur le nom
+                    navigate(`/companies?search=${encodeURIComponent(contact.current_company_name)}`);
+                  }
+                }}
+              >
+                <Tooltip title={contact.current_company_name ? `Voir fiche entreprise: ${contact.current_company_name}` : 'Non renseigné'} arrow>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      color: contact.current_company_name ? 'primary.main' : 'text.secondary'
                     }}
                   >
                     {contact.current_company_name || 'Non renseigné'}
                 </Typography>
                 </Tooltip>
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
                 <Tooltip title={contact.headline || 'Non renseigné'} arrow>
                   <Typography 
                     variant="body2" 
@@ -1141,24 +1154,24 @@ const ContactsList = () => {
                 </Typography>
                 </Tooltip>
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
                 {contact.email ? (
-                  <Tooltip title={contact.email} arrow>
-                    <Link 
-                      href={`mailto:${contact.email}`} 
+                  <Tooltip title={`Voir fiche contact: ${contact.email}`} arrow>
+                    <Typography 
                       color="primary" 
-                      onClick={(e) => e.stopPropagation()} // Empêche le clic sur la ligne
                       sx={{ 
                         fontSize: '0.75rem',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        maxWidth: '100%',
-                        display: 'block'
+                        maxWidth: '100%'
                       }}
                     >
-                    {contact.email}
-                  </Link>
+                      {contact.email}
+                    </Typography>
                   </Tooltip>
                 ) : (
                   <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
@@ -1166,25 +1179,25 @@ const ContactsList = () => {
                   </Typography>
                 )}
               </TableCell>
-              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
                 {contact.linkedin_url ? (
-                  <Link 
-                    href={contact.linkedin_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    color="primary"
-                    onClick={(e) => e.stopPropagation()} // Empêche le clic sur la ligne
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%',
-                      display: 'block'
-                    }}
-                  >
-                    LinkedIn
-                  </Link>
+                  <Tooltip title={`Voir fiche contact: ${contact.linkedin_url}`} arrow>
+                    <Typography 
+                      color="primary"
+                      sx={{ 
+                        fontSize: '0.75rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      LinkedIn
+                    </Typography>
+                  </Tooltip>
                 ) : (
                   <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
                     -
@@ -1407,27 +1420,6 @@ const ContactsList = () => {
                         options={filterOptions.years_of_experience}
                         value={filters.years_of_experience}
                         onChange={(_, value) => handleFilterChange('years_of_experience', value)}
-                        getOptionDisabled={(option) => option.startsWith('---')}
-                        renderOption={(props, option) => (
-                          <Box
-                            component="li"
-                            {...props}
-                            sx={{
-                              ...(option.startsWith('---') && {
-                                fontWeight: 'bold',
-                                color: 'primary.main',
-                                backgroundColor: 'grey.100',
-                                borderTop: '1px solid',
-                                borderColor: 'grey.300',
-                                '&:hover': {
-                                  backgroundColor: 'grey.200'
-                                }
-                              })
-                            }}
-                          >
-                            {option}
-                          </Box>
-                        )}
                         renderInput={(params) => (
                           <TextField
                             {...params}
