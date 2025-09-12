@@ -31,7 +31,9 @@ import {
   CardContent,
   CardActions,
   Divider,
-  Stack
+  Stack,
+  Autocomplete,
+  Badge
 } from '@mui/material';
 import { 
   Delete as DeleteIcon,
@@ -80,17 +82,34 @@ const ContactsList = () => {
   const [sortBy, setSortBy] = useState<string>('full_name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filters, setFilters] = useState({
-    categorie_poste: '',
-    libelle_poste: '',
-    taille_entreprise: '',
-    secteur: ''
+    full_name: [] as string[],
+    country: [] as string[],
+    headline: [] as string[],
+    years_of_experience: [] as string[],
+    company_name: [] as string[],
+    company_domain: [] as string[],
+    company_industry: [] as string[],
+    company_subindustry: [] as string[],
+    employees_count_growth: [] as string[]
   });
+  const [filterOptions, setFilterOptions] = useState({
+    full_name: [] as string[],
+    country: [] as string[],
+    headline: [] as string[],
+    years_of_experience: [] as string[],
+    company_name: [] as string[],
+    company_domain: [] as string[],
+    company_industry: [] as string[],
+    company_subindustry: [] as string[],
+    employees_count_growth: [] as string[]
+  });
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [notes, setNotes] = useState('je suis super **content**');
 
   const navigate = useNavigate();
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<number | undefined>(undefined);
 
-  // Logique de filtrage des contacts
+  // Logique de filtrage des contacts avec filtres cumulatifs
   const filteredContacts = useMemo(() => {
     return contacts.filter(contact => {
       // Filtre par terme de recherche global
@@ -104,33 +123,130 @@ const ContactsList = () => {
         if (!matchesSearch) return false;
       }
 
-      // Filtre par catégorie de poste
-      if (filters.categorie_poste) {
-        const matchesCategory = contact.headline?.toLowerCase().includes(filters.categorie_poste.toLowerCase());
-        if (!matchesCategory) return false;
-      }
+      // Filtres cumulatifs - tous doivent être satisfaits
+      const filterChecks = [
+        // full_name
+        filters.full_name.length === 0 || filters.full_name.some((name: string) => 
+          contact.full_name?.toLowerCase().includes(name.toLowerCase())
+        ),
+        
+        // country
+        filters.country.length === 0 || filters.country.some((country: string) => 
+          contact.country?.toLowerCase().includes(country.toLowerCase())
+        ),
+        
+        // headline (champ texte simple)
+        filters.headline.length === 0 || (filters.headline[0] && 
+          contact.headline?.toLowerCase().includes(filters.headline[0].toLowerCase())
+        ),
+        
+        // years_of_experience (avec regroupements)
+        filters.years_of_experience.length === 0 || filters.years_of_experience.some((expRange: string) => {
+          const contactExp = contact.years_of_experience;
+          if (!contactExp) return false;
+          
+          // Gestion des regroupements prédéfinis
+          if (expRange === '0-2 ans (Junior)') {
+            return contactExp >= 0 && contactExp <= 2;
+          } else if (expRange === '3-5 ans (Intermédiaire)') {
+            return contactExp >= 3 && contactExp <= 5;
+          } else if (expRange === '6-10 ans (Senior)') {
+            return contactExp >= 6 && contactExp <= 10;
+          } else if (expRange === '11-15 ans (Expert)') {
+            return contactExp >= 11 && contactExp <= 15;
+          } else if (expRange === '16-20 ans (Chef d\'équipe)') {
+            return contactExp >= 16 && contactExp <= 20;
+          } else if (expRange === '20+ ans (Directeur)') {
+            return contactExp >= 20;
+          }
+          
+          // Fallback pour les anciennes valeurs numériques
+          return expRange.includes('-') ? 
+            (contactExp >= parseInt(expRange.split('-')[0]) && contactExp <= parseInt(expRange.split('-')[1])) :
+            contactExp === parseInt(expRange);
+        }),
+        
+        // company_name (basé sur current_company_name ou experiences)
+        filters.company_name.length === 0 || filters.company_name.some((company: string) => 
+          contact.current_company_name?.toLowerCase().includes(company.toLowerCase()) ||
+          contact.experiences?.some(exp => 
+            exp.company_name?.toLowerCase().includes(company.toLowerCase())
+          )
+        ),
+        
+        
+        // company_domain (utilise company_website_url)
+        filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
+          contact.experiences?.some(exp => 
+            exp.company_website_url?.toLowerCase().includes(domain.toLowerCase())
+          )
+        ),
+        
+        // company_industry (basé sur current_company_industry ou experiences)
+        filters.company_industry.length === 0 || filters.company_industry.some((industry: string) => 
+          contact.current_company_industry?.toLowerCase().includes(industry.toLowerCase()) ||
+          contact.experiences?.some(exp => 
+            exp.company_industry?.toLowerCase().includes(industry.toLowerCase())
+          )
+        ),
+        
+        // company_subindustry (basé sur les expériences)
+        filters.company_subindustry.length === 0 || filters.company_subindustry.some((subindustry: string) => 
+          contact.experiences?.some(exp => 
+            exp.company_subindustry?.toLowerCase().includes(subindustry.toLowerCase())
+          )
+        ),
+        
+        // employees_count_growth (champ non disponible - filtre désactivé pour l'instant)
+        true // Toujours true car ce champ n'existe pas dans les données
+      ];
 
-      // Filtre par libellé de poste
-      if (filters.libelle_poste) {
-        const matchesTitle = contact.headline?.toLowerCase().includes(filters.libelle_poste.toLowerCase());
-        if (!matchesTitle) return false;
-      }
-
-      // Filtre par taille d'entreprise (basé sur les expériences)
-      if (filters.taille_entreprise) {
-        // Pour l'instant, on ne peut pas filtrer par taille d'entreprise car cette info n'est pas dans contacts
-        // On pourrait l'ajouter plus tard
-      }
-
-      // Filtre par secteur (basé sur les expériences)
-      if (filters.secteur) {
-        // Pour l'instant, on ne peut pas filtrer par secteur car cette info n'est pas dans contacts
-        // On pourrait l'ajouter plus tard
-      }
-
-      return true;
+      return filterChecks.every(check => check);
     });
   }, [contacts, searchTerm, filters]);
+
+  // Extraire les options de filtres depuis les contacts
+  const extractFilterOptions = (contacts: Contact[]) => {
+    const options = {
+      full_name: [...new Set(contacts.map(c => c.full_name).filter(Boolean))] as string[],
+      country: [...new Set(contacts.map(c => c.country).filter(Boolean))] as string[],
+      headline: [...new Set(contacts.map(c => c.headline).filter(Boolean))] as string[],
+      years_of_experience: [...new Set(contacts.map(c => c.years_of_experience).filter(Boolean))].sort((a, b) => (a || 0) - (b || 0)).map(String) as string[],
+      company_name: [...new Set([
+        ...contacts.map(c => c.current_company_name).filter(Boolean),
+        ...contacts.flatMap(c => c.experiences?.map(e => e.company_name) || []).filter(Boolean)
+      ])] as string[],
+      company_domain: [...new Set(
+        contacts.flatMap(c => c.experiences?.map(e => e.company_website_url) || []).filter(Boolean)
+      )] as string[],
+      company_industry: [...new Set([
+        ...contacts.map(c => c.current_company_industry).filter(Boolean),
+        ...contacts.flatMap(c => c.experiences?.map(e => e.company_industry) || []).filter(Boolean)
+      ])] as string[],
+      company_subindustry: [...new Set([
+        ...contacts.map(c => c.current_company_subindustry).filter(Boolean),
+        ...contacts.flatMap(c => c.experiences?.map(e => e.company_subindustry) || []).filter(Boolean)
+      ])] as string[],
+      employees_count_growth: ['Croissance rapide', 'Croissance modérée', 'Stable', 'En déclin'] as string[]
+    };
+    console.log('Options de filtres extraites:', options);
+    setFilterOptions(options);
+  };
+
+  // Charger toutes les options de filtres
+  const loadFilterOptions = async () => {
+    try {
+      setLoadingOptions(true);
+      // Charger un grand nombre de contacts pour avoir toutes les options
+      const response = await contactsApi.getAll(1, 1000);
+      console.log('Chargement des options de filtres...', response.contacts?.length, 'contacts');
+      extractFilterOptions(response.contacts || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des options de filtres:', error);
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
 
   // Charger les contacts
   const loadContacts = async (page: number = 1, search: string = '') => {
@@ -155,6 +271,11 @@ const ContactsList = () => {
     }
   };
 
+  // Effet pour charger les options de filtres au montage
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
   // Effet pour charger les contacts
   useEffect(() => {
     loadContacts(currentPage, searchTerm);
@@ -166,7 +287,7 @@ const ContactsList = () => {
       clearTimeout(searchTimeoutRef.current);
     }
     
-    searchTimeoutRef.current = setTimeout(() => {
+    searchTimeoutRef.current = window.setTimeout(() => {
       setCurrentPage(1);
       loadContacts(1, searchTerm);
     }, 500);
@@ -177,6 +298,39 @@ const ContactsList = () => {
       }
     };
   }, [searchTerm]);
+
+  // Gestion des filtres
+  const handleFilterChange = (filterKey: string, value: any) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: value
+    }));
+  };
+
+  const removeFilter = (filterKey: string, valueToRemove: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterKey]: prev[filterKey as keyof typeof prev].filter((item: any) => item !== valueToRemove)
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      full_name: [],
+      country: [],
+      headline: [],
+      years_of_experience: [],
+      company_name: [],
+      company_domain: [],
+      company_industry: [],
+      company_subindustry: [],
+      employees_count_growth: []
+    });
+  };
+
+  const getActiveFiltersCount = () => {
+    return Object.values(filters).reduce((count, filterArray) => count + filterArray.length, 0);
+  };
 
   // Gestion de la sélection
   const handleSelectContact = (contactId: number) => {
@@ -222,9 +376,9 @@ const ContactsList = () => {
           />
         </Box>
 
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
           {contact.email && (
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ width: '50%', minWidth: '200px' }}>
               <Box display="flex" alignItems="flex-start">
                 <EmailIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary', mt: 0.5 }} />
                 <LongTextDisplay 
@@ -235,61 +389,61 @@ const ContactsList = () => {
                   sx={{ fontSize: '0.75rem' }}
                 />
               </Box>
-            </Grid>
+            </Box>
           )}
           
           {contact.telephone && (
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ width: '50%', minWidth: '200px' }}>
               <Box display="flex" alignItems="center">
                 <PhoneIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                 <Typography variant="body2">
                   {contact.telephone}
                 </Typography>
               </Box>
-            </Grid>
+            </Box>
           )}
 
           {contact.location && (
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ width: '50%', minWidth: '200px' }}>
               <Box display="flex" alignItems="center">
                 <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                 <Typography variant="body2">
                   {contact.location}
                 </Typography>
               </Box>
-            </Grid>
+            </Box>
           )}
 
           {contact.sector && (
-            <Grid item xs={12} sm={6}>
+            <Box sx={{ width: '50%', minWidth: '200px' }}>
               <Box display="flex" alignItems="center">
                 <BusinessIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
                 <Typography variant="body2">
                   {contact.sector}
                 </Typography>
               </Box>
-            </Grid>
+            </Box>
           )}
 
           {contact.companies && (
-            <Grid item xs={12}>
+            <Box sx={{ width: '100%' }}>
               <Typography variant="body2" color="text.secondary">
                 <strong>Entreprises:</strong> {contact.companies}
               </Typography>
-            </Grid>
+            </Box>
           )}
 
           {contact.follow_up && (
-            <Grid item xs={12}>
+            <Box sx={{ width: '100%' }}>
               <Chip 
                 label={contact.follow_up} 
                 size="small" 
                 color="primary" 
                 variant="outlined"
               />
-            </Grid>
+            </Box>
           )}
-        </Grid>
+        </Box>
       </CardContent>
       
       <CardActions>
@@ -320,196 +474,165 @@ const ContactsList = () => {
 
   // Affichage des contacts en tableau complet
   const renderContactTable = () => (
-    <TableContainer component={Paper} sx={{ maxHeight: '70vh', overflow: 'auto' }}>
-      <Table stickyHeader>
+    <TableContainer component={Paper} sx={{ width: '100%' }}>
+      <Table stickyHeader sx={{ minWidth: 800, '& .MuiTableRow-root': { height: '32px' } }}>
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox">
+            <TableCell padding="checkbox" sx={{ width: '50px', height: '32px', padding: '4px 8px' }}>
               <Checkbox
                 checked={selectedContacts.length === filteredContacts.length && filteredContacts.length > 0}
                 indeterminate={selectedContacts.length > 0 && selectedContacts.length < filteredContacts.length}
                 onChange={handleSelectAll}
+                size="small"
               />
             </TableCell>
-            <TableCell>Photo</TableCell>
-            <TableCell>Nom complet</TableCell>
-            <TableCell>Poste actuel</TableCell>
-            <TableCell>Département</TableCell>
-            <TableCell>Email</TableCell>
-            <TableCell>Téléphone</TableCell>
-            <TableCell>Localisation</TableCell>
-            <TableCell>Pays</TableCell>
-            <TableCell>Secteur</TableCell>
-            <TableCell>Expérience</TableCell>
-            <TableCell>Connexions</TableCell>
-            <TableCell>Score qualité</TableCell>
-            <TableCell>LinkedIn</TableCell>
-            <TableCell>Intérêts</TableCell>
-            <TableCell>Étape suivi</TableCell>
-            <TableCell>Date création</TableCell>
-            <TableCell>Dernière modif</TableCell>
-            <TableCell>Actions</TableCell>
+          <TableCell sx={{ width: '60px', height: '32px', padding: '4px 8px' }}></TableCell>
+          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Nom complet</TableCell>
+          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Entreprise actuelle</TableCell>
+          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Poste actuel</TableCell>
+          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Email</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>LinkedIn</TableCell>
+            <TableCell sx={{ width: '80px', height: '32px', padding: '4px 8px' }}>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {filteredContacts.map((contact) => (
-            <TableRow key={contact.id} hover>
-              <TableCell padding="checkbox">
+            <TableRow 
+              key={contact.id} 
+              hover 
+              onClick={() => navigate(`/contacts/${contact.id}`)}
+              sx={{ cursor: 'pointer' }}
+            >
+              <TableCell padding="checkbox" sx={{ height: '32px', padding: '4px 8px' }}>
                 <Checkbox
                   checked={selectedContacts.includes(contact.id)}
-                  onChange={() => handleSelectContact(contact.id)}
+                  onChange={(e) => {
+                    e.stopPropagation(); // Empêche le clic sur la ligne
+                    handleSelectContact(contact.id);
+                  }}
+                  size="small"
                 />
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
                 <Avatar 
                   src={contact.profile_picture_url} 
-                  sx={{ width: 40, height: 40 }}
+                  sx={{ width: 24, height: 24 }}
                 >
                   {contact.full_name?.charAt(0)}
                   </Avatar>
               </TableCell>
-              <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  {contact.full_name}
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+                <Tooltip title={contact.full_name || 'Non renseigné'} arrow>
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="bold" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {contact.full_name || 'Non renseigné'}
                 </Typography>
+                </Tooltip>
               </TableCell>
-              <TableCell>
-                <Typography variant="body2">
-                  {contact.current_title_normalized || contact.headline || 'Non renseigné'}
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+                <Tooltip title={contact.current_company_name || 'Non renseigné'} arrow>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {contact.current_company_name || 'Non renseigné'}
                 </Typography>
+                </Tooltip>
               </TableCell>
-              <TableCell>
-                <Typography variant="body2">
-                  {contact.department || 'Non renseigné'}
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+                <Tooltip title={contact.headline || 'Non renseigné'} arrow>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {contact.headline || 'Non renseigné'}
                 </Typography>
+                </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
                 {contact.email ? (
-                  <Link href={`mailto:${contact.email}`} color="primary" sx={{ fontSize: '0.8rem' }}>
-                    {contact.email}
-                  </Link>
+                  <Tooltip title={contact.email} arrow>
+                    <Link 
+                      href={`mailto:${contact.email}`} 
+                      color="primary" 
+                      onClick={(e) => e.stopPropagation()} // Empêche le clic sur la ligne
+                      sx={{ 
+                        fontSize: '0.75rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%',
+                        display: 'block'
+                      }}
+                    >
+                      {contact.email}
+                    </Link>
+                  </Tooltip>
                 ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
                     -
                   </Typography>
                 )}
               </TableCell>
-              <TableCell>
-                {contact.telephone ? (
-                  <Link href={`tel:${contact.telephone}`} color="primary" sx={{ fontSize: '0.8rem' }}>
-                    {contact.telephone}
-                  </Link>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
-                    -
-                  </Typography>
-                )}
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.location || '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.country || '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                  <Chip 
-                  label={contact.sector || 'Non spécifié'} 
-                    size="small" 
-                    color="primary" 
-                    variant="outlined"
-                  sx={{ fontSize: '0.7rem' }}
-                />
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.years_of_experience ? `${contact.years_of_experience} ans` : '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.connections_count ? contact.connections_count.toLocaleString() : '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.lead_quality_score ? `${contact.lead_quality_score}/100` : '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
                 {contact.linkedin_url ? (
                   <Link 
                     href={contact.linkedin_url} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     color="primary"
-                    sx={{ fontSize: '0.8rem' }}
+                    onClick={(e) => e.stopPropagation()} // Empêche le clic sur la ligne
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      display: 'block'
+                    }}
                   >
                     LinkedIn
                   </Link>
                 ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.8rem' }}>
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
                     -
                   </Typography>
                 )}
               </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {contact.interests || '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Chip 
-                  label={contact.follow_up || 'À contacter'} 
-                  size="small" 
-                  color="default" 
-                  variant="outlined"
-                  sx={{ fontSize: '0.7rem' }}
-                />
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.created_at ? new Date(contact.created_at).toLocaleDateString('fr-FR') : '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {contact.updated_at ? new Date(contact.updated_at).toLocaleDateString('fr-FR') : '-'}
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Box display="flex" gap={0.5}>
-                  <Tooltip title="Voir">
-                    <IconButton 
-                      size="small"
-                      onClick={() => navigate(`/contacts/${contact.id}`)}
-                      sx={{ p: 0.5 }}
-                    >
-                      <ViewIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Modifier">
-                    <IconButton 
-                      size="small"
-                      onClick={() => navigate(`/contacts/${contact.id}/edit`)}
-                      sx={{ p: 0.5 }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Notes">
-                    <IconButton 
-                      size="small"
-                      onClick={() => navigate(`/contacts/${contact.id}/notes`)}
-                      sx={{ p: 0.5 }}
-                    >
-                      <NotesIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+                <Tooltip title="Modifier">
+                  <IconButton 
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Empêche le clic sur la ligne
+                      navigate(`/contacts/${contact.id}/edit`);
+                    }}
+                    sx={{ p: 0.25, minWidth: 'auto' }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </TableCell>
             </TableRow>
           ))}
@@ -519,7 +642,7 @@ const ContactsList = () => {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, width: '100%', overflow: 'hidden' }}>
       {/* En-tête */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center', color: '#4CAF50' }}>
@@ -546,123 +669,398 @@ const ContactsList = () => {
       </Box>
 
       {/* Mise en page 3 colonnes : Moteur (30%) + Export (20%) + Notes (50%) */}
-      <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
         
         {/* BLOC 1: MOTEUR DE RECHERCHE (30%) */}
         <Box sx={{ width: '30%' }}>
-          <Card sx={{ p: 2, height: 'fit-content' }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <FilterIcon sx={{ mr: 1, color: '#4CAF50' }} />
-              <SearchIcon sx={{ mr: 1, color: '#4CAF50' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Moteur de recherche
+          <Card sx={{ p: 1.5, height: 'fit-content' }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+              <Box display="flex" alignItems="center">
+                <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                  Filtres
               </Typography>
+                {getActiveFiltersCount() > 0 && (
+                  <Badge badgeContent={getActiveFiltersCount()} color="primary" sx={{ ml: 1 }}>
+                    <Chip 
+                      label={`${getActiveFiltersCount()}`} 
+                      size="small" 
+                      color="primary" 
+                      variant="outlined"
+                      sx={{ fontSize: '0.7rem', height: 20 }}
+                    />
+                  </Badge>
+                )}
+              </Box>
             </Box>
             
-            {/* Recherche globale */}
+            {/* Filtres actifs */}
+            {getActiveFiltersCount() > 0 && (
+              <Box mb={1.5}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                  Filtres actifs:
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={0.5} mt={0.5}>
+                  {Object.entries(filters).map(([key, values]) => 
+                    values.map((value: any) => (
+                      <Chip
+                        key={`${key}-${value}`}
+                        label={`${key}: ${value}`}
+                        onDelete={() => removeFilter(key, value)}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontSize: '0.65rem', height: 22 }}
+                      />
+                    ))
+                  )}
+                  <Chip
+                    label="Tout effacer"
+                    onDelete={clearAllFilters}
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    sx={{ fontSize: '0.65rem', height: 22 }}
+                  />
+                </Box>
+              </Box>
+            )}
+
+            {/* Filtres détaillés */}
+              {loadingOptions ? (
+                <Box display="flex" justifyContent="center" p={1}>
+                  <LinearProgress sx={{ width: '100%' }} />
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  {/* Section Critères Contact */}
+                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f8f9fa', flex: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#1976d2', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.85rem' }}>
+                      <PersonIcon sx={{ fontSize: 18 }} />
+                      Critères Contact
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {/* Nom complet */}
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        options={filterOptions.full_name}
+                        value={filters.full_name}
+                        onChange={(_, value) => handleFilterChange('full_name', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Nom complet"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PersonIcon sx={{ fontSize: 16 }} />
+                                </InputAdornment>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
+
+                      {/* Titre/Poste */}
         <TextField
           fullWidth
-              placeholder="Tapez pour rechercher..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+                        size="small"
+                        label="Titre/Poste"
+                        placeholder="Ex: CEO, Directeur, Manager..."
+                        value={filters.headline.length > 0 ? filters.headline[0] : ''}
+                        onChange={(e) => handleFilterChange('headline', e.target.value ? [e.target.value] : [])}
+                        sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                              <WorkIcon sx={{ fontSize: 16 }} />
               </InputAdornment>
-            ),
-            endAdornment: searchTerm && (
-              <InputAdornment position="end">
-                    <IconButton onClick={() => setSearchTerm('')} size="small">
-                  <ClearIcon />
-                </IconButton>
+                          )
+                        }}
+                      />
+
+                      {/* Pays */}
+                      <Autocomplete
+                        multiple
+                        options={filterOptions.country}
+                        value={filters.country}
+                        onChange={(_, value) => handleFilterChange('country', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Pays"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <LocationIcon sx={{ fontSize: 16 }} />
               </InputAdornment>
             )
           }}
-              sx={{ mb: 2 }}
-            />
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
 
-            {/* Filtres spécifiques */}
-            <Stack spacing={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Catégorie de poste</InputLabel>
-                <Select
-                  value={filters.categorie_poste || ''}
-                  onChange={(e) => setFilters({...filters, categorie_poste: e.target.value})}
-                  startAdornment={
+                      {/* Années d'expérience */}
+                      <Autocomplete
+                        multiple
+                        options={[
+                          '0-2 ans (Junior)',
+                          '3-5 ans (Intermédiaire)',
+                          '6-10 ans (Senior)',
+                          '11-15 ans (Expert)',
+                          '16-20 ans (Chef d\'équipe)',
+                          '20+ ans (Directeur)'
+                        ]}
+                        value={filters.years_of_experience}
+                        onChange={(_, value) => handleFilterChange('years_of_experience', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Années d'expérience"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
                     <InputAdornment position="start">
-                      <WorkIcon />
+                                  <BarChartIcon sx={{ fontSize: 16 }} />
                     </InputAdornment>
-                  }
-                >
-                  <MenuItem value="">Toutes</MenuItem>
-                  <MenuItem value="Directeur">Directeur</MenuItem>
-                  <MenuItem value="Manager">Manager</MenuItem>
-                  <MenuItem value="Développeur">Développeur</MenuItem>
-                  <MenuItem value="Commercial">Commercial</MenuItem>
-                </Select>
-              </FormControl>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
+                    </Stack>
+                  </Card>
 
+                  {/* Section Critères Entreprise des Contacts */}
+                  <Card variant="outlined" sx={{ p: 1.5, bgcolor: '#f3e5f5', flex: 1 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, color: '#7b1fa2', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.85rem' }}>
+                      <BusinessIcon sx={{ fontSize: 18 }} />
+                      Critères Entreprise des Contacts
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      {/* Nom de l'entreprise */}
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        options={filterOptions.company_name}
+                        value={filters.company_name}
+                        onChange={(_, value) => handleFilterChange('company_name', value)}
+                        renderInput={(params) => (
               <TextField
-                fullWidth
+                            {...params}
+                            label="Nom de l'entreprise"
                 size="small"
-                placeholder="CEO, Directeur..."
-                label="Libellé de poste"
-                value={filters.libelle_poste || ''}
-                onChange={(e) => setFilters({...filters, libelle_poste: e.target.value})}
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
                 InputProps={{
+                              ...params.InputProps,
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon />
+                                  <BusinessIcon sx={{ fontSize: 16 }} />
                     </InputAdornment>
                   )
                 }}
-              />
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
 
-              <FormControl fullWidth size="small">
-                <InputLabel>Taille entreprise</InputLabel>
-                <Select
-                  value={filters.taille_entreprise || ''}
-                  onChange={(e) => setFilters({...filters, taille_entreprise: e.target.value})}
-                  startAdornment={
+                      {/* Domaine de l'entreprise */}
+                      <Autocomplete
+                        multiple
+                        options={filterOptions.company_domain}
+                        value={filters.company_domain}
+                        onChange={(_, value) => handleFilterChange('company_domain', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Domaine de l'entreprise"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
                     <InputAdornment position="start">
-                      <BarChartIcon />
+                                  <BusinessIcon sx={{ fontSize: 16 }} />
                     </InputAdornment>
-                  }
-                >
-                  <MenuItem value="">Toutes</MenuItem>
-                  <MenuItem value="1-10">1-10</MenuItem>
-                  <MenuItem value="11-50">11-50</MenuItem>
-                  <MenuItem value="51-200">51-200</MenuItem>
-                  <MenuItem value="201-500">201-500</MenuItem>
-                  <MenuItem value="501-1000">501-1000</MenuItem>
-                  <MenuItem value="1001-5000">1001-5000</MenuItem>
-                  <MenuItem value="5001-10000">5001-10000</MenuItem>
-                  <MenuItem value="10000+">10000+</MenuItem>
-                </Select>
-              </FormControl>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
 
-              <FormControl fullWidth size="small">
-                <InputLabel>Secteur</InputLabel>
-                <Select
-                  value={filters.secteur || ''}
-                  onChange={(e) => setFilters({...filters, secteur: e.target.value})}
-                  startAdornment={
+                      {/* Secteur d'activité */}
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        options={filterOptions.company_industry}
+                        value={filters.company_industry}
+                        onChange={(_, value) => handleFilterChange('company_industry', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Secteur d'activité"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
                     <InputAdornment position="start">
-                      <FactoryIcon />
+                                  <FactoryIcon sx={{ fontSize: 16 }} />
                     </InputAdornment>
-                  }
-                >
-                  <MenuItem value="">Tous</MenuItem>
-                  <MenuItem value="Technologie">Technologie</MenuItem>
-                  <MenuItem value="Finance">Finance</MenuItem>
-                  <MenuItem value="Santé">Santé</MenuItem>
-                  <MenuItem value="Éducation">Éducation</MenuItem>
-                  <MenuItem value="Retail">Retail</MenuItem>
-                  <MenuItem value="Manufacturing">Manufacturing</MenuItem>
-                </Select>
-              </FormControl>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
+
+                      {/* Sous-secteur */}
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        options={filterOptions.company_subindustry}
+                        value={filters.company_subindustry}
+                        onChange={(_, value) => handleFilterChange('company_subindustry', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Sous-secteur"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <FactoryIcon sx={{ fontSize: 16 }} />
+                                </InputAdornment>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
+
+                      {/* Croissance employés */}
+                      <Autocomplete
+                        multiple
+                        options={filterOptions.employees_count_growth}
+                        value={filters.employees_count_growth}
+                        onChange={(_, value) => handleFilterChange('employees_count_growth', value)}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Croissance employés"
+                            size="small"
+                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <BarChartIcon sx={{ fontSize: 16 }} />
+                                </InputAdornment>
+                              )
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              {...getTagProps({ index })}
+                              key={option}
+                              label={option}
+                              size="small"
+                              sx={{ fontSize: '0.65rem', height: 20 }}
+                            />
+                          ))
+                        }
+                      />
             </Stack>
+                  </Card>
+                </Box>
+              )}
           </Card>
           
           {/* Compteur de contacts */}
@@ -794,6 +1192,7 @@ const ContactsList = () => {
       </Box>
 
       {/* Contenu principal - Tableau des contacts */}
+      <Box sx={{ width: '100%', overflow: 'hidden' }}>
       {loading ? (
         <LinearProgress />
       ) : (
@@ -828,6 +1227,7 @@ const ContactsList = () => {
           )}
         </>
       )}
+      </Box>
 
       {/* Snackbar pour les notifications */}
       <Snackbar
