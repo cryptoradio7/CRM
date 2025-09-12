@@ -291,6 +291,30 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
                     {formatEmployeeCount(company.employee_count)}
                   </Typography>
                 </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Croissance employés
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {company.employees_count_growth ? `${company.employees_count_growth}%` : 'Non spécifiée'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Type de clientèle
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {company.business_business_customer || 'Non spécifié'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Chiffre d'affaires
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {company.revenue_bucket || 'Non spécifié'}
+                  </Typography>
+                </Box>
               </Stack>
             </CardContent>
           </Card>
@@ -328,6 +352,34 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
                   {company.company_website_url ? (
                     <Link href={company.company_website_url} target="_blank" rel="noopener noreferrer">
                       {company.company_website_url}
+                    </Link>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      Non spécifié
+                    </Typography>
+                  )}
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    LinkedIn
+                  </Typography>
+                  {company.company_linkedin_url ? (
+                    <Link href={company.company_linkedin_url} target="_blank" rel="noopener noreferrer">
+                      {company.company_linkedin_url}
+                    </Link>
+                  ) : (
+                    <Typography variant="body1" color="text.secondary">
+                      Non spécifié
+                    </Typography>
+                  )}
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    URL LinkedIn (alternative)
+                  </Typography>
+                  {company.company_url ? (
+                    <Link href={company.company_url} target="_blank" rel="noopener noreferrer">
+                      {company.company_url}
                     </Link>
                   ) : (
                     <Typography variant="body1" color="text.secondary">
@@ -450,6 +502,51 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
           </CardContent>
         </Card>
       )}
+
+      {/* Informations système */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CalendarIcon color="primary" />
+            Informations système
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Créé le
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  {company.created_at ? new Date(company.created_at).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : 'Non spécifié'}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Mis à jour le
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  {company.updated_at ? new Date(company.updated_at).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : 'Non spécifié'}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {/* Section Employés */}
       <Card sx={{ mb: 3 }}>

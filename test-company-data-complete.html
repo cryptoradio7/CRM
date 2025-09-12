@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Données Entreprises Complètes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .test-link:hover {
+            background-color: #1565c0;
+        }
+        .api-test {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .result {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        .field-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .field-item {
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 3px solid #1976d2;
+        }
+        .field-name {
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .field-value {
+            color: #333;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Données Entreprises Complètes</h1>
+        
+        <div class="test-section">
+            <h3>📋 Champs JSON Requis vs Affichés</h3>
+            <p>Vérification que tous les champs du JSON sont correctement mappés et affichés :</p>
+            
+            <div class="field-list">
+                <div class="field-item">
+                    <div class="field-name">company_name</div>
+                    <div class="field-value">✅ Nom de l'entreprise</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_description</div>
+                    <div class="field-value">✅ Description complète</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_industry</div>
+                    <div class="field-value">✅ Secteur d'activité</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_subindustry</div>
+                    <div class="field-value">✅ Sous-secteur</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">business_business_customer</div>
+                    <div class="field-value">✅ Type de clientèle</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_employee_count</div>
+                    <div class="field-value">✅ Nombre d'employés</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">employees_count_growth</div>
+                    <div class="field-value">✅ Croissance employés</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_headquarters_city</div>
+                    <div class="field-value">✅ Ville</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_headquarters_country</div>
+                    <div class="field-value">✅ Pays</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_linkedin_url</div>
+                    <div class="field-value">✅ LinkedIn</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_logo_url</div>
+                    <div class="field-value">✅ Logo URL</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_type</div>
+                    <div class="field-value">✅ Type d'entreprise</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_website_url</div>
+                    <div class="field-value">✅ Site web</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_url</div>
+                    <div class="field-value">✅ URL LinkedIn alternative</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">created_at</div>
+                    <div class="field-value">✅ Créé le</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_size</div>
+                    <div class="field-value">✅ Taille</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">revenue_bucket</div>
+                    <div class="field-value">✅ Chiffre d'affaires</div>
+                </div>
+                <div class="field-item">
+                    <div class="field-name">company_domain</div>
+                    <div class="field-value">✅ Domaine</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Tests de Navigation</h3>
+            <p>Cliquez sur les liens ci-dessous pour tester l'affichage complet des données d'entreprises :</p>
+            
+            <a href="http://localhost:3002/companies" class="test-link" target="_blank">
+                📊 Liste des Entreprises
+            </a>
+            
+            <a href="http://localhost:3002/companies/4080" class="test-link" target="_blank">
+                🏢 BNP Paribas Cardif (ID: 4080)
+            </a>
+            
+            <a href="http://localhost:3002/companies/4081" class="test-link" target="_blank">
+                🏦 BGL BNP Paribas (ID: 4081)
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Tests API Backend</h3>
+            <div class="api-test">
+                <strong>Test 1:</strong> Vérification des données complètes d'une entreprise
+                <button onclick="testCompleteCompanyData()">Tester</button>
+                <div id="complete-data-result"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Instructions de Test</h3>
+            <ol>
+                <li><strong>Navigation :</strong> Allez sur la liste des entreprises et cliquez sur une entreprise</li>
+                <li><strong>Vérification des champs :</strong> Vérifiez que tous les champs listés ci-dessus sont affichés</li>
+                <li><strong>Liens :</strong> Testez que les liens LinkedIn et site web fonctionnent</li>
+                <li><strong>Métriques :</strong> Vérifiez l'affichage des métriques financières</li>
+                <li><strong>Dates :</strong> Vérifiez l'affichage des dates de création et mise à jour</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ Résultats Attendus</h3>
+            <ul>
+                <li>✅ Tous les 18 champs JSON sont affichés</li>
+                <li>✅ Les liens externes sont cliquables</li>
+                <li>✅ Les métriques financières sont visibles</li>
+                <li>✅ Les dates sont formatées en français</li>
+                <li>✅ L'interface est responsive et bien organisée</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function testCompleteCompanyData() {
+            const resultDiv = document.getElementById('complete-data-result');
+            resultDiv.innerHTML = '⏳ Test en cours...';
+            
+            try {
+                const response = await fetch('http://localhost:3003/api/companies/4080');
+                const data = await response.json();
+                
+                const requiredFields = [
+                    'company_name', 'company_description', 'company_industry', 'company_subindustry',
+                    'business_business_customer', 'company_employee_count', 'employees_count_growth',
+                    'company_headquarters_city', 'company_headquarters_country', 'company_linkedin_url',
+                    'company_logo_url', 'company_type', 'company_website_url', 'company_url',
+                    'created_at', 'company_size', 'revenue_bucket', 'company_domain'
+                ];
+                
+                const missingFields = requiredFields.filter(field => !data[field] && data[field] !== 0);
+                const presentFields = requiredFields.filter(field => data[field] || data[field] === 0);
+                
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        ✅ <strong>Succès!</strong> Données d'entreprise chargées
+                        <br>📊 Champs présents: ${presentFields.length}/${requiredFields.length}
+                        <br>❌ Champs manquants: ${missingFields.length}
+                        ${missingFields.length > 0 ? `<br>🔍 Champs manquants: ${missingFields.join(', ')}` : ''}
+                        <br>🏢 Entreprise: ${data.company_name}
+                        <br>🏭 Secteur: ${data.company_industry}
+                        <br>📈 CA: ${data.revenue_bucket || 'Non spécifié'}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
