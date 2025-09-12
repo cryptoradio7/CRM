@@ -180,6 +180,8 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
 
   const handleCompanyClick = async (companyName: string) => {
     try {
+      console.log('🔍 Recherche entreprise:', companyName);
+      
       // Recherche intelligente avec plusieurs stratégies
       let foundCompany = null;
       
@@ -189,13 +191,50 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
         const data = await response.json();
         if (data.companies && data.companies.length > 0) {
           foundCompany = data.companies[0];
+          console.log('✅ Trouvé par recherche exacte:', foundCompany.company_name);
         }
       }
       
-      // Stratégie 2: Recherche par mots-clés si pas de résultat exact
+      // Stratégie 2: Recherche par correspondances partielles connues
+      if (!foundCompany) {
+        const partialMatches: { [key: string]: string } = {
+          'cardif lux vie': 'BNP Paribas Cardif',
+          'cardif': 'BNP Paribas Cardif',
+          'bgl bnp paribas': 'BGL BNP Paribas',
+          'bgl': 'BGL BNP Paribas',
+          'bnp paribas cardif': 'BNP Paribas Cardif',
+          'bnp': 'BNP Paribas Cardif',
+          'paribas': 'BNP Paribas Cardif',
+          'fortis luxembourg assurances': 'Fortis Luxembourg Assurances',
+          'fortis': 'Fortis Luxembourg Assurances',
+          'patriotique assurances ing': 'Patriotique Assurances ING',
+          'patriotique': 'Patriotique Assurances ING',
+          'royal touring club': 'Royal Touring Club',
+          'royal': 'Royal Touring Club'
+        };
+        
+        const lowerName = companyName.toLowerCase();
+        for (const [key, mappedName] of Object.entries(partialMatches)) {
+          if (lowerName.includes(key)) {
+            console.log(`🔍 Recherche avec mapping: ${key} -> ${mappedName}`);
+            response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(mappedName)}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.companies && data.companies.length > 0) {
+                foundCompany = data.companies[0];
+                console.log('✅ Trouvé par mapping:', foundCompany.company_name);
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Stratégie 3: Recherche par mots-clés si pas de résultat exact
       if (!foundCompany) {
         const keywords = companyName.split(' ').filter(word => word.length > 2);
         for (const keyword of keywords) {
+          console.log(`🔍 Recherche par mot-clé: ${keyword}`);
           response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(keyword)}`);
           if (response.ok) {
             const data = await response.json();
@@ -207,33 +246,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
               );
               if (matchingCompany) {
                 foundCompany = matchingCompany;
-                break;
-              }
-            }
-          }
-        }
-      }
-      
-      // Stratégie 3: Recherche par correspondances partielles connues
-      if (!foundCompany) {
-        const partialMatches: { [key: string]: string } = {
-          'cardif': 'BNP Paribas Cardif',
-          'bgl': 'BGL BNP Paribas',
-          'bnp': 'BNP Paribas Cardif',
-          'paribas': 'BNP Paribas Cardif',
-          'fortis': 'Fortis Luxembourg Assurances',
-          'patriotique': 'Patriotique Assurances ING',
-          'royal': 'Royal Touring Club'
-        };
-        
-        const lowerName = companyName.toLowerCase();
-        for (const [key, mappedName] of Object.entries(partialMatches)) {
-          if (lowerName.includes(key)) {
-            response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(mappedName)}`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.companies && data.companies.length > 0) {
-                foundCompany = data.companies[0];
+                console.log('✅ Trouvé par mot-clé:', foundCompany.company_name);
                 break;
               }
             }
@@ -243,15 +256,17 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
       
       if (foundCompany) {
         // Entreprise trouvée, rediriger vers sa fiche
+        console.log('🚀 Redirection vers:', `/companies/${foundCompany.id}`);
         navigate(`/companies/${foundCompany.id}`);
       } else {
         // Aucune entreprise trouvée, rediriger vers la liste avec recherche
+        console.log('❌ Aucune entreprise trouvée, redirection vers liste');
         navigate(`/companies?q=${encodeURIComponent(companyName)}`);
       }
     } catch (error) {
       console.error('Erreur lors de la recherche d\'entreprise:', error);
-      // En cas d'erreur, rediriger vers la liste avec recherche
-      navigate(`/companies?q=${encodeURIComponent(companyName)}`);
+      // En cas d'erreur, rediriger vers la liste des entreprises
+      navigate('/companies');
     }
   };
 
