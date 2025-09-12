@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -63,17 +64,23 @@ interface Contact {
   years_of_experience: number;
   department: string;
   current_title_normalized: string;
+  current_company_name?: string;
+  current_company_industry?: string;
+  current_company_subindustry?: string;
+  email?: string;
+  telephone?: string;
   experiences?: Experience[];
   languages?: Language[];
   skills?: Skill[];
   interests?: Interest[];
+  education?: Education[];
 }
 
 interface Experience {
   id: number;
   title: string;
-  title_normalized: string;
-  department: string;
+  title_normalized?: string;
+  department?: string;
   date_from: string;
   date_to: string;
   duration: string;
@@ -81,15 +88,19 @@ interface Experience {
   location: string;
   is_current: boolean;
   order_in_profile: number;
-  company: {
-    id: number;
-    company_name: string;
-    company_industry: string;
-    company_size: string;
-    company_website_url: string;
-    headquarters_city: string;
-    headquarters_country: string;
-  };
+  company_name: string;
+  company_id?: number;
+  company_size?: string;
+  company_type?: string;
+  company_industry?: string;
+  company_logo_url?: string;
+  company_description?: string;
+  company_website_url?: string;
+  company_linkedin_url?: string;
+  company_employee_count?: number;
+  company_followers_count?: number;
+  company_headquarters_city?: string;
+  company_headquarters_country?: string;
 }
 
 interface Language {
@@ -111,12 +122,23 @@ interface Interest {
   order_in_profile: number;
 }
 
+interface Education {
+  id: number;
+  degree: string;
+  end_date?: string;
+  start_date?: string;
+  institution: string;
+  field_of_study: string;
+  order_in_profile: number;
+}
+
 interface ContactDetailProps {
   contactId: number;
   onClose: () => void;
 }
 
 const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => {
+  const navigate = useNavigate();
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
@@ -154,6 +176,83 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
     if (proficiency.includes('Professional')) return '#2196F3';
     if (proficiency.includes('Limited')) return '#FF9800';
     return '#9E9E9E';
+  };
+
+  const handleCompanyClick = async (companyName: string) => {
+    try {
+      // Recherche intelligente avec plusieurs stratégies
+      let foundCompany = null;
+      
+      // Stratégie 1: Recherche exacte
+      let response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(companyName)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.companies && data.companies.length > 0) {
+          foundCompany = data.companies[0];
+        }
+      }
+      
+      // Stratégie 2: Recherche par mots-clés si pas de résultat exact
+      if (!foundCompany) {
+        const keywords = companyName.split(' ').filter(word => word.length > 2);
+        for (const keyword of keywords) {
+          response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(keyword)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.companies && data.companies.length > 0) {
+              // Vérifier si le nom de l'entreprise contient des mots-clés similaires
+              const matchingCompany = data.companies.find(company => 
+                company.company_name.toLowerCase().includes(keyword.toLowerCase()) ||
+                keyword.toLowerCase().includes(company.company_name.toLowerCase().split(' ')[0])
+              );
+              if (matchingCompany) {
+                foundCompany = matchingCompany;
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Stratégie 3: Recherche par correspondances partielles connues
+      if (!foundCompany) {
+        const partialMatches: { [key: string]: string } = {
+          'cardif': 'BNP Paribas Cardif',
+          'bgl': 'BGL BNP Paribas',
+          'bnp': 'BNP Paribas Cardif',
+          'paribas': 'BNP Paribas Cardif',
+          'fortis': 'Fortis Luxembourg Assurances',
+          'patriotique': 'Patriotique Assurances ING',
+          'royal': 'Royal Touring Club'
+        };
+        
+        const lowerName = companyName.toLowerCase();
+        for (const [key, mappedName] of Object.entries(partialMatches)) {
+          if (lowerName.includes(key)) {
+            response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(mappedName)}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.companies && data.companies.length > 0) {
+                foundCompany = data.companies[0];
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      if (foundCompany) {
+        // Entreprise trouvée, rediriger vers sa fiche
+        navigate(`/companies/${foundCompany.id}`);
+      } else {
+        // Aucune entreprise trouvée, rediriger vers la liste avec recherche
+        navigate(`/companies?q=${encodeURIComponent(companyName)}`);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la recherche d\'entreprise:', error);
+      // En cas d'erreur, rediriger vers la liste avec recherche
+      navigate(`/companies?q=${encodeURIComponent(companyName)}`);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -274,6 +373,7 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
           <Tab icon={<TimelineIcon />} label="Expériences" />
           <Tab icon={<LanguageIcon />} label="Compétences" />
           <Tab icon={<PsychologyIcon />} label="Intérêts" />
+          <Tab icon={<SchoolIcon />} label="Formation" />
         </Tabs>
       </Box>
 
@@ -351,6 +451,57 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       </Typography>
                     </Box>
                   </Grid>
+                  {contact.current_company_name && (
+                    <>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Entreprise actuelle
+                        </Typography>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            color: 'primary.main',
+                            '&:hover': {
+                              textDecoration: 'underline'
+                            }
+                          }}
+                          onClick={() => handleCompanyClick(contact.current_company_name!)}
+                        >
+                          {contact.current_company_name}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Secteur d'activité
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {contact.current_company_industry} {contact.current_company_subindustry && `- ${contact.current_company_subindustry}`}
+                        </Typography>
+                      </Grid>
+                    </>
+                  )}
+                  {contact.email && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Email
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {contact.email}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {contact.telephone && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Téléphone
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        {contact.telephone}
+                      </Typography>
+                    </Grid>
+                  )}
                 </Grid>
               </CardContent>
             </Card>
@@ -389,6 +540,24 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       rel="noopener noreferrer"
                     >
                       LinkedIn
+                    </Button>
+                  )}
+                  {contact.email && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<EmailIcon />}
+                      href={`mailto:${contact.email}`}
+                    >
+                      Email
+                    </Button>
+                  )}
+                  {contact.telephone && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<PhoneIcon />}
+                      href={`tel:${contact.telephone}`}
+                    >
+                      Téléphone
                     </Button>
                   )}
                 </Box>
@@ -509,8 +678,20 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                           <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                             {exp.title}
                           </Typography>
-                          <Typography variant="h6" color="primary" sx={{ fontWeight: 500, mb: 1 }}>
-                            {exp.company.company_name}
+                          <Typography 
+                            variant="h6" 
+                            color="primary" 
+                            sx={{ 
+                              fontWeight: 500, 
+                              mb: 1, 
+                              cursor: 'pointer',
+                              '&:hover': {
+                                textDecoration: 'underline'
+                              }
+                            }}
+                            onClick={() => handleCompanyClick(exp.company_name)}
+                          >
+                            {exp.company_name}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
                             <CalendarIcon fontSize="small" color="action" />
@@ -531,9 +712,9 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       </Box>
                       
                       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                        <Chip label={exp.department} size="small" variant="outlined" />
-                        <Chip label={exp.company.company_industry} size="small" variant="outlined" />
-                        <Chip label={exp.company.company_size} size="small" variant="outlined" />
+                        {exp.department && <Chip label={exp.department} size="small" variant="outlined" />}
+                        {exp.company_industry && <Chip label={exp.company_industry} size="small" variant="outlined" />}
+                        {exp.company_size && <Chip label={exp.company_size} size="small" variant="outlined" />}
                       </Box>
                       
                       {exp.description && (
@@ -543,15 +724,28 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
                       )}
                       
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Button
-                          size="small"
-                          startIcon={<PublicIcon />}
-                          href={exp.company.company_website_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Site web
-                        </Button>
+                        {exp.company_website_url && (
+                          <Button
+                            size="small"
+                            startIcon={<PublicIcon />}
+                            href={exp.company_website_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Site web
+                          </Button>
+                        )}
+                        {exp.company_linkedin_url && (
+                          <Button
+                            size="small"
+                            startIcon={<LinkedInIcon />}
+                            href={exp.company_linkedin_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            LinkedIn
+                          </Button>
+                        )}
                       </Box>
                     </Paper>
                   ))}
@@ -659,6 +853,55 @@ const ContactDetail: React.FC<ContactDetailProps> = ({ contactId, onClose }) => 
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                 Aucun centre d'intérêt enregistré
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tab Formation */}
+      {activeTab === 4 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SchoolIcon color="primary" />
+              Formation et éducation
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+            
+            {contact.education && contact.education.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {contact.education
+                  .sort((a, b) => a.order_in_profile - b.order_in_profile)
+                  .map((edu) => (
+                    <Paper key={edu.id} elevation={1} sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                        <Avatar sx={{ bgcolor: '#2196F3', width: 48, height: 48 }}>
+                          <SchoolIcon />
+                        </Avatar>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {edu.degree} - {edu.field_of_study}
+                          </Typography>
+                          <Typography variant="h6" color="primary" sx={{ fontWeight: 500, mb: 1 }}>
+                            {edu.institution}
+                          </Typography>
+                          {(edu.start_date || edu.end_date) && (
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                              <CalendarIcon fontSize="small" color="action" />
+                              <Typography variant="body2" color="text.secondary">
+                                {edu.start_date ? formatDate(edu.start_date) : 'Date inconnue'} - {edu.end_date ? formatDate(edu.end_date) : 'En cours'}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                    </Paper>
+                  ))}
+              </Box>
+            ) : (
+              <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                Aucune formation enregistrée
               </Typography>
             )}
           </CardContent>

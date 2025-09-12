@@ -1,0 +1,51 @@
+import fetch from 'node-fetch';
+
+async function testImport() {
+  const testData = [
+    {
+      "lead_id": 123456,
+      "full_name": "Test Contact",
+      "headline": "Test Headline",
+      "company_name": "BNP Paribas Cardif",
+      "company_id": 103511,
+      "company_description": "BNP Paribas Cardif is a world leader in bancassurance partnerships",
+      "company_employee_count": 9121,
+      "company_followers_count": 268343,
+      "company_headquarters_city": "Nanterre",
+      "company_headquarters_country": "France",
+      "company_linkedin_url": "https://www.linkedin.com/company/bnp-paribas-cardif",
+      "company_logo_url": "https://media.licdn.com/dms/image/v2/D4E0BAQGokrRUB4UjgA/company-logo_200_200/company-logo_200_200/0/1680859172247/bnp_paribas_cardif_logo?e=2147483647&v=beta&t=CNMqL-34kbTp_wiPAQE9b7xXnRoY28nbBit7WfPRVRE",
+      "company_type": "Privately Held",
+      "company_website_url": "https://www.bnpparibascardif.com/en/data-protection-notice",
+      "company_url": "https://www.linkedin.com/company/bnp-paribas-cardif",
+      "company_size": "5001-10000",
+      "revenue_bucket": "$30M+",
+      "company_domain": "bnpparibascardif.com",
+      "employees_count_growth": -4,
+      "business_business_customer": "B2B/B2C",
+      "company_industry": "Financial Services",
+      "company_subindustry": "Insurance",
+      "company_shorthand_name": "bnp-paribas-cardif",
+      "created_at": "2025-07-12 15:51:37 UTC",
+      "updated_at": "2025-07-12 15:51:37 UTC"
+    }
+  ];
+
+  try {
+    console.log('🚀 Test d\'import...');
+    const response = await fetch('http://localhost:3003/api/contacts/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ jsonData: testData })
+    });
+    
+    const result = await response.json();
+    console.log('📊 Résultat:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error('❌ Erreur:', error);
+  }
+}
+
+testImport();

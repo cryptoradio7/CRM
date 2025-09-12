@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API</title>
+</head>
+<body>
+    <h1>Test API CRM</h1>
+    <button onclick="testAPI()">Tester l'API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:3003/api/contacts/47152');
+                const data = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h2>Contact: ${data.full_name}</h2>
+                    <p>Expériences: ${data.experiences?.length || 0}</p>
+                    <p>Langues: ${data.languages?.length || 0}</p>
+                    <p>Compétences: ${data.skills?.length || 0}</p>
+                    <p>Intérêts: ${data.interests?.length || 0}</p>
+                    <p>Formation: ${data.education?.length || 0}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `Erreur: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

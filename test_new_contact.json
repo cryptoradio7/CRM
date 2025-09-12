@@ -1,0 +1,124 @@
+[
+  {
+    "lead_id": 999999999,
+    "canonical_shorthand_name": "test-contact-999",
+    "connections_count": 100,
+    "country": "France",
+    "full_name": "Test Contact Complet",
+    "education": [
+      {
+        "school_name": "Université de Paris",
+        "degree": "Master",
+        "field_of_study": "Informatique",
+        "start_date": "2015",
+        "end_date": "2017",
+        "description": "Master en informatique"
+      }
+    ],
+    "experience_count": 2,
+    "experiences": [
+      {
+        "company_name": "Test Company Simple",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "date_from": "2020",
+        "date_to": "2022",
+        "description": "Développeur",
+        "duration": "2 years",
+        "id": "test-exp-1",
+        "updated_at": "2025-07-12 15:51:37 UTC",
+        "location": "Paris",
+        "order_in_profile": 1,
+        "title": "Développeur",
+        "company_id": null
+      },
+      {
+        "company_shorthand_name": "test-company-complete",
+        "company_id": 999999,
+        "company_description": "Test company with complete data",
+        "company_employee_count": 100,
+        "company_followers_count": 1000,
+        "company_headquarters_city": "Paris",
+        "company_headquarters_country": "France",
+        "company_linkedin_url": "https://www.linkedin.com/company/test-company",
+        "company_logo_url": "https://example.com/logo.png",
+        "company_name": "Test Company Complete",
+        "company_type": "Privately Held",
+        "company_website_url": "https://test-company.com",
+        "company_url": "https://www.linkedin.com/company/test-company",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "date_from": "2022",
+        "duration": "3 years",
+        "id": "test-exp-2",
+        "updated_at": "2025-07-12 15:51:37 UTC",
+        "location": "Paris, France",
+        "order_in_profile": 2,
+        "title": "Senior Developer",
+        "company_size": "51-200",
+        "revenue_bucket": "$1M - $5M",
+        "company_domain": "test-company.com",
+        "employees_count_growth": 10,
+        "business_business_customer": "B2B",
+        "company_industry": "Technology",
+        "company_subindustry": "Software"
+      }
+    ],
+    "interests": [
+      {
+        "name": "Programming",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      },
+      {
+        "name": "AI",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      }
+    ],
+    "languages": [
+      {
+        "id": "lang-1",
+        "language": "Français",
+        "proficiency": "Native or bilingual proficiency",
+        "order_in_profile": "1",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      },
+      {
+        "id": "lang-2",
+        "language": "English",
+        "proficiency": "Professional working proficiency",
+        "order_in_profile": "2",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      }
+    ],
+    "skills": [
+      {
+        "name": "JavaScript",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      },
+      {
+        "name": "Python",
+        "created_at": "2025-07-12 15:51:37 UTC",
+        "updated_at": "2025-07-12 15:51:37 UTC"
+      }
+    ],
+    "updated_at": "2025-07-12 15:51:37 UTC",
+    "lead_linkedin_url": "https://www.linkedin.com/in/test-contact-999",
+    "lead_logo_url": "https://example.com/photo.jpg",
+    "linkedin_short": "test-contact-999",
+    "summary": "Test contact with complete data",
+    "headline": "Senior Developer at Test Company Complete",
+    "lead_quality_score": 5,
+    "department": "Engineering",
+    "connections_count_bucket": "100+",
+    "years_of_experience": 5,
+    "years_of_exp_bucket": "3 to 5 years",
+    "location": "Paris",
+    "current_exp_company_name": "Test Company Complete",
+    "current_exp_company_industry": "Technology",
+    "current_exp_company_subindustry": "Software",
+    "_score": 0.99999999
+  }
+]

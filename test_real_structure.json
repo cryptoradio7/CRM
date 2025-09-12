@@ -3,11 +3,12 @@
     "lead_id": 123456,
     "full_name": "Test Contact",
     "headline": "Test Headline",
-    "current_company_name": "BNP Paribas Cardif",
-    "current_company_industry": "Financial Services",
+    "current_exp_company_name": "BGL BNP Paribas",
+    "current_exp_company_industry": "Financial Services",
+    "current_exp_company_subindustry": "Credit Intermediation",
     "experiences": [
       {
-        "company_name": "BNP Paribas Cardif",
+        "company_name": "BGL BNP Paribas",
         "title": "Chargé de gestion de contrat",
         "date_from": "November 2019",
         "date_to": "June 2021",

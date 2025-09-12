@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Liens Entreprises</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-link { 
+            display: block; 
+            margin: 10px 0; 
+            padding: 10px; 
+            background: #f0f0f0; 
+            text-decoration: none; 
+            color: #1976d2;
+            border-radius: 4px;
+        }
+        .test-link:hover { background: #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>Test des liens vers les entreprises</h1>
+    
+    <h2>1. Fiche contact Hervé Pické</h2>
+    <a href="http://localhost:3002/contacts/47141" class="test-link" target="_blank">
+        📋 Voir la fiche d'Hervé Pické (cliquez sur les noms d'entreprises)
+    </a>
+    
+    <h2>2. Page des entreprises</h2>
+    <a href="http://localhost:3002/companies" class="test-link" target="_blank">
+        🏢 Voir toutes les entreprises
+    </a>
+    
+    <h2>3. Entreprises disponibles</h2>
+    <ul>
+        <li><strong>BGL BNP Paribas</strong> (ID: 4081)</li>
+        <li><strong>BNP Paribas Cardif</strong> (ID: 4080)</li>
+    </ul>
+    
+    <h2>Instructions de test :</h2>
+    <ol>
+        <li>Ouvrez la fiche d'Hervé Pické</li>
+        <li>Dans l'onglet "Profil", cliquez sur "BGL BNP Paribas" (entreprise actuelle)</li>
+        <li>Dans l'onglet "Expériences", cliquez sur les noms d'entreprises</li>
+        <li>Vous devriez être redirigé vers la page des entreprises</li>
+    </ol>
+</body>
+</html>

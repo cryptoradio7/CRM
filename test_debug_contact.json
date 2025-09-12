@@ -1,0 +1,40 @@
+[
+  {
+    "lead_id": 888888888,
+    "full_name": "Debug Contact",
+    "experiences": [
+      {
+        "title": "Test Job",
+        "description": "Test Description",
+        "location": "Paris",
+        "date_from": "2020",
+        "date_to": "2022",
+        "duration": "2 years",
+        "order_in_profile": 1,
+        "company_name": "Test Company"
+      }
+    ],
+    "languages": [
+      {
+        "language": "Français",
+        "proficiency": "Native"
+      }
+    ],
+    "skills": [
+      {
+        "name": "JavaScript"
+      }
+    ],
+    "interests": [
+      {
+        "name": "Programming"
+      }
+    ],
+    "education": [
+      {
+        "school_name": "Test University",
+        "degree": "Master"
+      }
+    ]
+  }
+]

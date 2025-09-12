@@ -1017,6 +1017,7 @@ const ContactsList = () => {
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Entreprise actuelle</TableCell>
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Poste actuel</TableCell>
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Email</TableCell>
+          <TableCell sx={{ width: '15%', minWidth: '100px', height: '32px', padding: '4px 8px' }}>Téléphone</TableCell>
           <TableCell sx={{ width: '15%', minWidth: '100px', height: '32px', padding: '4px 8px' }}>LinkedIn</TableCell>
             <TableCell sx={{ width: '80px', height: '32px', padding: '4px 8px' }}>Actions</TableCell>
           </TableRow>
@@ -1172,6 +1173,31 @@ const ContactsList = () => {
                     >
                     {contact.email}
                   </Typography>
+                  </Tooltip>
+                ) : (
+                  <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
+                    -
+                  </Typography>
+                )}
+              </TableCell>
+              <TableCell 
+                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+              >
+                {contact.telephone ? (
+                  <Tooltip title={`Voir fiche contact: ${contact.telephone}`} arrow>
+                    <Typography 
+                      color="primary" 
+                      sx={{ 
+                        fontSize: '0.75rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      {contact.telephone}
+                    </Typography>
                   </Tooltip>
                 ) : (
                   <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>

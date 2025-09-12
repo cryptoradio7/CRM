@@ -495,6 +495,45 @@ app.get('/api/companies', async (req, res) => {
   }
 });
 
+// GET - Rechercher des entreprises
+app.get('/api/companies/search', async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+    
+    if (!q) {
+      return res.json({ companies: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+    }
+    
+    const searchTerm = `%${q}%`;
+    
+    const result = await pool.query(`
+      SELECT 
+        c.*
+      FROM companies c
+      WHERE 
+        c.company_name ILIKE $1 OR 
+        c.company_industry ILIKE $1 OR 
+        c.company_description ILIKE $1
+      ORDER BY c.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [searchTerm, limit, offset]);
+    
+    res.json({
+      companies: result.rows,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: result.rows.length,
+        pages: Math.ceil(result.rows.length / parseInt(limit as string))
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'entreprises:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // GET - Récupérer une entreprise par ID
 app.get('/api/companies/:id', async (req, res) => {
   try {
@@ -619,49 +658,6 @@ app.get('/api/companies/:id/employees', async (req, res) => {
   }
 });
 
-// GET - Rechercher des entreprises
-app.get('/api/companies/search', async (req, res) => {
-  try {
-    const { q, page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
-    
-    if (!q) {
-      return res.json({ companies: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
-    }
-    
-    const searchTerm = `%${q}%`;
-    
-    const result = await pool.query(`
-      SELECT 
-        c.*,
-        COUNT(e.id) as employee_count
-      FROM companies c
-      LEFT JOIN experiences e ON c.id = e.company_id
-      WHERE 
-        c.company_name ILIKE $1 OR 
-        c.company_industry ILIKE $1 OR 
-        c.company_description ILIKE $1 OR
-        c.headquarters_city ILIKE $1 OR
-        c.headquarters_country ILIKE $1
-      GROUP BY c.id
-      ORDER BY c.created_at DESC
-      LIMIT $2 OFFSET $3
-    `, [searchTerm, limit, offset]);
-    
-    res.json({
-      companies: result.rows,
-      pagination: {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        total: result.rows.length,
-        pages: Math.ceil(result.rows.length / parseInt(limit as string))
-      }
-    });
-  } catch (error) {
-    console.error('Erreur lors de la recherche d\'entreprises:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
 
 // =====================================================
 // API EXPORT
@@ -734,18 +730,12 @@ app.post('/api/contacts/import', async (req, res) => {
     let dataToImport;
     
     if (jsonData) {
-      // Données JSON directement fournies (drag & drop)
       dataToImport = jsonData;
     } else if (filePath) {
-      // Chemin de fichier fourni (import classique)
       const fs = require('fs');
-      const path = require('path');
-      
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'Fichier JSON non trouvé' });
       }
-
-      // Lire et parser le fichier JSON
       dataToImport = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } else {
       return res.status(400).json({ error: 'Chemin du fichier JSON ou données JSON requises' });
@@ -756,117 +746,44 @@ app.post('/api/contacts/import', async (req, res) => {
     }
 
     let importedCount = 0;
+    let companyCount = 0;
+    let experienceCount = 0;
+    let languageCount = 0;
+    let skillCount = 0;
+    let interestCount = 0;
+    let educationCount = 0;
     let errorCount = 0;
     const errors = [];
 
-    // Fonction pour extraire les données d'un contact (copiée du script d'import)
-    const extractContactData = (contact: any) => {
-      return {
-        lead_id: contact.lead_id,
-        full_name: contact.full_name || '',
-        headline: contact.headline || '',
-        summary: contact.summary || '',
-        location: contact.location || '',
-        country: contact.country || '',
-        connections_count: contact.connections_count || 0,
-        lead_quality_score: contact.lead_quality_score || 0,
-        linkedin_url: contact.lead_linkedin_url || '',
-        years_of_experience: contact.years_of_exp_bucket ? 
-          parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
-        department: contact.department || '',
-        current_title_normalized: contact.experiences && contact.experiences.length > 0 ? 
-          contact.experiences[0].title || '' : '',
-        current_company_name: contact.current_exp_company_name || '',
-        current_company_industry: contact.current_exp_company_industry || '',
-        current_company_subindustry: contact.current_exp_company_subindustry || '',
-        profile_picture_url: contact.lead_logo_url || '',
-        telephone: contact.telephone || '',
-        email: contact.email || '',
-        interests: contact.interests ? contact.interests.join(', ') : '',
-        historic: contact.historic || '',
-        follow_up: contact.follow_up || '',
-        date_creation: contact.created_at || new Date().toISOString(),
-        date_modification: contact.updated_at || new Date().toISOString()
-      };
-    };
+    // Fonction pour créer un ID unique pour une entreprise
+  const generateCompanyId = (companyName: string) => {
+    // Générer un ID simple basé sur le nom et le timestamp
+    const timestamp = Date.now();
+    const nameHash = companyName.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(nameHash + timestamp) % 1000000; // Limiter à 6 chiffres
+  };
 
-    // Fonction pour extraire les données d'une entreprise (copiée du script d'import)
-    const extractCompanyData = (companyInfo: any) => {
-      if (!companyInfo || !companyInfo.company_name) return null;
-      
-      return {
-        company_id: companyInfo.company_id,
-        company_name: companyInfo.company_name,
-        company_description: companyInfo.company_description || '',
-        company_industry: companyInfo.company_industry || '',
-        company_subindustry: companyInfo.company_subindustry || '',
-        company_size: companyInfo.company_size || '',
-        company_website_url: companyInfo.company_website_url || '',
-        headquarters_city: companyInfo.company_headquarters_city || '',
-        headquarters_country: companyInfo.company_headquarters_country || '',
-        employee_count: companyInfo.company_employee_count || 0,
-        revenue_bucket: companyInfo.revenue_bucket || '',
-        company_type: companyInfo.company_type || ''
-      };
-    };
+    console.log(`🚀 Début import de ${dataToImport.length} contacts`);
 
-    // Étape 1: Créer les entreprises d'abord
-    console.log('🏢 Création des entreprises...');
-    const companyMap = new Map();
-    let companyCount = 0;
-
-    for (const contact of dataToImport) {
-      // Extraire les entreprises des expériences
-      if (contact.experiences) {
-        for (const exp of contact.experiences) {
-          if (exp.company_name) {
-            const companyData = extractCompanyData(exp);
-            if (companyData && !companyMap.has(companyData.company_id || companyData.company_name)) {
-              try {
-                const companyResult = await pool.query(`
-                  INSERT INTO companies (
-                    company_id, company_name, company_description, company_industry,
-                    company_subindustry, company_size, company_website_url,
-                    headquarters_city, headquarters_country, employee_count,
-                    revenue_bucket, company_type, created_at, updated_at
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
-                  ON CONFLICT (company_name) DO NOTHING
-                  RETURNING id
-                `, [
-                  companyData.company_id, companyData.company_name, companyData.company_description,
-                  companyData.company_industry, companyData.company_subindustry, companyData.company_size,
-                  companyData.company_website_url, companyData.headquarters_city, companyData.headquarters_country,
-                  companyData.employee_count, companyData.revenue_bucket, companyData.company_type
-                ]);
-                
-                if (companyResult.rows.length > 0) {
-                  const companyId = companyResult.rows[0].id;
-                  companyMap.set(companyData.company_id || companyData.company_name, companyId);
-                  companyCount++;
-                }
-              } catch (error) {
-                if (error instanceof Error && 'code' in error && error.code !== '23505') { // Ignorer les doublons
-                  console.error(`⚠️  Erreur lors de l'insertion de l'entreprise ${companyData.company_name}:`, error.message);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    console.log(`✅ ${companyCount} entreprises créées`);
-
-    // Étape 2: Importer chaque contact
-    console.log('👥 Import des contacts...');
+    // Importer chaque contact
     for (const contact of dataToImport) {
       try {
-        const contactData = extractContactData(contact);
+        console.log(`\n📋 Traitement contact: ${contact.full_name} (ID: ${contact.lead_id})`);
+        console.log(`🔍 Contact data keys:`, Object.keys(contact));
+        console.log(`🔍 Has experiences:`, !!contact.experiences);
+        console.log(`🔍 Has languages:`, !!contact.languages);
+        console.log(`🔍 Has skills:`, !!contact.skills);
+        console.log(`🔍 Has interests:`, !!contact.interests);
+        console.log(`🔍 Has education:`, !!contact.education);
         
-        // Vérifier si le contact existe déjà
+        // 1. CRÉER/METTRE À JOUR LE CONTACT
+        let contactId;
         const existingContact = await pool.query(
           'SELECT id FROM contacts WHERE lead_id = $1',
-          [contactData.lead_id]
+          [contact.lead_id]
         );
 
         if (existingContact.rows.length > 0) {
@@ -878,61 +795,253 @@ app.post('/api/contacts/import', async (req, res) => {
               linkedin_url = $8, years_of_experience = $9, department = $10,
               current_title_normalized = $11, current_company_name = $12,
               current_company_industry = $13, current_company_subindustry = $14,
-              profile_picture_url = $15, telephone = $16, email = $17,
-              interests = $18, historic = $19, follow_up = $20,
-              date_modification = $21
-            WHERE lead_id = $22
+              profile_picture_url = $15, connections_count_bucket = $16,
+              updated_at = $17
+            WHERE lead_id = $18
           `, [
-            contactData.full_name, contactData.headline, contactData.summary,
-            contactData.location, contactData.country, contactData.connections_count,
-            contactData.lead_quality_score, contactData.linkedin_url,
-            contactData.years_of_experience, contactData.department,
-            contactData.current_title_normalized, contactData.current_company_name,
-            contactData.current_company_industry, contactData.current_company_subindustry,
-            contactData.profile_picture_url, contactData.telephone, contactData.email,
-            contactData.interests, contactData.historic, contactData.follow_up,
-            contactData.date_modification, contactData.lead_id
+            contact.full_name || '',
+            contact.headline || '',
+            contact.summary || '',
+            contact.location || '',
+            contact.country || '',
+            contact.connections_count || 0,
+            contact.lead_quality_score || 0,
+            contact.lead_linkedin_url || '',
+            contact.years_of_exp_bucket ? parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+            contact.department || '',
+            contact.experiences && contact.experiences.length > 0 ? contact.experiences[0].title || '' : '',
+            contact.current_exp_company_name || '',
+            contact.current_exp_company_industry || '',
+            contact.current_exp_company_subindustry || '',
+            contact.lead_logo_url || '',
+            contact.connections_count_bucket || '',
+            contact.updated_at || new Date().toISOString(),
+            contact.lead_id
           ]);
+          contactId = existingContact.rows[0].id;
+          console.log(`✅ Contact mis à jour (ID: ${contactId})`);
         } else {
           // Créer un nouveau contact
-          await pool.query(`
+          const result = await pool.query(`
             INSERT INTO contacts (
               lead_id, full_name, headline, summary, location, country,
               connections_count, lead_quality_score, linkedin_url, years_of_experience,
               department, current_title_normalized, current_company_name,
               current_company_industry, current_company_subindustry, profile_picture_url,
-              telephone, email, interests, historic, follow_up,
-              date_creation, date_modification
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+              connections_count_bucket, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            RETURNING id
           `, [
-            contactData.lead_id, contactData.full_name, contactData.headline,
-            contactData.summary, contactData.location, contactData.country,
-            contactData.connections_count, contactData.lead_quality_score,
-            contactData.linkedin_url, contactData.years_of_experience,
-            contactData.department, contactData.current_title_normalized,
-            contactData.current_company_name, contactData.current_company_industry,
-            contactData.current_company_subindustry, contactData.profile_picture_url,
-            contactData.telephone, contactData.email, contactData.interests,
-            contactData.historic, contactData.follow_up, contactData.date_creation,
-            contactData.date_modification
+            contact.lead_id,
+            contact.full_name || '',
+            contact.headline || '',
+            contact.summary || '',
+            contact.location || '',
+            contact.country || '',
+            contact.connections_count || 0,
+            contact.lead_quality_score || 0,
+            contact.lead_linkedin_url || '',
+            contact.years_of_exp_bucket ? parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+            contact.department || '',
+            contact.experiences && contact.experiences.length > 0 ? contact.experiences[0].title || '' : '',
+            contact.current_exp_company_name || '',
+            contact.current_exp_company_industry || '',
+            contact.current_exp_company_subindustry || '',
+            contact.lead_logo_url || '',
+            contact.connections_count_bucket || '',
+            contact.created_at || new Date().toISOString(),
+            contact.updated_at || new Date().toISOString()
           ]);
+          contactId = result.rows[0].id;
+          console.log(`✅ Contact créé (ID: ${contactId})`);
+        }
+
+        // 2. SUPPRIMER LES DONNÉES DÉTAILLÉES EXISTANTES
+        await pool.query('DELETE FROM experiences WHERE contact_id = $1', [contactId]);
+        await pool.query('DELETE FROM contact_languages WHERE contact_id = $1', [contactId]);
+        await pool.query('DELETE FROM contact_skills WHERE contact_id = $1', [contactId]);
+        await pool.query('DELETE FROM contact_interests WHERE contact_id = $1', [contactId]);
+        await pool.query('DELETE FROM contact_education WHERE contact_id = $1', [contactId]);
+
+        // 3. IMPORTER LES EXPÉRIENCES ET ENTREPRISES
+        if (contact.experiences && Array.isArray(contact.experiences)) {
+          console.log(`  📈 ${contact.experiences.length} expériences à traiter`);
+          for (const exp of contact.experiences) {
+            console.log(`    🔍 Expérience: ${exp.company_name}`);
+            // Vérifier si c'est une expérience complète avec données d'entreprise
+            if (exp.company_description && exp.company_industry) {
+              console.log(`    🏢 Création entreprise: ${exp.company_name}`);
+              const companyId = generateCompanyId(exp.company_name);
+              console.log(`    🏢 Company ID généré: ${companyId}`);
+              await pool.query(`
+                INSERT INTO companies (
+                  company_id, company_name, company_description, company_industry,
+                  company_subindustry, business_business_customer, company_employee_count,
+                  employees_count_growth, company_headquarters_city, company_headquarters_country,
+                  company_linkedin_url, company_logo_url, company_type, company_website_url,
+                  company_url, company_size, revenue_bucket, company_domain,
+                  created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                ON CONFLICT (company_id) DO NOTHING
+              `, [
+                companyId, 
+                exp.company_name || '', 
+                exp.company_description || '', 
+                exp.company_industry || '',
+                exp.company_subindustry || '', 
+                exp.business_business_customer || '', 
+                exp.company_employee_count || 0,
+                exp.employees_count_growth || 0, 
+                exp.company_headquarters_city || '', 
+                exp.company_headquarters_country || '',
+                exp.company_linkedin_url || '', 
+                exp.company_logo_url || '', 
+                exp.company_type || '', 
+                exp.company_website_url || '',
+                exp.company_url || '', 
+                exp.company_size || '', 
+                exp.revenue_bucket || '', 
+                exp.company_domain || '',
+                exp.created_at || new Date().toISOString(), 
+                exp.updated_at || new Date().toISOString()
+              ]);
+              companyCount++;
+              console.log(`    🏢 Entreprise créée: ${exp.company_name}`);
+            }
+
+            // Créer l'expérience
+            // Convertir les dates au format PostgreSQL
+            const formatDate = (dateStr: string) => {
+              if (!dateStr) return null;
+              // Si c'est juste une année, ajouter le 1er janvier
+              if (/^\d{4}$/.test(dateStr)) {
+                return `${dateStr}-01-01`;
+              }
+              // Si c'est déjà au bon format, le retourner
+              if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                return dateStr;
+              }
+              // Sinon, essayer de parser la date
+              try {
+                const date = new Date(dateStr);
+                return date.toISOString().split('T')[0];
+              } catch {
+                return null;
+              }
+            };
+
+            await pool.query(`
+              INSERT INTO experiences (
+                contact_id, company_name, title, date_from, date_to, description,
+                duration, location, order_in_profile, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `, [
+              contactId, 
+              exp.company_name || '', 
+              exp.title || '', 
+              formatDate(exp.date_from),
+              formatDate(exp.date_to), 
+              exp.description || '', 
+              exp.duration || '', 
+              exp.location || '', 
+              exp.order_in_profile || 0,
+              exp.created_at || new Date().toISOString(), 
+              exp.updated_at || new Date().toISOString()
+            ]);
+            experienceCount++;
+          }
+        }
+
+        // 4. IMPORTER LES LANGUES
+        if (contact.languages && Array.isArray(contact.languages)) {
+          console.log(`  🌍 ${contact.languages.length} langues à traiter`);
+          for (const lang of contact.languages) {
+            await pool.query(`
+              INSERT INTO contact_languages (
+                contact_id, language, proficiency, order_in_profile, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+              contactId, lang.language, lang.proficiency, lang.order_in_profile,
+              lang.created_at || new Date().toISOString(), lang.updated_at || new Date().toISOString()
+            ]);
+            languageCount++;
+          }
+        }
+
+        // 5. IMPORTER LES COMPÉTENCES
+        if (contact.skills && Array.isArray(contact.skills)) {
+          console.log(`  🛠️ ${contact.skills.length} compétences à traiter`);
+          for (let i = 0; i < contact.skills.length; i++) {
+            const skill = contact.skills[i];
+            await pool.query(`
+              INSERT INTO contact_skills (
+                contact_id, skill_name, order_in_profile, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5)
+            `, [
+              contactId, skill.name || skill, i + 1, new Date().toISOString(), new Date().toISOString()
+            ]);
+            skillCount++;
+          }
+        }
+
+        // 6. IMPORTER LES INTÉRÊTS
+        if (contact.interests && Array.isArray(contact.interests)) {
+          console.log(`  ❤️ ${contact.interests.length} intérêts à traiter`);
+          for (let i = 0; i < contact.interests.length; i++) {
+            const interest = contact.interests[i];
+            await pool.query(`
+              INSERT INTO contact_interests (
+                contact_id, interest_name, order_in_profile, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5)
+            `, [
+              contactId, interest.name || interest, i + 1, new Date().toISOString(), new Date().toISOString()
+            ]);
+            interestCount++;
+          }
+        }
+
+        // 7. IMPORTER LA FORMATION
+        if (contact.education && Array.isArray(contact.education)) {
+          console.log(`  🎓 ${contact.education.length} formations à traiter`);
+          for (let i = 0; i < contact.education.length; i++) {
+            const edu = contact.education[i];
+            await pool.query(`
+              INSERT INTO contact_education (
+                contact_id, institution, degree, field_of_study, order_in_profile, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [
+              contactId, edu.school_name, edu.degree, edu.field_of_study, i + 1,
+              edu.created_at || new Date().toISOString(), edu.updated_at || new Date().toISOString()
+            ]);
+            educationCount++;
+          }
         }
         
         importedCount++;
+        console.log(`✅ Contact ${contact.full_name} traité avec succès\n`);
       } catch (error) {
         errorCount++;
-        errors.push(`Contact ${contact.lead_id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        const errorMsg = `Contact ${contact.lead_id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+        errors.push(errorMsg);
+        console.error(`❌ Erreur: ${errorMsg}`);
       }
     }
 
+    console.log(`\n🎉 Import terminé: ${importedCount} contacts, ${companyCount} entreprises, ${experienceCount} expériences, ${languageCount} langues, ${skillCount} compétences, ${interestCount} intérêts, ${educationCount} formations`);
+
     res.json({
       success: true,
-      message: `Import terminé: ${companyCount} entreprises créées, ${importedCount} contacts importés/mis à jour, ${errorCount} erreurs`,
-      companyCount,
+      message: `Import terminé: ${importedCount} contacts, ${companyCount} entreprises, ${experienceCount} expériences, ${languageCount} langues, ${skillCount} compétences, ${interestCount} intérêts, ${educationCount} formations`,
       importedCount,
+      companyCount,
+      experienceCount,
+      languageCount,
+      skillCount,
+      interestCount,
+      educationCount,
       errorCount,
       totalProcessed: dataToImport.length,
-      errors: errors.slice(0, 10) // Limiter à 10 erreurs pour la réponse
+      errors: errors.slice(0, 10)
     });
 
   } catch (error) {

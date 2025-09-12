@@ -89,7 +89,6 @@ const CompaniesList = () => {
   const [filters, setFilters] = useState({
     company_name: [] as string[],
     company_founded: [] as string[],
-    company_domain: [] as string[],
     company_industry: [] as string[],
     company_subindustry: [] as string[],
     employees_count_growth: [] as string[],
@@ -100,7 +99,6 @@ const CompaniesList = () => {
   const [filterOptions, setFilterOptions] = useState({
     company_name: [] as string[],
     company_founded: [] as string[],
-    company_domain: [] as string[],
     company_industry: [] as string[],
     company_subindustry: [] as string[],
     employees_count_growth: [] as string[],
@@ -135,7 +133,6 @@ const CompaniesList = () => {
     const options = {
       company_name: [...new Set(companies.map(c => c.company_name).filter(Boolean))] as string[],
       company_founded: [...new Set(companies.map(c => c.company_founded).filter(Boolean))] as string[],
-      company_domain: [...new Set(companies.map(c => c.company_domain).filter(Boolean))] as string[],
       company_industry: [...new Set(companies.map(c => c.company_industry).filter(Boolean))] as string[],
       company_subindustry: [...new Set(companies.map(c => c.company_subindustry).filter(Boolean))] as string[],
       employees_count_growth: [...new Set(companies.map(c => c.employees_count_growth).filter(Boolean))] as string[],
@@ -180,9 +177,6 @@ const CompaniesList = () => {
           company.company_founded?.toString().includes(founded)
         ),
         
-        filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
-          company.company_domain?.toLowerCase().includes(domain.toLowerCase())
-        ),
         
         filters.company_industry.length === 0 || filters.company_industry.some((industry: string) => 
           company.company_industry?.toLowerCase().includes(industry.toLowerCase())
@@ -246,7 +240,6 @@ const CompaniesList = () => {
     setFilters({
       company_name: [],
       company_founded: [],
-      company_domain: [],
       company_industry: [],
       company_subindustry: [],
       employees_count_growth: [],
@@ -477,36 +470,6 @@ const CompaniesList = () => {
                         )}
                       />
 
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        size="small"
-                        options={filterOptions.company_domain}
-                        value={filters.company_domain}
-                        onChange={(event, newValue) => handleFilterChange('company_domain', newValue)}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              variant="outlined"
-                              label={option}
-                              size="small"
-                              {...getTagProps({ index })}
-                              onDelete={() => {
-                                const newFilters = [...filters.company_domain];
-                                newFilters.splice(index, 1);
-                                handleFilterChange('company_domain', newFilters);
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Domaine"
-                            placeholder="Tapez ou sélectionnez..."
-                          />
-                        )}
-                      />
 
                       <Autocomplete
                         multiple
