@@ -91,7 +91,19 @@ function extractContactData(contact) {
       parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
     department: contact.department || '',
     current_title_normalized: contact.experiences && contact.experiences.length > 0 ? 
-      contact.experiences[0].title_normalized || '' : ''
+      contact.experiences[0].title || '' : '',
+    // Nouvelles données de la structure analysée
+    current_company_name: contact.current_exp_company_name || '',
+    current_company_industry: contact.current_exp_company_industry || '',
+    current_company_subindustry: contact.current_exp_company_subindustry || '',
+    profile_picture_url: contact.lead_logo_url || '',
+    telephone: contact.telephone || '',
+    email: contact.email || '',
+    interests: contact.interests ? contact.interests.join(', ') : '',
+    historic: contact.historic || '',
+    follow_up: contact.follow_up || '',
+    date_creation: contact.created_at || new Date().toISOString(),
+    date_modification: contact.updated_at || new Date().toISOString()
   };
 }
 

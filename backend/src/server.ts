@@ -723,6 +723,151 @@ app.get('/api/companies/export', async (req, res) => {
 });
 
 // =====================================================
+// API IMPORT JSON
+// =====================================================
+
+// POST - Importer des contacts depuis un fichier JSON
+app.post('/api/contacts/import', async (req, res) => {
+  try {
+    const { filePath } = req.body;
+    
+    if (!filePath) {
+      return res.status(400).json({ error: 'Chemin du fichier JSON requis' });
+    }
+
+    // Vérifier que le fichier existe
+    const fs = require('fs');
+    const path = require('path');
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier JSON non trouvé' });
+    }
+
+    // Lire et parser le fichier JSON
+    const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    
+    if (!Array.isArray(jsonData)) {
+      return res.status(400).json({ error: 'Le fichier JSON doit contenir un tableau de contacts' });
+    }
+
+    let importedCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    // Fonction pour extraire les données d'un contact (copiée du script d'import)
+    const extractContactData = (contact: any) => {
+      return {
+        lead_id: contact.lead_id,
+        full_name: contact.full_name || '',
+        headline: contact.headline || '',
+        summary: contact.summary || '',
+        location: contact.location || '',
+        country: contact.country || '',
+        connections_count: contact.connections_count || 0,
+        lead_quality_score: contact.lead_quality_score || 0,
+        linkedin_url: contact.lead_linkedin_url || '',
+        years_of_experience: contact.years_of_exp_bucket ? 
+          parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+        department: contact.department || '',
+        current_title_normalized: contact.experiences && contact.experiences.length > 0 ? 
+          contact.experiences[0].title || '' : '',
+        current_company_name: contact.current_exp_company_name || '',
+        current_company_industry: contact.current_exp_company_industry || '',
+        current_company_subindustry: contact.current_exp_company_subindustry || '',
+        profile_picture_url: contact.lead_logo_url || '',
+        telephone: contact.telephone || '',
+        email: contact.email || '',
+        interests: contact.interests ? contact.interests.join(', ') : '',
+        historic: contact.historic || '',
+        follow_up: contact.follow_up || '',
+        date_creation: contact.created_at || new Date().toISOString(),
+        date_modification: contact.updated_at || new Date().toISOString()
+      };
+    };
+
+    // Importer chaque contact
+    for (const contact of jsonData) {
+      try {
+        const contactData = extractContactData(contact);
+        
+        // Vérifier si le contact existe déjà
+        const existingContact = await pool.query(
+          'SELECT id FROM contacts WHERE lead_id = $1',
+          [contactData.lead_id]
+        );
+
+        if (existingContact.rows.length > 0) {
+          // Mettre à jour le contact existant
+          await pool.query(`
+            UPDATE contacts SET
+              full_name = $1, headline = $2, summary = $3, location = $4,
+              country = $5, connections_count = $6, lead_quality_score = $7,
+              linkedin_url = $8, years_of_experience = $9, department = $10,
+              current_title_normalized = $11, current_company_name = $12,
+              current_company_industry = $13, current_company_subindustry = $14,
+              profile_picture_url = $15, telephone = $16, email = $17,
+              interests = $18, historic = $19, follow_up = $20,
+              date_modification = $21
+            WHERE lead_id = $22
+          `, [
+            contactData.full_name, contactData.headline, contactData.summary,
+            contactData.location, contactData.country, contactData.connections_count,
+            contactData.lead_quality_score, contactData.linkedin_url,
+            contactData.years_of_experience, contactData.department,
+            contactData.current_title_normalized, contactData.current_company_name,
+            contactData.current_company_industry, contactData.current_company_subindustry,
+            contactData.profile_picture_url, contactData.telephone, contactData.email,
+            contactData.interests, contactData.historic, contactData.follow_up,
+            contactData.date_modification, contactData.lead_id
+          ]);
+        } else {
+          // Créer un nouveau contact
+          await pool.query(`
+            INSERT INTO contacts (
+              lead_id, full_name, headline, summary, location, country,
+              connections_count, lead_quality_score, linkedin_url, years_of_experience,
+              department, current_title_normalized, current_company_name,
+              current_company_industry, current_company_subindustry, profile_picture_url,
+              telephone, email, interests, historic, follow_up,
+              date_creation, date_modification
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+          `, [
+            contactData.lead_id, contactData.full_name, contactData.headline,
+            contactData.summary, contactData.location, contactData.country,
+            contactData.connections_count, contactData.lead_quality_score,
+            contactData.linkedin_url, contactData.years_of_experience,
+            contactData.department, contactData.current_title_normalized,
+            contactData.current_company_name, contactData.current_company_industry,
+            contactData.current_company_subindustry, contactData.profile_picture_url,
+            contactData.telephone, contactData.email, contactData.interests,
+            contactData.historic, contactData.follow_up, contactData.date_creation,
+            contactData.date_modification
+          ]);
+        }
+        
+        importedCount++;
+      } catch (error) {
+        errorCount++;
+        errors.push(`Contact ${contact.lead_id}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import terminé: ${importedCount} contacts importés/mis à jour, ${errorCount} erreurs`,
+      importedCount,
+      errorCount,
+      totalProcessed: jsonData.length,
+      errors: errors.slice(0, 10) // Limiter à 10 erreurs pour la réponse
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de l\'import JSON:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'import JSON' });
+  }
+});
+
+// =====================================================
 // DÉMARRAGE DU SERVEUR
 // =====================================================
 
@@ -733,6 +878,7 @@ app.listen(PORT, () => {
   console.log(`   - GET /api/contacts (avec pagination et toutes les données)`);
   console.log(`   - GET /api/contacts/:id (fiche contact complète)`);
   console.log(`   - GET /api/contacts/search (recherche avancée)`);
+  console.log(`   - POST /api/contacts/import (import JSON)`);
   console.log(`   - GET /api/companies (avec pagination)`);
   console.log(`   - GET /api/companies/:id (fiche entreprise complète)`);
   console.log(`   - GET /api/companies/search (recherche avancée)`);

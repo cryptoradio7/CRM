@@ -129,7 +129,11 @@ def analyze_json_stream(file_path, max_lines=10000):
         return None
 
 if __name__ == "__main__":
-    file_path = "all_lemlist_contacts.json"
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+    else:
+        file_path = "all_lemlist_contacts.json"
+    
     sample = analyze_json_stream(file_path)
     
     if sample:

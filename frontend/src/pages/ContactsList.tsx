@@ -522,6 +522,48 @@ const ContactsList = () => {
     }
   };
 
+  // Fonction d'import JSON
+  const handleImportJson = async () => {
+    try {
+      setLoading(true);
+      
+      // Demander le chemin du fichier à l'utilisateur
+      const filePath = prompt('Entrez le chemin complet du fichier JSON à importer:');
+      if (!filePath) {
+        setSnackbar({
+          open: true,
+          message: 'Import annulé',
+          severity: 'warning'
+        });
+        return;
+      }
+
+      // Appeler l'API d'import
+      const result = await contactsApi.importFromJson(filePath);
+      
+      setSnackbar({
+        open: true,
+        message: result.message,
+        severity: result.success ? 'success' : 'error'
+      });
+
+      // Recharger les contacts si l'import a réussi
+      if (result.success) {
+        loadContacts(currentPage, searchTerm);
+        loadFilterOptions();
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'import JSON:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de l\'import JSON',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Effet pour charger les contacts
   useEffect(() => {
     loadContacts(currentPage, searchTerm);
@@ -1367,11 +1409,26 @@ const ContactsList = () => {
                     backgroundColor: '#f5f5f5'
                   }
                 }}
+                onClick={handleImportJson}
               >
                 <UploadIcon sx={{ fontSize: 40, color: '#ccc', mb: 1 }} />
-                <Typography variant="body2" color="textSecondary">
+                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                   Glisser-déposer JSON ou cliquer
                 </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  disabled={loading}
+                  sx={{
+                    backgroundColor: '#FF9800',
+                    '&:hover': {
+                      backgroundColor: '#F57C00',
+                    }
+                  }}
+                >
+                  {loading ? 'Import en cours...' : 'Importer JSON'}
+                </Button>
               </Box>
             </Card>
 

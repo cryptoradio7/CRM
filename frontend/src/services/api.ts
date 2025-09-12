@@ -86,6 +86,24 @@ export const contactsApi = {
     });
     if (!response.ok) throw new Error('Erreur lors de la suppression de la note');
     return response.json() as Promise<{ message: string }>;
+  },
+
+  // Importer des contacts depuis un fichier JSON
+  async importFromJson(filePath: string) {
+    const response = await fetch(`${API_BASE_URL}/contacts/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath })
+    });
+    if (!response.ok) throw new Error('Erreur lors de l\'import JSON');
+    return response.json() as Promise<{
+      success: boolean;
+      message: string;
+      importedCount: number;
+      errorCount: number;
+      totalProcessed: number;
+      errors: string[];
+    }>;
   }
 };
 
