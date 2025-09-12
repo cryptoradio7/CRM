@@ -141,28 +141,14 @@ const ContactsList = () => {
         
         // years_of_experience (avec regroupements)
         filters.years_of_experience.length === 0 || filters.years_of_experience.some((expRange: string) => {
+          // Ignorer les séparateurs
+          if (expRange.startsWith('---')) return false;
+          
           const contactExp = contact.years_of_experience;
           if (!contactExp) return false;
           
-          // Gestion des regroupements prédéfinis
-          if (expRange === '0-2 ans (Junior)') {
-            return contactExp >= 0 && contactExp <= 2;
-          } else if (expRange === '3-5 ans (Intermédiaire)') {
-            return contactExp >= 3 && contactExp <= 5;
-          } else if (expRange === '6-10 ans (Senior)') {
-            return contactExp >= 6 && contactExp <= 10;
-          } else if (expRange === '11-15 ans (Expert)') {
-            return contactExp >= 11 && contactExp <= 15;
-          } else if (expRange === '16-20 ans (Chef d\'équipe)') {
-            return contactExp >= 16 && contactExp <= 20;
-          } else if (expRange === '20+ ans (Directeur)') {
-            return contactExp >= 20;
-          }
-          
-          // Fallback pour les anciennes valeurs numériques
-          return expRange.includes('-') ? 
-            (contactExp >= parseInt(expRange.split('-')[0]) && contactExp <= parseInt(expRange.split('-')[1])) :
-            contactExp === parseInt(expRange);
+          // Comparaison exacte pour les valeurs numériques
+          return contactExp === parseInt(expRange);
         }),
         
         // company_name (basé sur current_company_name ou experiences)
@@ -204,13 +190,76 @@ const ContactsList = () => {
     });
   }, [contacts, searchTerm, filters]);
 
+  // Fonction pour formater les années d'expérience avec tranches
+  const formatYearsOfExperience = (years: number | null | undefined) => {
+    if (!years) return '-';
+    
+    if (years >= 0 && years <= 2) return `--- 0-2 ans ---\n${years} ans`;
+    if (years >= 3 && years <= 5) return `--- 3-5 ans ---\n${years} ans`;
+    if (years >= 6 && years <= 10) return `--- 6-10 ans ---\n${years} ans`;
+    if (years >= 11 && years <= 15) return `--- 11-15 ans ---\n${years} ans`;
+    if (years >= 16 && years <= 20) return `--- 16-20 ans ---\n${years} ans`;
+    if (years > 20) return `--- 20+ ans ---\n${years} ans`;
+    
+    return `${years} ans`;
+  };
+
   // Extraire les options de filtres depuis les contacts
   const extractFilterOptions = (contacts: Contact[]) => {
     const options = {
       full_name: [...new Set(contacts.map(c => c.full_name).filter(Boolean))] as string[],
       country: [...new Set(contacts.map(c => c.country).filter(Boolean))] as string[],
       headline: [...new Set(contacts.map(c => c.headline).filter(Boolean))] as string[],
-      years_of_experience: [...new Set(contacts.map(c => c.years_of_experience).filter(Boolean))].sort((a, b) => (a || 0) - (b || 0)).map(String) as string[],
+      years_of_experience: (() => {
+        const years = [...new Set(contacts.map(c => c.years_of_experience).filter(Boolean))].sort((a, b) => (a || 0) - (b || 0));
+        
+        // Créer des tranches avec séparateurs
+        const tranches = [];
+        
+        // Tranche 0-2 ans
+        const tranche1 = years.filter(y => (y || 0) >= 0 && (y || 0) <= 2);
+        if (tranche1.length > 0) {
+          tranches.push('--- 0-2 ans ---');
+          tranches.push(...tranche1.map(String));
+        }
+        
+        // Tranche 3-5 ans
+        const tranche2 = years.filter(y => (y || 0) >= 3 && (y || 0) <= 5);
+        if (tranche2.length > 0) {
+          tranches.push('--- 3-5 ans ---');
+          tranches.push(...tranche2.map(String));
+        }
+        
+        // Tranche 6-10 ans
+        const tranche3 = years.filter(y => (y || 0) >= 6 && (y || 0) <= 10);
+        if (tranche3.length > 0) {
+          tranches.push('--- 6-10 ans ---');
+          tranches.push(...tranche3.map(String));
+        }
+        
+        // Tranche 11-15 ans
+        const tranche4 = years.filter(y => (y || 0) >= 11 && (y || 0) <= 15);
+        if (tranche4.length > 0) {
+          tranches.push('--- 11-15 ans ---');
+          tranches.push(...tranche4.map(String));
+        }
+        
+        // Tranche 16-20 ans
+        const tranche5 = years.filter(y => (y || 0) >= 16 && (y || 0) <= 20);
+        if (tranche5.length > 0) {
+          tranches.push('--- 16-20 ans ---');
+          tranches.push(...tranche5.map(String));
+        }
+        
+        // Tranche 20+ ans
+        const tranche6 = years.filter(y => (y || 0) > 20);
+        if (tranche6.length > 0) {
+          tranches.push('--- 20+ ans ---');
+          tranches.push(...tranche6.map(String));
+        }
+        
+        return tranches as string[];
+      })(),
       company_name: [...new Set([
         ...contacts.map(c => c.current_company_name).filter(Boolean),
         ...contacts.flatMap(c => c.experiences?.map(e => e.company_name) || []).filter(Boolean)
@@ -1037,19 +1086,20 @@ const ContactsList = () => {
                 </Tooltip>
               </TableCell>
               <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Tooltip title={contact.years_of_experience ? `${contact.years_of_experience} ans` : 'Non renseigné'} arrow>
+                <Tooltip title={formatYearsOfExperience(contact.years_of_experience)} arrow>
                   <Typography 
                     variant="body2" 
                     sx={{ 
                       fontSize: '0.75rem',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      whiteSpace: 'pre-line',
                       maxWidth: '100%',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      lineHeight: 1.2
                     }}
                   >
-                    {contact.years_of_experience ? `${contact.years_of_experience} ans` : '-'}
+                    {formatYearsOfExperience(contact.years_of_experience)}
                 </Typography>
                 </Tooltip>
               </TableCell>
@@ -1354,16 +1404,30 @@ const ContactsList = () => {
                       {/* Années d'expérience */}
                       <Autocomplete
                         multiple
-                        options={[
-                          '0-2 ans (Junior)',
-                          '3-5 ans (Intermédiaire)',
-                          '6-10 ans (Senior)',
-                          '11-15 ans (Expert)',
-                          '16-20 ans (Chef d\'équipe)',
-                          '20+ ans (Directeur)'
-                        ]}
+                        options={filterOptions.years_of_experience}
                         value={filters.years_of_experience}
                         onChange={(_, value) => handleFilterChange('years_of_experience', value)}
+                        getOptionDisabled={(option) => option.startsWith('---')}
+                        renderOption={(props, option) => (
+                          <Box
+                            component="li"
+                            {...props}
+                            sx={{
+                              ...(option.startsWith('---') && {
+                                fontWeight: 'bold',
+                                color: 'primary.main',
+                                backgroundColor: 'grey.100',
+                                borderTop: '1px solid',
+                                borderColor: 'grey.300',
+                                '&:hover': {
+                                  backgroundColor: 'grey.200'
+                                }
+                              })
+                            }}
+                          >
+                            {option}
+                          </Box>
+                        )}
                         renderInput={(params) => (
                           <TextField
                             {...params}
