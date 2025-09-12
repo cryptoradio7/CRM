@@ -1170,8 +1170,8 @@ const ContactsList = () => {
                         maxWidth: '100%'
                       }}
                     >
-                      {contact.email}
-                    </Typography>
+                    {contact.email}
+                  </Typography>
                   </Tooltip>
                 ) : (
                   <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
@@ -1186,7 +1186,7 @@ const ContactsList = () => {
                 {contact.linkedin_url ? (
                   <Tooltip title={`Voir fiche contact: ${contact.linkedin_url}`} arrow>
                     <Typography 
-                      color="primary"
+                    color="primary"
                       sx={{ 
                         fontSize: '0.75rem',
                         overflow: 'hidden',
@@ -1194,8 +1194,8 @@ const ContactsList = () => {
                         whiteSpace: 'nowrap',
                         maxWidth: '100%'
                       }}
-                    >
-                      LinkedIn
+                  >
+                    LinkedIn
                     </Typography>
                   </Tooltip>
                 ) : (

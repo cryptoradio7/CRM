@@ -14,8 +14,22 @@ const pool = new Pool({
 });
 
 // Configuration
-const JSON_FILE_PATH = path.join(__dirname, '..', 'all_lemlist_contacts.json');
+const JSON_FILE_PATH = process.argv[2] || path.join(__dirname, '..', 'all_lemlist_contacts.json');
 const TEST_LIMIT = null; // Pas de limite - import complet
+
+// Vérifier si le fichier existe
+if (!fs.existsSync(JSON_FILE_PATH)) {
+  console.error(`❌ Fichier JSON non trouvé: ${JSON_FILE_PATH}`);
+  console.error('');
+  console.error('Usage: node import-lemlist.js <chemin_vers_fichier.json>');
+  console.error('');
+  console.error('Exemples:');
+  console.error('  node import-lemlist.js ../data/contacts.json');
+  console.error('  node import-lemlist.js /path/to/your/file.json');
+  console.error('');
+  console.error('Note: Ce script est principalement utilisé via l\'interface web (Import JSON)');
+  process.exit(1);
+}
 
 // Couleurs pour les logs
 const colors = {

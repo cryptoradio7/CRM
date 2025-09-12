@@ -31,7 +31,12 @@ import {
   Snackbar,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip
+  Tooltip,
+  Autocomplete,
+  Checkbox,
+  Stack,
+  Collapse,
+  LinearProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -46,7 +51,15 @@ import {
   AttachMoney as AttachMoneyIcon,
   LocationOn as LocationIcon,
   ViewList as ViewListIcon,
-  ViewModule as ViewModuleIcon
+  ViewModule as ViewModuleIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  FilterList as FilterListIcon,
+  BarChart as BarChartIcon,
+  Public as PublicIcon,
+  Work as WorkIcon,
+  TrendingUp as TrendingUpIcon,
+  Link as LinkIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { companiesApi } from '../services/api';
@@ -70,11 +83,68 @@ const CompaniesList = () => {
     severity: 'info'
   });
 
+  // États pour les filtres
+  const [showFilters, setShowFilters] = useState(true);
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [filters, setFilters] = useState({
+    company_name: [] as string[],
+    company_founded: [] as string[],
+    company_domain: [] as string[],
+    company_industry: [] as string[],
+    company_subindustry: [] as string[],
+    employees_count_growth: [] as string[],
+    company_url: [] as string[],
+    linkedin_url: [] as string[]
+  });
+  
+  const [filterOptions, setFilterOptions] = useState({
+    company_name: [] as string[],
+    company_founded: [] as string[],
+    company_domain: [] as string[],
+    company_industry: [] as string[],
+    company_subindustry: [] as string[],
+    employees_count_growth: [] as string[],
+    company_url: [] as string[],
+    linkedin_url: [] as string[]
+  });
+
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     fetchCompanies();
+    loadFilterOptions();
   }, []);
+
+  // Charger les options de filtres
+  const loadFilterOptions = async () => {
+    try {
+      setLoadingOptions(true);
+      const response = await companiesApi.getAll(1, 1000);
+      console.log('Chargement des options de filtres entreprises...', response.companies?.length, 'entreprises');
+      extractFilterOptions(response.companies || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des options de filtres:', error);
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
+  // Extraire les options de filtres depuis les entreprises
+  const extractFilterOptions = (companies: Company[]) => {
+    const options = {
+      company_name: [...new Set(companies.map(c => c.company_name).filter(Boolean))] as string[],
+      company_founded: [...new Set(companies.map(c => c.company_founded).filter(Boolean))] as string[],
+      company_domain: [...new Set(companies.map(c => c.company_domain).filter(Boolean))] as string[],
+      company_industry: [...new Set(companies.map(c => c.company_industry).filter(Boolean))] as string[],
+      company_subindustry: [...new Set(companies.map(c => c.company_subindustry).filter(Boolean))] as string[],
+      employees_count_growth: [...new Set(companies.map(c => c.employees_count_growth).filter(Boolean))] as string[],
+      company_url: [...new Set(companies.map(c => c.company_url).filter(Boolean))] as string[],
+      linkedin_url: [...new Set(companies.map(c => c.linkedin_url).filter(Boolean))] as string[]
+    };
+    
+    setFilterOptions(options);
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -90,17 +160,54 @@ const CompaniesList = () => {
   };
 
   const filteredCompanies = useMemo(() => {
-    if (!searchTerm) return companies;
-    
-    const term = searchTerm.toLowerCase();
-    return companies.filter(company =>
-      company.company_name?.toLowerCase().includes(term) ||
-      company.company_industry?.toLowerCase().includes(term) ||
-      company.headquarters_city?.toLowerCase().includes(term) ||
-      company.headquarters_country?.toLowerCase().includes(term) ||
-      company.company_description?.toLowerCase().includes(term)
-    );
-  }, [companies, searchTerm]);
+    return companies.filter(company => {
+      const filterChecks = [
+        // Recherche textuelle
+        !searchTerm || (
+          company.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          company.company_industry?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          company.headquarters_city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          company.headquarters_country?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          company.company_description?.toLowerCase().includes(searchTerm.toLowerCase())
+        ),
+        
+        // Filtres avancés
+        filters.company_name.length === 0 || filters.company_name.some((name: string) => 
+          company.company_name?.toLowerCase().includes(name.toLowerCase())
+        ),
+        
+        filters.company_founded.length === 0 || filters.company_founded.some((founded: string) => 
+          company.company_founded?.toString().includes(founded)
+        ),
+        
+        filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
+          company.company_domain?.toLowerCase().includes(domain.toLowerCase())
+        ),
+        
+        filters.company_industry.length === 0 || filters.company_industry.some((industry: string) => 
+          company.company_industry?.toLowerCase().includes(industry.toLowerCase())
+        ),
+        
+        filters.company_subindustry.length === 0 || filters.company_subindustry.some((subindustry: string) => 
+          company.company_subindustry?.toLowerCase().includes(subindustry.toLowerCase())
+        ),
+        
+        filters.employees_count_growth.length === 0 || filters.employees_count_growth.some((growth: string) => 
+          company.employees_count_growth?.toString().includes(growth)
+        ),
+        
+        filters.company_url.length === 0 || filters.company_url.some((url: string) => 
+          company.company_url?.toLowerCase().includes(url.toLowerCase())
+        ),
+        
+        filters.linkedin_url.length === 0 || filters.linkedin_url.some((linkedin: string) => 
+          company.linkedin_url?.toLowerCase().includes(linkedin.toLowerCase())
+        )
+      ];
+
+      return filterChecks.every(check => check);
+    });
+  }, [companies, searchTerm, filters]);
 
   const paginatedCompanies = useMemo(() => {
     const start = page * rowsPerPage;
@@ -125,6 +232,27 @@ const CompaniesList = () => {
     if (newViewMode !== null) {
       setViewMode(newViewMode);
     }
+  };
+
+  // Gestion des filtres
+  const handleFilterChange = (filterName: string, value: string[]) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      company_name: [],
+      company_founded: [],
+      company_domain: [],
+      company_industry: [],
+      company_subindustry: [],
+      employees_count_growth: [],
+      company_url: [],
+      linkedin_url: []
+    });
   };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, company: Company) => {
@@ -249,13 +377,313 @@ const CompaniesList = () => {
         </Button>
       </Box>
 
+      {/* Moteur de recherche avancé */}
+      <Card sx={{ mb: 3, height: '400px' }}>
+        <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FilterListIcon />
+              Moteur de recherche
+            </Typography>
+            <Button
+              size="small"
+              onClick={() => setShowFilters(!showFilters)}
+              startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              {showFilters ? 'Masquer' : 'Afficher'}
+            </Button>
+          </Box>
+
+          <Collapse in={showFilters}>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              {loadingOptions && (
+                <Box sx={{ mb: 2 }}>
+                  <LinearProgress />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Chargement des options de filtres...
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ display: 'flex', gap: 1.5, height: '100%' }}>
+                {/* Critères Entreprise */}
+                <Card sx={{ flex: 1, height: 'fit-content', maxHeight: '100%', overflow: 'auto' }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <BusinessIcon />
+                      Critères Entreprise
+                    </Typography>
+                    
+                    <Stack spacing={2}>
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_name}
+                        value={filters.company_name}
+                        onChange={(event, newValue) => handleFilterChange('company_name', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_name];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_name', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Nom de l'entreprise"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_founded}
+                        value={filters.company_founded}
+                        onChange={(event, newValue) => handleFilterChange('company_founded', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_founded];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_founded', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Année de création"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_domain}
+                        value={filters.company_domain}
+                        onChange={(event, newValue) => handleFilterChange('company_domain', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_domain];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_domain', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Domaine"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_industry}
+                        value={filters.company_industry}
+                        onChange={(event, newValue) => handleFilterChange('company_industry', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_industry];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_industry', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Secteur d'activité"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_subindustry}
+                        value={filters.company_subindustry}
+                        onChange={(event, newValue) => handleFilterChange('company_subindustry', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_subindustry];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_subindustry', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Sous-secteur"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.employees_count_growth}
+                        value={filters.employees_count_growth}
+                        onChange={(event, newValue) => handleFilterChange('employees_count_growth', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.employees_count_growth];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('employees_count_growth', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Croissance employés"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.company_url}
+                        value={filters.company_url}
+                        onChange={(event, newValue) => handleFilterChange('company_url', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.company_url];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('company_url', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Site web"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        size="small"
+                        options={filterOptions.linkedin_url}
+                        value={filters.linkedin_url}
+                        onChange={(event, newValue) => handleFilterChange('linkedin_url', newValue)}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              variant="outlined"
+                              label={option}
+                              size="small"
+                              {...getTagProps({ index })}
+                              onDelete={() => {
+                                const newFilters = [...filters.linkedin_url];
+                                newFilters.splice(index, 1);
+                                handleFilterChange('linkedin_url', newFilters);
+                              }}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="LinkedIn"
+                            placeholder="Tapez ou sélectionnez..."
+                          />
+                        )}
+                      />
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Box>
+
+              <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                <Button size="small" onClick={clearAllFilters} variant="outlined">
+                  Effacer tous les filtres
+                </Button>
+              </Box>
+            </Box>
+          </Collapse>
+        </CardContent>
+      </Card>
+
       {/* Search and Controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
             ref={searchInputRef}
             size="small"
-            placeholder="Rechercher une entreprise..."
+            placeholder="Recherche textuelle rapide..."
             value={searchTerm}
             onChange={handleSearchChange}
             InputProps={{

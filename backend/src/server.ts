@@ -790,7 +790,75 @@ app.post('/api/contacts/import', async (req, res) => {
       };
     };
 
-    // Importer chaque contact
+    // Fonction pour extraire les données d'une entreprise (copiée du script d'import)
+    const extractCompanyData = (companyInfo: any) => {
+      if (!companyInfo || !companyInfo.company_name) return null;
+      
+      return {
+        company_id: companyInfo.company_id,
+        company_name: companyInfo.company_name,
+        company_description: companyInfo.company_description || '',
+        company_industry: companyInfo.company_industry || '',
+        company_subindustry: companyInfo.company_subindustry || '',
+        company_size: companyInfo.company_size || '',
+        company_website_url: companyInfo.company_website_url || '',
+        headquarters_city: companyInfo.company_headquarters_city || '',
+        headquarters_country: companyInfo.company_headquarters_country || '',
+        employee_count: companyInfo.company_employee_count || 0,
+        revenue_bucket: companyInfo.revenue_bucket || '',
+        company_type: companyInfo.company_type || ''
+      };
+    };
+
+    // Étape 1: Créer les entreprises d'abord
+    console.log('🏢 Création des entreprises...');
+    const companyMap = new Map();
+    let companyCount = 0;
+
+    for (const contact of dataToImport) {
+      // Extraire les entreprises des expériences
+      if (contact.experiences) {
+        for (const exp of contact.experiences) {
+          if (exp.company_name) {
+            const companyData = extractCompanyData(exp);
+            if (companyData && !companyMap.has(companyData.company_id || companyData.company_name)) {
+              try {
+                const companyResult = await pool.query(`
+                  INSERT INTO companies (
+                    company_id, company_name, company_description, company_industry,
+                    company_subindustry, company_size, company_website_url,
+                    headquarters_city, headquarters_country, employee_count,
+                    revenue_bucket, company_type, created_at, updated_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+                  ON CONFLICT (company_name) DO NOTHING
+                  RETURNING id
+                `, [
+                  companyData.company_id, companyData.company_name, companyData.company_description,
+                  companyData.company_industry, companyData.company_subindustry, companyData.company_size,
+                  companyData.company_website_url, companyData.headquarters_city, companyData.headquarters_country,
+                  companyData.employee_count, companyData.revenue_bucket, companyData.company_type
+                ]);
+                
+                if (companyResult.rows.length > 0) {
+                  const companyId = companyResult.rows[0].id;
+                  companyMap.set(companyData.company_id || companyData.company_name, companyId);
+                  companyCount++;
+                }
+              } catch (error) {
+                if (error instanceof Error && 'code' in error && error.code !== '23505') { // Ignorer les doublons
+                  console.error(`⚠️  Erreur lors de l'insertion de l'entreprise ${companyData.company_name}:`, error.message);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`✅ ${companyCount} entreprises créées`);
+
+    // Étape 2: Importer chaque contact
+    console.log('👥 Import des contacts...');
     for (const contact of dataToImport) {
       try {
         const contactData = extractContactData(contact);
@@ -859,7 +927,8 @@ app.post('/api/contacts/import', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Import terminé: ${importedCount} contacts importés/mis à jour, ${errorCount} erreurs`,
+      message: `Import terminé: ${companyCount} entreprises créées, ${importedCount} contacts importés/mis à jour, ${errorCount} erreurs`,
+      companyCount,
       importedCount,
       errorCount,
       totalProcessed: dataToImport.length,

@@ -1,0 +1,43 @@
+[
+  {
+    "lead_id": "488149159",
+    "full_name": "Diane Elodie Noubouossie",
+    "headline": "Responsable de Developpement durable",
+    "summary": "Test summary",
+    "location": "Test location",
+    "country": "Test country",
+    "connections_count": 500,
+    "lead_quality_score": 85,
+    "lead_linkedin_url": "https://www.linkedin.com/in/diane-elodie-noubouossie-619849191",
+    "years_of_exp_bucket": "5-10 years",
+    "department": "Test department",
+    "current_exp_company_name": "Demy Schandeler",
+    "current_exp_company_industry": "Administrative and Support Services",
+    "current_exp_company_subindustry": "Test subindustry",
+    "lead_logo_url": "https://example.com/photo.jpg",
+    "telephone": "+33123456789",
+    "email": "diane@example.com",
+    "interests": ["sustainability", "environment"],
+    "historic": "Test historic",
+    "follow_up": "Test follow up",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z",
+    "experiences": [
+      {
+        "company_name": "Demy Schandeler",
+        "company_industry": "Administrative and Support Services",
+        "company_subindustry": "Test subindustry",
+        "title": "Responsable de Developpement durable",
+        "company_id": "comp_123",
+        "company_description": "Test company description",
+        "company_size": "50-200",
+        "company_website_url": "https://demy-schandeler.com",
+        "company_headquarters_city": "Paris",
+        "company_headquarters_country": "France",
+        "company_employee_count": 150,
+        "revenue_bucket": "1M-10M",
+        "company_type": "startup"
+      }
+    ]
+  }
+]
