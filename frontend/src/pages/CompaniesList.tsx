@@ -744,7 +744,7 @@ const CompaniesList = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <LocationIcon fontSize="small" color="action" />
                         <Typography variant="body2">
-                          {company.headquarters_city}, {company.headquarters_country}
+                          {company.company_headquarters_city || company.headquarters_city}, {company.company_headquarters_country || company.headquarters_country}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -752,7 +752,7 @@ const CompaniesList = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <PeopleIcon fontSize="small" color="action" />
                         <Typography variant="body2">
-                          {formatEmployeeCount(company.employee_count)}
+                          {formatEmployeeCount(company.company_employee_count || company.employee_count)}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -850,14 +850,14 @@ const CompaniesList = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <LocationIcon fontSize="small" color="action" />
                       <Typography variant="body2">
-                        {company.headquarters_city}, {company.headquarters_country}
+                        {company.company_headquarters_city || company.headquarters_city}, {company.company_headquarters_country || company.headquarters_country}
                       </Typography>
                     </Box>
                     
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <PeopleIcon fontSize="small" color="action" />
                       <Typography variant="body2">
-                        {formatEmployeeCount(company.employee_count)} employés
+                        {formatEmployeeCount(company.company_employee_count || company.employee_count)} employés
                       </Typography>
                     </Box>
                     

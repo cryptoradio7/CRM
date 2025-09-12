@@ -199,7 +199,7 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
               />
               <Chip
                 icon={<GroupIcon />}
-                label={`${formatEmployeeCount(company.employee_count)} employés`}
+                label={`${formatEmployeeCount(company.company_employee_count || company.employee_count)} employés`}
                 size="small"
                 color="primary"
               />
@@ -288,7 +288,7 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
                     Nombre d'employés
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {formatEmployeeCount(company.employee_count)}
+                    {formatEmployeeCount(company.company_employee_count || company.employee_count)}
                   </Typography>
                 </Box>
                 <Box>
@@ -334,7 +334,7 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
                     Ville
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {company.headquarters_city || 'Non spécifiée'}
+                    {company.company_headquarters_city || company.headquarters_city || 'Non spécifiée'}
                   </Typography>
                 </Box>
                 <Box>
@@ -342,7 +342,7 @@ const CompanyDetailComplete: React.FC<CompanyDetailProps> = ({ companyId, onClos
                     Pays
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {company.headquarters_country || 'Non spécifié'}
+                    {company.company_headquarters_country || company.headquarters_country || 'Non spécifié'}
                   </Typography>
                 </Box>
                 <Box>
