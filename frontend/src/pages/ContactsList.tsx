@@ -242,7 +242,7 @@ const ContactsList = () => {
       extractFilterOptions(response.contacts || []);
       
       // Mettre à jour le total de contacts
-      setTotalCount(response.pagination?.total || 0);
+      setTotalCount(response.pagination?.totalCount || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des options de filtres:', error);
     } finally {
@@ -264,7 +264,7 @@ const ContactsList = () => {
       
       setContacts(response.contacts || []);
       setTotalPages(response.pagination?.totalPages || 1);
-      setTotalCount(response.pagination?.total || 0);
+      setTotalCount(response.pagination?.totalCount || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
       setSnackbar({ open: true, message: 'Erreur lors du chargement des contacts', severity: 'error' });
@@ -828,7 +828,20 @@ const ContactsList = () => {
     <Card key={contact.id} sx={{ mb: 2, p: 2 }}>
       <CardContent>
         <Box display="flex" alignItems="center" mb={2}>
-          <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+          <Avatar 
+            sx={{ 
+              mr: 2, 
+              bgcolor: 'primary.main',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'scale(1.3)',
+                zIndex: 1000,
+                position: 'relative',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+              }
+            }}
+          >
             {contact.full_name.charAt(0).toUpperCase()}
           </Avatar>
           <Box flexGrow={1}>
@@ -984,12 +997,27 @@ const ContactsList = () => {
                 />
               </TableCell>
               <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Avatar 
-                  src={contact.profile_picture_url} 
-                  sx={{ width: 24, height: 24 }}
-                >
-                  {contact.full_name?.charAt(0)}
+                <Tooltip title={contact.full_name || 'Non renseigné'} arrow>
+                  <Avatar 
+                    src={contact.profile_picture_url} 
+                    sx={{ 
+                      width: 24, 
+                      height: 24,
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        width: 48,
+                        height: 48,
+                        transform: 'scale(1.2)',
+                        zIndex: 1000,
+                        position: 'relative',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                      }
+                    }}
+                  >
+                    {contact.full_name?.charAt(0)}
                   </Avatar>
+                </Tooltip>
               </TableCell>
               <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
                 <Tooltip title={contact.full_name || 'Non renseigné'} arrow>
