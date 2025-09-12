@@ -15,7 +15,7 @@ const pool = new Pool({
 
 // Configuration
 const JSON_FILE_PATH = path.join(__dirname, '..', 'all_lemlist_contacts.json');
-const TEST_LIMIT = 100; // Limite pour le test
+const TEST_LIMIT = null; // Pas de limite - import complet
 
 // Couleurs pour les logs
 const colors = {
@@ -180,14 +180,14 @@ async function importLemlistData() {
   const client = await pool.connect();
   
   try {
-    log('🚀 Début de l\'import des données Lemlist (TEST - 100 contacts)', 'bright');
+    log('🚀 Début de l\'import des données Lemlist (IMPORT COMPLET)', 'bright');
     
     // Lire le fichier JSON
     log('📖 Lecture du fichier JSON...', 'blue');
     const jsonData = JSON.parse(fs.readFileSync(JSON_FILE_PATH, 'utf8'));
-    const testData = jsonData.slice(0, TEST_LIMIT);
+    const testData = TEST_LIMIT ? jsonData.slice(0, TEST_LIMIT) : jsonData;
     
-    log(`📊 ${testData.length} contacts à importer (test)`, 'cyan');
+    log(`📊 ${testData.length} contacts à importer (import complet)`, 'cyan');
     
     // Étape 1: Extraire et insérer les contacts
     log('👥 Import des contacts...', 'yellow');

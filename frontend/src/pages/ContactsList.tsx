@@ -56,13 +56,6 @@ import {
   BarChart as BarChartIcon,
   Upload as UploadIcon,
   Download as DownloadIcon,
-  EditNote as EditNoteIcon,
-  FormatBold as FormatBoldIcon,
-  FormatItalic as FormatItalicIcon,
-  FormatUnderlined as FormatUnderlinedIcon,
-  FormatListNumbered as FormatListNumberedIcon,
-  FormatListBulleted as FormatListBulletedIcon,
-  FormatQuote as FormatQuoteIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import type { Contact, Company, Experience } from '../types';
@@ -77,7 +70,6 @@ const ContactsList = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedContacts, setSelectedContacts] = useState<number[]>([]);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [sortBy, setSortBy] = useState<string>('full_name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -104,7 +96,9 @@ const ContactsList = () => {
     employees_count_growth: [] as string[]
   });
   const [loadingOptions, setLoadingOptions] = useState(true);
-  const [notes, setNotes] = useState('je suis super **content**');
+  const notesRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' });
 
   const navigate = useNavigate();
   const searchTimeoutRef = useRef<number | undefined>(undefined);
@@ -275,6 +269,258 @@ const ContactsList = () => {
   useEffect(() => {
     loadFilterOptions();
   }, []);
+
+  // Charger le contenu des notes au montage (localStorage puis DB)
+  useEffect(() => {
+    const loadNotes = async () => {
+      if (typeof window !== 'undefined' && notesRef.current) {
+        // 1. Charger depuis localStorage (rapide)
+        const localNotes = localStorage.getItem('crm-notes');
+        if (localNotes) {
+          notesRef.current.innerHTML = localNotes;
+        }
+        
+        // 2. Charger depuis la DB (synchronisation)
+        try {
+          const response = await fetch('http://localhost:3003/api/notes');
+      if (response.ok) {
+        const data = await response.json();
+            if (data.content && data.content !== localNotes) {
+              // Si la DB a du contenu différent, l'utiliser
+              notesRef.current.innerHTML = data.content;
+              localStorage.setItem('crm-notes', data.content);
+            }
+      }
+    } catch (error) {
+          console.error('Erreur lors du chargement des notes depuis la DB:', error);
+        }
+      } else {
+        setTimeout(loadNotes, 100);
+      }
+    };
+    
+    loadNotes();
+  }, []);
+
+  // Fonction pour sauvegarder en DB
+  const saveToDatabase = async (content: string) => {
+    try {
+      await fetch('http://localhost:3003/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      } catch (error) {
+      console.error('Erreur lors de la sauvegarde en DB:', error);
+    }
+  };
+
+  // Sauvegarde avant fermeture de la page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (notesRef.current) {
+        const content = notesRef.current.innerHTML;
+        localStorage.setItem('crm-notes', content);
+        // Sauvegarde immédiate en DB avant fermeture
+        navigator.sendBeacon('http://localhost:3003/api/notes', 
+          JSON.stringify({ content }));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Fonction d'export CSV des résultats filtrés
+  const exportFilteredToCSV = async () => {
+    if (filteredContacts.length === 0) {
+      setSnackbar({
+        open: true,
+        message: 'Aucun contact à exporter',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    try {
+      // En-têtes CSV basés sur les champs de la base de données des contacts
+      const headers = [
+        'ID',
+        'Nom complet',
+        'Poste actuel',
+        'Email',
+        'Téléphone',
+        'LinkedIn',
+        'Pays',
+        'Années d\'expérience',
+        'Entreprise actuelle',
+        'Secteur entreprise',
+        'Sous-secteur entreprise',
+        'Secteur entreprise',
+        'Connexions LinkedIn',
+        'Intérêts',
+        'Historique',
+        'Étape de suivi',
+        'Date création',
+        'Date modification'
+      ];
+
+      // Données CSV
+      const csvData = filteredContacts.map((contact) => [
+        contact.id || '',
+        contact.full_name || '',
+        contact.headline || '',
+        contact.email || '',
+        contact.telephone || '',
+        contact.linkedin_url || '',
+        contact.country || '',
+        contact.years_of_experience || '',
+        contact.current_company_name || '',
+        contact.current_company_industry || '',
+        contact.current_company_subindustry || '',
+        contact.current_company_industry || '',
+        contact.connections_count || '',
+        contact.interests || '',
+        contact.historic || '',
+        contact.follow_up || '',
+        contact.date_creation ? new Date(contact.date_creation).toLocaleDateString('fr-FR') : '',
+        contact.date_modification ? new Date(contact.date_modification).toLocaleDateString('fr-FR') : ''
+      ]);
+
+      // Créer le contenu CSV
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map((row) => row.map((field) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `contacts_filtres_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSnackbar({
+        open: true,
+        message: `${filteredContacts.length} contact(s) filtré(s) exporté(s) avec succès`,
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'export filtré:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de l\'export des contacts filtrés',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Fonction d'export CSV de la base complète
+  const exportAllToCSV = async () => {
+    try {
+      setLoading(true);
+      
+      // Récupérer tous les contacts depuis l'API
+      const response = await fetch(`http://localhost:3003/api/contacts?limit=10000&page=1`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des données');
+      }
+      
+      const data = await response.json();
+      const allContacts = data.contacts;
+
+      if (allContacts.length === 0) {
+        setSnackbar({
+          open: true,
+          message: 'Aucun contact à exporter',
+          severity: 'warning'
+        });
+        return;
+      }
+
+      // En-têtes CSV basés sur les champs de la base de données des contacts
+      const headers = [
+        'ID',
+        'Nom complet',
+        'Poste actuel',
+        'Email',
+        'Téléphone',
+        'LinkedIn',
+        'Pays',
+        'Années d\'expérience',
+        'Entreprise actuelle',
+        'Secteur entreprise',
+        'Sous-secteur entreprise',
+        'Secteur entreprise',
+        'Connexions LinkedIn',
+        'Intérêts',
+        'Historique',
+        'Étape de suivi',
+        'Date création',
+        'Date modification'
+      ];
+
+      // Données CSV
+      const csvData = allContacts.map((contact: any) => [
+        contact.id || '',
+        contact.full_name || '',
+        contact.headline || '',
+        contact.email || '',
+        contact.telephone || '',
+        contact.linkedin_url || '',
+        contact.country || '',
+        contact.years_of_experience || '',
+        contact.current_company_name || '',
+        contact.current_company_industry || '',
+        contact.current_company_subindustry || '',
+        contact.current_company_industry || '',
+        contact.connections_count || '',
+        contact.interests || '',
+        contact.historic || '',
+        contact.follow_up || '',
+        contact.date_creation ? new Date(contact.date_creation).toLocaleDateString('fr-FR') : '',
+        contact.date_modification ? new Date(contact.date_modification).toLocaleDateString('fr-FR') : ''
+      ]);
+
+      // Créer le contenu CSV
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map((row: any) => row.map((field: any) => `"${field.toString().replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `contacts_complet_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setSnackbar({
+        open: true,
+        message: `${allContacts.length} contact(s) de la base complète exporté(s) avec succès`,
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'export complet:', error);
+      setSnackbar({
+        open: true,
+        message: 'Erreur lors de l\'export de la base complète',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Effet pour charger les contacts
   useEffect(() => {
@@ -487,11 +733,12 @@ const ContactsList = () => {
               />
             </TableCell>
           <TableCell sx={{ width: '60px', height: '32px', padding: '4px 8px' }}></TableCell>
-          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Nom complet</TableCell>
-          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Entreprise actuelle</TableCell>
-          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Poste actuel</TableCell>
-          <TableCell sx={{ width: '25%', minWidth: '150px', height: '32px', padding: '4px 8px' }}>Email</TableCell>
-          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>LinkedIn</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Nom complet</TableCell>
+          <TableCell sx={{ width: '12%', minWidth: '80px', height: '32px', padding: '4px 8px' }}>Années exp.</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Entreprise actuelle</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Poste actuel</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Email</TableCell>
+          <TableCell sx={{ width: '15%', minWidth: '100px', height: '32px', padding: '4px 8px' }}>LinkedIn</TableCell>
             <TableCell sx={{ width: '80px', height: '32px', padding: '4px 8px' }}>Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -539,6 +786,23 @@ const ContactsList = () => {
                 </Tooltip>
               </TableCell>
               <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
+                <Tooltip title={contact.years_of_experience ? `${contact.years_of_experience} ans` : 'Non renseigné'} arrow>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: '0.75rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      textAlign: 'center'
+                    }}
+                  >
+                    {contact.years_of_experience ? `${contact.years_of_experience} ans` : '-'}
+                </Typography>
+                </Tooltip>
+              </TableCell>
+              <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
                 <Tooltip title={contact.current_company_name || 'Non renseigné'} arrow>
                   <Typography 
                     variant="body2" 
@@ -566,7 +830,13 @@ const ContactsList = () => {
                       maxWidth: '100%'
                     }}
                   >
-                    {contact.headline || 'Non renseigné'}
+                    {contact.headline ? 
+                      (contact.headline.length > 50 ? 
+                        `${contact.headline.substring(0, 50)}...` : 
+                        contact.headline
+                      ) : 
+                      'Non renseigné'
+                    }
                 </Typography>
                 </Tooltip>
               </TableCell>
@@ -586,8 +856,8 @@ const ContactsList = () => {
                         display: 'block'
                       }}
                     >
-                      {contact.email}
-                    </Link>
+                    {contact.email}
+                  </Link>
                   </Tooltip>
                 ) : (
                   <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.75rem' }}>
@@ -621,18 +891,18 @@ const ContactsList = () => {
                 )}
               </TableCell>
               <TableCell sx={{ height: '32px', padding: '4px 8px' }}>
-                <Tooltip title="Modifier">
-                  <IconButton 
-                    size="small"
+                  <Tooltip title="Modifier">
+                    <IconButton 
+                      size="small"
                     onClick={(e) => {
                       e.stopPropagation(); // Empêche le clic sur la ligne
                       navigate(`/contacts/${contact.id}/edit`);
                     }}
                     sx={{ p: 0.25, minWidth: 'auto' }}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
               </TableCell>
             </TableRow>
           ))}
@@ -669,11 +939,11 @@ const ContactsList = () => {
       </Box>
 
       {/* Mise en page 3 colonnes : Moteur (30%) + Export (20%) + Notes (50%) */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 1, alignItems: 'stretch' }}>
         
         {/* BLOC 1: MOTEUR DE RECHERCHE (30%) */}
         <Box sx={{ width: '30%' }}>
-          <Card sx={{ p: 1.5, height: 'fit-content' }}>
+          <Card sx={{ p: 1.5, height: '500px', display: 'flex', flexDirection: 'column' }}>
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
               <Box display="flex" alignItems="center">
                 <FilterIcon sx={{ mr: 0.5, color: '#4CAF50', fontSize: 20 }} />
@@ -727,6 +997,7 @@ const ContactsList = () => {
             )}
 
             {/* Filtres détaillés */}
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
               {loadingOptions ? (
                 <Box display="flex" justifyContent="center" p={1}>
                   <LinearProgress sx={{ width: '100%' }} />
@@ -1061,6 +1332,7 @@ const ContactsList = () => {
                   </Card>
                 </Box>
               )}
+            </Box>
           </Card>
           
           {/* Compteur de contacts */}
@@ -1071,15 +1343,19 @@ const ContactsList = () => {
 
         {/* BLOC 2: IMPORT/EXPORT (20%) */}
         <Box sx={{ width: '20%' }}>
-          <Stack spacing={2}>
-            {/* Import CSV */}
+          <Card sx={{ p: 2, height: '500px', display: 'flex', flexDirection: 'column' }}>
+            <Stack spacing={2} sx={{ flex: 1 }}>
+            {/* Import JSON */}
             <Card sx={{ p: 2, textAlign: 'center' }}>
               <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
                 <UploadIcon sx={{ mr: 1, color: '#FF9800' }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Import CSV
+                  Import JSON
                 </Typography>
               </Box>
+              <Typography variant="caption" sx={{ color: 'text.secondary', mb: 2, display: 'block' }}>
+                Script: import-lemlist.js
+              </Typography>
               <Box
                 sx={{
                   border: '2px dashed #ccc',
@@ -1094,7 +1370,7 @@ const ContactsList = () => {
               >
                 <UploadIcon sx={{ fontSize: 40, color: '#ccc', mb: 1 }} />
                 <Typography variant="body2" color="textSecondary">
-                  Glisser-déposer ou cliquer
+                  Glisser-déposer JSON ou cliquer
                 </Typography>
               </Box>
             </Card>
@@ -1115,8 +1391,20 @@ const ContactsList = () => {
                   variant="contained"
                   color="success"
                   startIcon={<DownloadIcon />}
+                  onClick={exportFilteredToCSV}
+                  disabled={filteredContacts.length === 0}
                   fullWidth
                   size="small"
+                  sx={{
+                    backgroundColor: '#4CAF50',
+                    '&:hover': {
+                      backgroundColor: '#45a049',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#ccc',
+                      color: '#666'
+                    }
+                  }}
                 >
                   Filtres ({filteredContacts.length.toLocaleString()})
                 </Button>
@@ -1124,66 +1412,185 @@ const ContactsList = () => {
                   variant="contained"
                   color="primary"
                   startIcon={<DownloadIcon />}
+                  onClick={exportAllToCSV}
+                  disabled={loading}
                   fullWidth
                   size="small"
+                  sx={{
+                    backgroundColor: '#2196F3',
+                    '&:hover': {
+                      backgroundColor: '#1976D2',
+                    },
+                    '&:disabled': {
+                      backgroundColor: '#ccc',
+                      color: '#999'
+                    }
+                  }}
                 >
                   Base complète
                 </Button>
               </Stack>
             </Card>
           </Stack>
+          </Card>
         </Box>
 
         {/* BLOC 3: BLOC NOTES (50%) */}
         <Box sx={{ width: '50%' }}>
-          <Card sx={{ p: 2, height: 'fit-content' }}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <EditNoteIcon sx={{ mr: 1, color: '#4CAF50' }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Bloc Notes
+          <Card sx={{ 
+            p: 2, 
+            borderRadius: 2, 
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)', 
+            height: '500px',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%'
+          }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          mb: 2,
+          pb: 1,
+          borderBottom: '1px solid #e0e0e0'
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+            📝 Bloc Notes
               </Typography>
-            </Box>
-            
-            {/* Barre d'outils de formatage */}
-            <Box display="flex" gap={0.5} mb={2}>
-              {[
-                { icon: <FormatBoldIcon />, label: 'Bold', active: true },
-                { icon: <FormatItalicIcon />, label: 'Italic', active: true },
-                { icon: <FormatUnderlinedIcon />, label: 'Underline', active: true },
-                { icon: <FormatListNumberedIcon />, label: 'Numbered List', active: false },
-                { icon: <FormatListBulletedIcon />, label: 'Bulleted List', active: true },
-                { icon: <FormatQuoteIcon />, label: 'Quote', active: false }
-              ].map((tool, index) => (
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Button
-                  key={index}
                   size="small"
-                  variant={tool.active ? "contained" : "outlined"}
-                  color={tool.active ? "success" : "inherit"}
-                  sx={{ 
-                    minWidth: 32, 
-                    height: 32,
-                    borderRadius: 2,
-                    p: 0.5
-                  }}
-                >
-                  {tool.icon}
-                </Button>
-              ))}
-            </Box>
-
-            {/* Zone de texte */}
-            <TextField
-              fullWidth
-              multiline
-              rows={8}
-              placeholder="Tapez vos notes ici..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
               variant="outlined"
+              onClick={() => document.execCommand('bold')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Gras (Ctrl+B)"
+            >
+              <strong>B</strong>
+                </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('italic')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Italique (Ctrl+I)"
+            >
+              <em>I</em>
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('underline')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Souligné (Ctrl+U)"
+            >
+              <u>U</u>
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#ff0000')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#ff0000' }}
+              title="Rouge (1)"
+            >
+              1
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#00ff00')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#00ff00' }}
+              title="Vert (2)"
+            >
+              2
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#0000ff')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem', color: '#0000ff' }}
+              title="Bleu (3)"
+            >
+              3
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => document.execCommand('foreColor', false, '#000000')}
+              sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+              title="Noir (0)"
+            >
+              0
+            </Button>
+            </Box>
+        </Box>
+        <Box
+          ref={notesRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={(e) => {
+            const content = e.currentTarget.innerHTML;
+            // Sauvegarde immédiate dans localStorage
+            localStorage.setItem('crm-notes', content);
+            
+            // Sauvegarde en DB avec debouncing (500ms)
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = window.setTimeout(() => {
+              saveToDatabase(content);
+            }, 500);
+          }}
+          onBlur={(e) => {
+            const content = e.currentTarget.innerHTML;
+            // Sauvegarde immédiate dans localStorage
+            localStorage.setItem('crm-notes', content);
+            // Sauvegarde immédiate en DB quand on quitte le champ
+            saveToDatabase(content);
+          }}
+          onKeyDown={(e) => {
+            // Raccourcis clavier
+            if (e.ctrlKey) {
+              switch (e.key.toLowerCase()) {
+                case 'b':
+                  e.preventDefault();
+                  document.execCommand('bold');
+                  break;
+                case 'i':
+                  e.preventDefault();
+                  document.execCommand('italic');
+                  break;
+                case 'u':
+                  e.preventDefault();
+                  document.execCommand('underline');
+                  break;
+              }
+            }
+            // Couleurs avec clavier numérique
+            if (e.key >= '0' && e.key <= '3') {
+              e.preventDefault();
+              const colors = ['#000000', '#ff0000', '#00ff00', '#0000ff'];
+              document.execCommand('foreColor', false, colors[parseInt(e.key)]);
+            }
+          }}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontSize: '0.9rem',
-                  lineHeight: 1.5
+                flex: 1, // Prend tout l'espace disponible dans le Card
+                overflow: 'auto', // Barre d'ascenseur verticale
+                border: '1px solid #e0e0e0',
+                borderRadius: 1,
+                p: 2,
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                outline: 'none',
+                direction: 'ltr',
+                textAlign: 'left',
+                '&:focus': {
+                  borderColor: '#1976d2',
+                  boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.2)'
+                },
+                '&:empty:before': {
+                  content: '"Tapez vos notes ici... (Ctrl+B, Ctrl+I, Ctrl+U, 0-3 pour couleurs)"',
+                  color: '#999',
+                  fontStyle: 'italic'
                 }
               }}
             />

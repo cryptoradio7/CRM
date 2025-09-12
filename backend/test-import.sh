@@ -51,7 +51,7 @@ fi
 
 # Exécuter l'import
 echo -e "${BLUE}📥 Début de l'import des données...${NC}"
-node import-lemlist-test.js
+node import-lemlist.js
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Import terminé avec succès !${NC}"
