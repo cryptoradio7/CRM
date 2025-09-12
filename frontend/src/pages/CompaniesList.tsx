@@ -702,7 +702,17 @@ const CompaniesList = () => {
               </TableHead>
               <TableBody>
                 {paginatedCompanies.map((company) => (
-                  <TableRow key={company.id} hover>
+                  <TableRow 
+                    key={company.id} 
+                    hover 
+                    onClick={() => navigate(`/companies/${company.id}`)}
+                    sx={{ 
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: 'action.hover'
+                      }
+                    }}
+                  >
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <BusinessIcon color="primary" />
@@ -765,7 +775,10 @@ const CompaniesList = () => {
                     <TableCell align="right">
                       <IconButton
                         size="small"
-                        onClick={(e) => handleMenuOpen(e, company)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, company);
+                        }}
                       >
                         <MoreVertIcon />
                       </IconButton>
@@ -794,7 +807,18 @@ const CompaniesList = () => {
         <Grid container spacing={2}>
           {paginatedCompanies.map((company) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={company.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Card 
+                sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    boxShadow: 4
+                  }
+                }}
+                onClick={() => navigate(`/companies/${company.id}`)}
+              >
                 <CardContent sx={{ flex: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                     <BusinessIcon color="primary" />
@@ -858,21 +882,30 @@ const CompaniesList = () => {
                 <CardActions sx={{ justifyContent: 'flex-end' }}>
                   <IconButton
                     size="small"
-                    onClick={() => navigate(`/companies/${company.id}`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/companies/${company.id}`);
+                    }}
                     color="primary"
                   >
                     <ViewIcon />
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => navigate(`/companies/${company.id}/edit`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/companies/${company.id}/edit`);
+                    }}
                     color="primary"
                   >
                     <EditIcon />
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={(e) => handleMenuOpen(e, company)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMenuOpen(e, company);
+                    }}
                     color="error"
                   >
                     <DeleteIcon />

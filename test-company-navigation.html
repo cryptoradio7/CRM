@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Navigation Entreprises</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .test-link:hover {
+            background-color: #1565c0;
+        }
+        .api-test {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .result {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Navigation Entreprises CRM</h1>
+        
+        <div class="test-section">
+            <h3>📋 Tests de Navigation</h3>
+            <p>Cliquez sur les liens ci-dessous pour tester la navigation vers les fiches d'entreprises :</p>
+            
+            <a href="http://localhost:3002/companies" class="test-link" target="_blank">
+                📊 Liste des Entreprises
+            </a>
+            
+            <a href="http://localhost:3002/companies/4080" class="test-link" target="_blank">
+                🏢 BNP Paribas Cardif (ID: 4080)
+            </a>
+            
+            <a href="http://localhost:3002/companies/4081" class="test-link" target="_blank">
+                🏦 BGL BNP Paribas (ID: 4081)
+            </a>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 Tests API Backend</h3>
+            <div class="api-test">
+                <strong>Test 1:</strong> Recherche d'entreprises
+                <button onclick="testCompanySearch()">Tester</button>
+                <div id="search-result"></div>
+            </div>
+            
+            <div class="api-test">
+                <strong>Test 2:</strong> Fiche entreprise spécifique
+                <button onclick="testCompanyDetail()">Tester</button>
+                <div id="detail-result"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Instructions de Test</h3>
+            <ol>
+                <li><strong>Vue Tableau :</strong> Allez sur la liste des entreprises et cliquez sur n'importe quelle ligne du tableau</li>
+                <li><strong>Vue Cartes :</strong> Passez en vue cartes et cliquez sur n'importe quelle carte d'entreprise</li>
+                <li><strong>Boutons d'action :</strong> Testez que les boutons d'action (voir, modifier, supprimer) fonctionnent sans déclencher la navigation</li>
+                <li><strong>Navigation :</strong> Vérifiez que vous arrivez bien sur la fiche détaillée de l'entreprise</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ Résultats Attendus</h3>
+            <ul>
+                <li>✅ Clic sur une ligne de tableau → Navigation vers fiche entreprise</li>
+                <li>✅ Clic sur une carte → Navigation vers fiche entreprise</li>
+                <li>✅ Boutons d'action → Pas de navigation accidentelle</li>
+                <li>✅ Fiche entreprise → Affichage complet des données</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function testCompanySearch() {
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.innerHTML = '⏳ Test en cours...';
+            
+            try {
+                const response = await fetch('http://localhost:3003/api/companies/search?q=BNP');
+                const data = await response.json();
+                
+                if (data.companies && data.companies.length > 0) {
+                    resultDiv.innerHTML = `
+                        <div class="result">
+                            ✅ <strong>Succès!</strong> ${data.companies.length} entreprise(s) trouvée(s)
+                            <br>Première entreprise: ${data.companies[0].company_name}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Aucune entreprise trouvée
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testCompanyDetail() {
+            const resultDiv = document.getElementById('detail-result');
+            resultDiv.innerHTML = '⏳ Test en cours...';
+            
+            try {
+                const response = await fetch('http://localhost:3003/api/companies/4080');
+                const data = await response.json();
+                
+                if (data.company_name) {
+                    resultDiv.innerHTML = `
+                        <div class="result">
+                            ✅ <strong>Succès!</strong> Fiche entreprise chargée
+                            <br>Nom: ${data.company_name}
+                            <br>Industrie: ${data.company_industry}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Données d'entreprise manquantes
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
