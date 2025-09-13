@@ -137,7 +137,7 @@ const ContactDetailComplete: React.FC<ContactDetailProps> = ({ contactId, onClos
     // Sinon, rechercher par nom
     try {
       console.log('🔍 Recherche par nom:', companyName);
-      const response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(companyName)}`);
+      const response = await fetch(`http://localhost:3003/api/companies?q=${encodeURIComponent(companyName)}`);
 
       if (response.ok) {
         const data = await response.json();

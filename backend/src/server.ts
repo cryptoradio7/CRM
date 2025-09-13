@@ -474,9 +474,40 @@ app.get('/api/companies', async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
+    const searchTerm = req.query.q as string;
     const offset = (page - 1) * limit;
     
-    const countResult = await pool.query('SELECT COUNT(*) FROM companies');
+    // Si terme de recherche, utiliser la logique de recherche
+    if (searchTerm && searchTerm.trim()) {
+      const searchPattern = `%${searchTerm.toLowerCase()}%`;
+      
+      const result = await pool.query(`
+        SELECT 
+          c.*,
+          COUNT(e.id) as employee_count
+        FROM companies c
+        LEFT JOIN experiences e ON c.id = e.company_id
+        WHERE LOWER(c.company_name) LIKE $1
+        GROUP BY c.id
+        ORDER BY c.created_at DESC
+      `, [searchPattern]);
+      
+      const totalCount = result.rows.length;
+      
+      res.json({
+        companies: result.rows,
+        pagination: {
+          page: 1,
+          limit: totalCount,
+          total: totalCount,
+          pages: 1
+        }
+      });
+      return;
+    }
+    
+    // Sinon, pagination normale
+    const countResult = await pool.query('SELECT COUNT(DISTINCT c.company_name) FROM companies c');
     const totalCount = parseInt(countResult.rows[0].count);
     
     const result = await pool.query(`
