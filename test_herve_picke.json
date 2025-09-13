@@ -1,0 +1,84 @@
+[
+  {
+    "lead_id": 999999,
+    "full_name": "Hervé Pické",
+    "headline": "Développeur Full Stack Senior",
+    "summary": "Développeur expérimenté avec plus de 10 ans d'expérience dans le développement web et mobile. Expert en React, Node.js et bases de données PostgreSQL.",
+    "location": "Luxembourg",
+    "country": "Luxembourg",
+    "connections_count": 850,
+    "lead_quality_score": 92,
+    "lead_linkedin_url": "https://linkedin.com/in/herve-picke",
+    "years_of_exp_bucket": "10+ years",
+    "department": "Technology",
+    "current_exp_company_name": "TechCorp Luxembourg",
+    "current_exp_company_industry": "Technology",
+    "current_exp_company_subindustry": "Software Development",
+    "lead_logo_url": "https://example.com/avatar.jpg",
+    "connections_count_bucket": "500-1000",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "experiences": [
+      {
+        "title": "Développeur Full Stack Senior",
+        "company_name": "TechCorp Luxembourg",
+        "company_description": "Entreprise leader dans le développement de solutions technologiques innovantes",
+        "company_industry": "Technology",
+        "company_subindustry": "Software Development",
+        "company_employee_count": 150,
+        "company_headquarters_city": "Luxembourg",
+        "company_headquarters_country": "Luxembourg",
+        "company_linkedin_url": "https://linkedin.com/company/techcorp-luxembourg",
+        "company_website_url": "https://techcorp.lu",
+        "company_type": "Private",
+        "company_size": "51-200",
+        "date_from": "2022-01-01",
+        "date_to": null,
+        "duration": "2+ years",
+        "description": "Développement d'applications web et mobile avec React, Node.js et PostgreSQL. Leadership d'une équipe de 5 développeurs.",
+        "location": "Luxembourg",
+        "order_in_profile": 1,
+        "is_current": true,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "languages": [
+      {
+        "language": "Français",
+        "proficiency": "Native",
+        "order_in_profile": 1,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      },
+      {
+        "language": "Anglais",
+        "proficiency": "Professional",
+        "order_in_profile": 2,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "skills": [
+      "React",
+      "Node.js",
+      "PostgreSQL",
+      "TypeScript"
+    ],
+    "interests": [
+      "Développement web",
+      "Technologies émergentes"
+    ],
+    "education": [
+      {
+        "school_name": "Université du Luxembourg",
+        "degree": "Master en Informatique",
+        "field_of_study": "Développement Logiciel",
+        "start_date": "2018-09-01",
+        "end_date": "2020-06-30",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+]

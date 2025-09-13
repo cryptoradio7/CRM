@@ -124,8 +124,39 @@ const ContactDetailComplete: React.FC<ContactDetailProps> = ({ contactId, onClos
     return colors[department] || '#F5F5F5';
   };
 
-  const handleCompanyClick = (companyId: number) => {
-    navigate(`/companies/${companyId}`);
+  const handleCompanyClick = async (companyName: string, companyId?: number) => {
+    console.log('🚀 CLIC sur entreprise:', companyName, 'ID:', companyId);
+
+    // Si on a un company_id valide, l'utiliser directement
+    if (companyId) {
+      console.log('✅ Utilisation ID direct:', companyId);
+      navigate(`/companies/${companyId}`);
+      return;
+    }
+
+    // Sinon, rechercher par nom
+    try {
+      console.log('🔍 Recherche par nom:', companyName);
+      const response = await fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(companyName)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.companies && data.companies.length > 0) {
+          const foundCompany = data.companies[0];
+          console.log('✅ Entreprise trouvée:', foundCompany.company_name, 'ID:', foundCompany.id);
+          navigate(`/companies/${foundCompany.id}`);
+          return;
+        }
+      }
+
+      // Si rien trouvé, aller à la liste avec recherche
+      console.log('❌ Aucune entreprise trouvée, redirection vers liste');
+      navigate(`/companies?q=${encodeURIComponent(companyName)}`);
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la recherche:', error);
+      navigate('/companies');
+    }
   };
 
   if (loading) {
@@ -494,7 +525,7 @@ const ContactDetailComplete: React.FC<ContactDetailProps> = ({ contactId, onClos
                             borderRadius: '4px'
                           }
                         }}
-                        onClick={() => exp.company_id && handleCompanyClick(exp.company_id)}
+                        onClick={() => handleCompanyClick(exp.company_name, exp.company_id)}
                       >
                         {exp.company_name || 'Entreprise non spécifiée'}
                       </Typography>

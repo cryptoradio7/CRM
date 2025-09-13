@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Clic Entreprise</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .test-link:hover {
+            background-color: #1565c0;
+        }
+        .company-name {
+            color: #1976d2;
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: bold;
+        }
+        .company-name:hover {
+            color: #1565c0;
+        }
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+            margin: 20px 0;
+        }
+        .console-log {
+            background-color: #263238;
+            color: #4caf50;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Simple Clic Entreprise</h1>
+        
+        <div class="instructions">
+            <strong>Instructions :</strong>
+            <ol>
+                <li>Ouvrez la console du navigateur (F12)</li>
+                <li>Cliquez sur les noms d'entreprises ci-dessous</li>
+                <li>Vérifiez que les logs apparaissent dans la console</li>
+                <li>Vérifiez que la redirection fonctionne</li>
+            </ol>
+        </div>
+
+        <h3>📋 Test des noms d'entreprises :</h3>
+        
+        <div style="margin: 20px 0;">
+            <p><strong>Expérience 1:</strong> Conseiller commercial chez 
+                <span class="company-name" onclick="testCompanyClick('BGL BNP Paribas')">BGL BNP Paribas</span>
+            </p>
+            
+            <p><strong>Expérience 2:</strong> Chargé de gestion de contrat chez 
+                <span class="company-name" onclick="testCompanyClick('BNP Paribas Cardif')">BNP Paribas Cardif</span>
+            </p>
+            
+            <p><strong>Expérience 3:</strong> Relationship Manager chez 
+                <span class="company-name" onclick="testCompanyClick('Cardif Lux Vie sa')">Cardif Lux Vie sa</span>
+            </p>
+        </div>
+
+        <div class="instructions">
+            <strong>Test direct de l'API :</strong>
+            <button onclick="testAPI()">Tester API Backend</button>
+            <div id="api-result"></div>
+        </div>
+
+        <div class="console-log">
+            <strong>Logs attendus dans la console :</strong><br>
+            🔍 Recherche entreprise: BGL BNP Paribas<br>
+            🚀 Fonction handleCompanyClick appelée !<br>
+            ✅ Trouvé par recherche exacte: BGL BNP Paribas<br>
+            🚀 Redirection vers: /companies/4081
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="http://localhost:3002/contacts/47141" class="test-link" target="_blank">
+                👤 Aller à la fiche contact Hervé Pické
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function testCompanyClick(companyName) {
+            console.log('🔍 Recherche entreprise:', companyName);
+            console.log('🚀 Fonction handleCompanyClick appelée !');
+            
+            // Simuler la recherche
+            fetch(`http://localhost:3003/api/companies/search?q=${encodeURIComponent(companyName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.companies && data.companies.length > 0) {
+                        const company = data.companies[0];
+                        console.log('✅ Trouvé:', company.company_name);
+                        console.log('🚀 Redirection vers:', `/companies/${company.id}`);
+                        
+                        // Rediriger vers la fiche entreprise
+                        window.open(`http://localhost:3002/companies/${company.id}`, '_blank');
+                    } else {
+                        console.log('❌ Aucune entreprise trouvée');
+                        window.open(`http://localhost:3002/companies?q=${encodeURIComponent(companyName)}`, '_blank');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                });
+        }
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '⏳ Test en cours...';
+            
+            try {
+                const response = await fetch('http://localhost:3003/api/companies/search?q=BGL%20BNP%20Paribas');
+                const data = await response.json();
+                
+                if (data.companies && data.companies.length > 0) {
+                    resultDiv.innerHTML = `
+                        <div style="background-color: #e8f5e8; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                            ✅ <strong>API fonctionnelle!</strong><br>
+                            Entreprise trouvée: ${data.companies[0].company_name}<br>
+                            ID: ${data.companies[0].id}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="background-color: #ffebee; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                            ❌ Aucune entreprise trouvée
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background-color: #ffebee; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                        ❌ Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

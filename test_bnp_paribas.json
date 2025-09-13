@@ -1,0 +1,84 @@
+[
+  {
+    "lead_id": 888888,
+    "full_name": "Marie Dubois",
+    "headline": "Directrice Marketing",
+    "summary": "Directrice marketing expérimentée dans le secteur bancaire avec plus de 15 ans d'expérience.",
+    "location": "Luxembourg",
+    "country": "Luxembourg",
+    "connections_count": 1200,
+    "lead_quality_score": 95,
+    "lead_linkedin_url": "https://linkedin.com/in/marie-dubois",
+    "years_of_exp_bucket": "15+ years",
+    "department": "Marketing",
+    "current_exp_company_name": "BNP Paribas",
+    "current_exp_company_industry": "Banking",
+    "current_exp_company_subindustry": "Investment Banking",
+    "lead_logo_url": "https://example.com/avatar2.jpg",
+    "connections_count_bucket": "1000+",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "experiences": [
+      {
+        "title": "Directrice Marketing",
+        "company_name": "BNP Paribas",
+        "company_description": "Banque d'investissement internationale leader en Europe",
+        "company_industry": "Banking",
+        "company_subindustry": "Investment Banking",
+        "company_employee_count": 50000,
+        "company_headquarters_city": "Paris",
+        "company_headquarters_country": "France",
+        "company_linkedin_url": "https://linkedin.com/company/bnp-paribas",
+        "company_website_url": "https://bnpparibas.com",
+        "company_type": "Public",
+        "company_size": "10000+",
+        "date_from": "2020-01-01",
+        "date_to": null,
+        "duration": "4+ years",
+        "description": "Direction de l'équipe marketing pour les produits d'investissement. Gestion d'un budget de 5M€ et d'une équipe de 15 personnes.",
+        "location": "Luxembourg",
+        "order_in_profile": 1,
+        "is_current": true,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "languages": [
+      {
+        "language": "Français",
+        "proficiency": "Native",
+        "order_in_profile": 1,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      },
+      {
+        "language": "Anglais",
+        "proficiency": "Professional",
+        "order_in_profile": 2,
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "skills": [
+      "Marketing Strategy",
+      "Digital Marketing",
+      "Team Management",
+      "Banking"
+    ],
+    "interests": [
+      "Finance",
+      "Innovation"
+    ],
+    "education": [
+      {
+        "school_name": "HEC Paris",
+        "degree": "MBA",
+        "field_of_study": "Finance",
+        "start_date": "2015-09-01",
+        "end_date": "2017-06-30",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+]
