@@ -66,6 +66,7 @@ const ContactsList = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [companySearchTerm, setCompanySearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -78,7 +79,6 @@ const ContactsList = () => {
     country: [] as string[],
     headline: [] as string[],
     years_of_experience: [] as string[],
-    company_name: [] as string[],
     company_domain: [] as string[],
     company_industry: [] as string[],
     company_subindustry: [] as string[],
@@ -89,7 +89,6 @@ const ContactsList = () => {
     country: [] as string[],
     headline: [] as string[],
     years_of_experience: [] as string[],
-    company_name: [] as string[],
     company_domain: [] as string[],
     company_industry: [] as string[],
     company_subindustry: [] as string[],
@@ -168,14 +167,12 @@ const ContactsList = () => {
           return false;
         }),
         
-        // company_name (basé sur current_company_name ou experiences)
-        filters.company_name.length === 0 || filters.company_name.some((company: string) => 
-          contact.current_company_name?.toLowerCase().includes(company.toLowerCase()) ||
-          contact.experiences?.some(exp => 
-            exp.company_name?.toLowerCase().includes(company.toLowerCase())
-          )
+        // Recherche par entreprise (companySearchTerm)
+        !companySearchTerm || companySearchTerm.trim() === '' || 
+        contact.current_company_name?.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
+        contact.experiences?.some(exp => 
+          exp.company_name?.toLowerCase().includes(companySearchTerm.toLowerCase())
         ),
-        
         
         // company_domain (utilise company_website_url)
         filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
@@ -205,7 +202,7 @@ const ContactsList = () => {
 
       return filterChecks.every(check => check);
     });
-  }, [contacts, searchTerm, filters]);
+  }, [contacts, searchTerm, companySearchTerm, filters]);
 
   // Fonction pour formater les années d'expérience avec tranches
   const formatYearsOfExperience = (years: number | null | undefined) => {
@@ -251,10 +248,6 @@ const ContactsList = () => {
         
         return tranches as string[];
       })(),
-      company_name: [...new Set([
-        ...contacts.map(c => c.current_company_name).filter(Boolean),
-        ...contacts.flatMap(c => c.experiences?.map(e => e.company_name) || []).filter(Boolean)
-      ])] as string[],
       company_domain: [...new Set(
         contacts.flatMap(c => c.experiences?.map(e => e.company_website_url) || []).filter(Boolean)
       )] as string[],
@@ -862,7 +855,6 @@ const ContactsList = () => {
       country: [],
       headline: [],
       years_of_experience: [],
-      company_name: [],
       company_domain: [],
       company_industry: [],
       company_subindustry: [],
@@ -1387,26 +1379,21 @@ const ContactsList = () => {
                       <TextField
                         fullWidth
                         size="small"
-                        placeholder="Rechercher un contact..."
+                        placeholder="Recherche textuelle rapide..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                          startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />,
-                          endAdornment: searchTerm && (
-                            <IconButton
-                              size="small"
-                              onClick={() => setSearchTerm('')}
-                              sx={{ mr: -1 }}
-                            >
-                              <ClearIcon fontSize="small" />
-                            </IconButton>
-                          )
-                        }}
-                        sx={{
+                        sx={{ 
                           '& .MuiOutlinedInput-root': {
                             fontSize: '0.8rem',
                             height: '36px'
                           }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon />
+                            </InputAdornment>
+                          ),
                         }}
                       />
 
@@ -1507,40 +1494,26 @@ const ContactsList = () => {
                       Critères Entreprise des Contacts
                     </Typography>
                     <Stack spacing={1.5}>
-                      {/* Nom de l'entreprise */}
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        options={filterOptions.company_name}
-                        value={filters.company_name}
-                        onChange={(_, value) => handleFilterChange('company_name', value)}
-                        renderInput={(params) => (
-              <TextField
-                            {...params}
-                            label="Nom de l'entreprise"
-                size="small"
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
-                InputProps={{
-                              ...params.InputProps,
-                  startAdornment: (
-                    <InputAdornment position="start">
-                                  <BusinessIcon sx={{ fontSize: 16 }} />
-                    </InputAdornment>
-                  )
-                }}
-                          />
-                        )}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              {...getTagProps({ index })}
-                              key={option}
-                              label={option}
-                              size="small"
-                              sx={{ fontSize: '0.65rem', height: 20 }}
-                            />
-                          ))
-                        }
+                      {/* Recherche entreprise */}
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Recherche entreprise..."
+                        value={companySearchTerm}
+                        onChange={(e) => setCompanySearchTerm(e.target.value)}
+                        sx={{ 
+                          '& .MuiOutlinedInput-root': {
+                            fontSize: '0.8rem',
+                            height: '36px'
+                          }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <BusinessIcon sx={{ fontSize: 16 }} />
+                            </InputAdornment>
+                          ),
+                        }}
                       />
 
                       {/* Domaine de l'entreprise */}
