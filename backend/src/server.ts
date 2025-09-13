@@ -115,15 +115,15 @@ app.get('/api/contacts', async (req, res) => {
     // Si le terme de recherche contient des accents, on cherche aussi avec le terme original
     const hasAccents = /[éèêëàáâãäåíìîïóòôõöúùûüýÿçñßæœÉÈÊËÀÁÂÃÄÅÍÌÎÏÓÒÔÕÖÚÙÛÜÝŸÇÑßÆŒ]/.test(searchTerm);
     
-    console.log('=== DEBUG RECHERCHE ===');
-    console.log('searchTerm:', searchTerm);
-    console.log('normalizedSearchTerm:', normalizedSearchTerm);
-    console.log('searchPattern:', searchPattern);
-    console.log('originalSearchPattern:', originalSearchPattern);
-    console.log('hasAccents:', hasAccents);
+    // Debug désactivé pour améliorer les performances
+    // console.log('=== DEBUG RECHERCHE ===');
+    // console.log('searchTerm:', searchTerm);
+    // console.log('normalizedSearchTerm:', normalizedSearchTerm);
+    // console.log('searchPattern:', searchPattern);
+    // console.log('originalSearchPattern:', originalSearchPattern);
+    // console.log('hasAccents:', hasAccents);
 
-    // Recherche ULTRA RAPIDE avec gestion complète des accents et variations
-    // Inclut les expériences passées pour la recherche d'entreprises
+    // Recherche SIMPLE - seulement dans les entreprises actuelles des contacts
     const result = await pool.query(`
       SELECT 
         c.id,
@@ -146,17 +146,17 @@ app.get('/api/contacts', async (req, res) => {
         '[]'::json as interests,
         '[]'::json as education
       FROM contacts c
-      WHERE c.id IN (
-        SELECT DISTINCT c2.id
-        FROM contacts c2
-        LEFT JOIN experiences e ON c2.id = e.contact_id
-        WHERE 
+      WHERE 
+        c.current_company_name IS NOT NULL 
+        AND c.current_company_name != ''
+        AND (
           ${hasAccents ? 
-            'LOWER(c2.full_name) LIKE $1 OR LOWER(c2.full_name) LIKE $2 OR LOWER(c2.current_company_name) LIKE $1 OR LOWER(c2.current_company_name) LIKE $2 OR LOWER(e.company_name) LIKE $1 OR LOWER(e.company_name) LIKE $2' : 
-            'LOWER(c2.full_name) LIKE $1 OR LOWER(c2.current_company_name) LIKE $1 OR LOWER(e.company_name) LIKE $1'
+            'LOWER(c.current_company_name) LIKE $1 OR LOWER(c.current_company_name) LIKE $2' : 
+            'LOWER(c.current_company_name) LIKE $1'
           }
-      )
+        )
       ORDER BY c.id DESC
+      LIMIT 1000
     `, hasAccents ? [searchPattern, originalSearchPattern] : [searchPattern]);
 
     // Pour la recherche, on retourne tous les résultats trouvés
@@ -202,102 +202,34 @@ app.get('/api/contacts/search', async (req, res) => {
     
     const totalCount = parseInt(countResult.rows[0].total);
     
-    // Récupérer les contacts avec toutes les données
+    // Récupérer les contacts SIMPLIFIÉS pour éviter les erreurs JSON
     const result = await pool.query(`
       SELECT 
-        c.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', e.id,
-              'title', e.title,
-              'title_normalized', e.title_normalized,
-              'department', e.department,
-              'date_from', e.date_from,
-              'date_to', e.date_to,
-              'duration', e.duration,
-              'description', e.description,
-              'location', e.location,
-              'is_current', e.is_current,
-              'order_in_profile', e.order_in_profile,
-              'is_current', e.is_current,
-              'job_category', e.job_category,
-              'company_name', COALESCE(comp.company_name, e.company_name),
-              'company_id', e.company_id,
-              'company_industry', e.company_industry,
-              'company_size', e.company_size,
-              'company_website_url', e.company_website_url,
-              'company_linkedin_url', e.company_linkedin_url,
-              'company_logo_url', e.company_logo_url,
-              'company_employee_count', e.company_employee_count,
-              'company_followers_count', e.company_followers_count,
-              'company_headquarters_city', e.company_headquarters_city,
-              'company_headquarters_country', e.company_headquarters_country,
-              'company_description', e.company_description,
-              'company_type', e.company_type,
-              'revenue_bucket', e.revenue_bucket
-            )
-          ) FILTER (WHERE e.id IS NOT NULL), 
-          '[]'::json
-        ) as experiences,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', l.id,
-              'language', l.language,
-              'proficiency', l.proficiency,
-              'order_in_profile', l.order_in_profile
-            )
-          ) FILTER (WHERE l.id IS NOT NULL), 
-          '[]'::json
-        ) as languages,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', s.id,
-              'skill_name', s.skill_name,
-              'order_in_profile', s.order_in_profile
-            )
-          ) FILTER (WHERE s.id IS NOT NULL), 
-          '[]'::json
-        ) as skills,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', i.id,
-              'interest_name', i.interest_name,
-              'order_in_profile', i.order_in_profile
-            )
-          ) FILTER (WHERE i.id IS NOT NULL), 
-          '[]'::json
-        ) as interests,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', edu.id,
-              'institution', edu.institution,
-              'degree', edu.degree,
-              'field_of_study', edu.field_of_study,
-              'start_date', edu.start_date,
-              'end_date', edu.end_date,
-              'order_in_profile', edu.order_in_profile
-            )
-          ) FILTER (WHERE edu.id IS NOT NULL), 
-          '[]'::json
-        ) as education
+        c.id,
+        c.full_name,
+        c.headline,
+        c.location,
+        c.country,
+        c.current_company_name,
+        c.current_company_industry,
+        c.linkedin_url,
+        c.profile_picture_url,
+        c.lead_quality_score,
+        c.connections_count,
+        c.years_of_experience,
+        c.created_at,
+        c.updated_at,
+        '[]'::json as experiences,
+        '[]'::json as languages,
+        '[]'::json as skills,
+        '[]'::json as interests,
+        '[]'::json as education
       FROM contacts c
-      LEFT JOIN experiences e ON c.id = e.contact_id
-      LEFT JOIN companies comp ON e.company_id = comp.id
-      LEFT JOIN contact_languages l ON c.id = l.contact_id
-      LEFT JOIN contact_skills s ON c.id = s.contact_id
-      LEFT JOIN contact_interests i ON c.id = i.contact_id
-      LEFT JOIN contact_education edu ON c.id = edu.contact_id
       WHERE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.full_name, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.headline, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.current_company_name, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.location, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.country, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
-      GROUP BY c.id
       ORDER BY c.created_at DESC, c.id DESC
       LIMIT $2 OFFSET $3
     `, [searchTerm, parseInt(limit as string), offset]);
@@ -412,7 +344,6 @@ app.get('/api/contacts/:id', async (req, res) => {
       LEFT JOIN contact_interests i ON c.id = i.contact_id
       LEFT JOIN contact_education edu ON c.id = edu.contact_id
       WHERE c.id = $1
-      GROUP BY c.id
     `, [id]);
     
     if (result.rows.length === 0) {
@@ -461,7 +392,6 @@ app.get('/api/contacts/search', async (req, res) => {
         c.country ILIKE $1 OR
         c.current_company_name ILIKE $1 OR
         c.current_company_industry ILIKE $1
-      GROUP BY c.id
       ORDER BY c.created_at DESC
       LIMIT $2 OFFSET $3
     `, [searchTerm, limit, offset]);
@@ -504,7 +434,6 @@ app.get('/api/companies', async (req, res) => {
         FROM companies c
         LEFT JOIN experiences e ON c.id = e.company_id
         WHERE LOWER(c.company_name) LIKE $1
-        GROUP BY c.id
         ORDER BY c.created_at DESC
       `, [searchPattern]);
       
@@ -532,7 +461,6 @@ app.get('/api/companies', async (req, res) => {
         COUNT(e.id) as employee_count
       FROM companies c
       LEFT JOIN experiences e ON c.id = e.company_id
-      GROUP BY c.id
       ORDER BY c.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
