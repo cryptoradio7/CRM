@@ -113,9 +113,9 @@ const ContactsList = () => {
   // Logique de filtrage des contacts avec filtres cumulatifs
   const filteredContacts = useMemo(() => {
     return contacts.filter(contact => {
-      // Si il y a une recherche active, l'API a déjà filtré les contacts
+      // Si il y a une recherche active (générale ou entreprise), l'API a déjà filtré les contacts
       // On ne fait que les filtres additionnels (pas de recherche textuelle)
-      if (searchTerm && searchTerm.trim()) {
+      if ((searchTerm && searchTerm.trim()) || (companySearchTerm && companySearchTerm.trim())) {
         // Pas de filtrage textuel supplémentaire - l'API a déjà fait le travail
       } else {
         // Filtre par terme de recherche global (seulement pour la recherche côté client)
@@ -166,13 +166,6 @@ const ContactsList = () => {
           
           return false;
         }),
-        
-        // Recherche par entreprise (companySearchTerm)
-        !companySearchTerm || companySearchTerm.trim() === '' || 
-        contact.current_company_name?.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
-        contact.experiences?.some(exp => 
-          exp.company_name?.toLowerCase().includes(companySearchTerm.toLowerCase())
-        ),
         
         // company_domain (utilise company_website_url)
         filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
@@ -826,6 +819,29 @@ const ContactsList = () => {
       }
     };
   }, [searchTerm]);
+
+  // Recherche d'entreprises avec debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    searchTimeoutRef.current = window.setTimeout(() => {
+      if (companySearchTerm.trim()) {
+        // Recherche d'entreprises via l'API
+        loadContacts(1, companySearchTerm);
+      } else if (!searchTerm.trim()) {
+        // Si pas de recherche d'entreprises et pas de recherche générale, charger la page normale
+        loadContacts(1, '');
+      }
+    }, 500);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [companySearchTerm]);
 
   // Nettoyage des timeouts
   useEffect(() => {

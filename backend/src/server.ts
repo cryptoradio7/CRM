@@ -114,8 +114,16 @@ app.get('/api/contacts', async (req, res) => {
     
     // Si le terme de recherche contient des accents, on cherche aussi avec le terme original
     const hasAccents = /[éèêëàáâãäåíìîïóòôõöúùûüýÿçñßæœÉÈÊËÀÁÂÃÄÅÍÌÎÏÓÒÔÕÖÚÙÛÜÝŸÇÑßÆŒ]/.test(searchTerm);
+    
+    console.log('=== DEBUG RECHERCHE ===');
+    console.log('searchTerm:', searchTerm);
+    console.log('normalizedSearchTerm:', normalizedSearchTerm);
+    console.log('searchPattern:', searchPattern);
+    console.log('originalSearchPattern:', originalSearchPattern);
+    console.log('hasAccents:', hasAccents);
 
     // Recherche ULTRA RAPIDE avec gestion complète des accents et variations
+    // Inclut les expériences passées pour la recherche d'entreprises
     const result = await pool.query(`
       SELECT 
         c.id,
@@ -138,9 +146,17 @@ app.get('/api/contacts', async (req, res) => {
         '[]'::json as interests,
         '[]'::json as education
       FROM contacts c
-      WHERE 
-        ${hasAccents ? 'LOWER(c.full_name) LIKE $1 OR LOWER(c.full_name) LIKE $2' : 'LOWER(c.full_name) LIKE $1'}
-      ORDER BY c.created_at DESC
+      WHERE c.id IN (
+        SELECT DISTINCT c2.id
+        FROM contacts c2
+        LEFT JOIN experiences e ON c2.id = e.contact_id
+        WHERE 
+          ${hasAccents ? 
+            'LOWER(c2.full_name) LIKE $1 OR LOWER(c2.full_name) LIKE $2 OR LOWER(c2.current_company_name) LIKE $1 OR LOWER(c2.current_company_name) LIKE $2 OR LOWER(e.company_name) LIKE $1 OR LOWER(e.company_name) LIKE $2' : 
+            'LOWER(c2.full_name) LIKE $1 OR LOWER(c2.current_company_name) LIKE $1 OR LOWER(e.company_name) LIKE $1'
+          }
+      )
+      ORDER BY c.id DESC
     `, hasAccents ? [searchPattern, originalSearchPattern] : [searchPattern]);
 
     // Pour la recherche, on retourne tous les résultats trouvés
