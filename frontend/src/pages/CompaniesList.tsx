@@ -29,13 +29,10 @@ import {
   DialogActions,
   Alert,
   Snackbar,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Autocomplete,
   Checkbox,
   Stack,
-  Collapse,
   LinearProgress
 } from '@mui/material';
 import {
@@ -50,10 +47,6 @@ import {
   People as PeopleIcon,
   AttachMoney as AttachMoneyIcon,
   LocationOn as LocationIcon,
-  ViewList as ViewListIcon,
-  ViewModule as ViewModuleIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   FilterList as FilterListIcon,
   BarChart as BarChartIcon,
   Public as PublicIcon,
@@ -73,7 +66,6 @@ const CompaniesList = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -84,26 +76,19 @@ const CompaniesList = () => {
   });
 
   // États pour les filtres
-  const [showFilters, setShowFilters] = useState(true);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [filters, setFilters] = useState({
     company_name: [] as string[],
     company_founded: [] as string[],
     company_industry: [] as string[],
-    company_subindustry: [] as string[],
-    employees_count_growth: [] as string[],
-    company_url: [] as string[],
-    linkedin_url: [] as string[]
+    company_subindustry: [] as string[]
   });
   
   const [filterOptions, setFilterOptions] = useState({
     company_name: [] as string[],
     company_founded: [] as string[],
     company_industry: [] as string[],
-    company_subindustry: [] as string[],
-    employees_count_growth: [] as string[],
-    company_url: [] as string[],
-    linkedin_url: [] as string[]
+    company_subindustry: [] as string[]
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -134,10 +119,7 @@ const CompaniesList = () => {
       company_name: [...new Set(companies.map(c => c.company_name).filter(Boolean))] as string[],
       company_founded: [...new Set(companies.map(c => c.company_founded).filter(Boolean))] as string[],
       company_industry: [...new Set(companies.map(c => c.company_industry).filter(Boolean))] as string[],
-      company_subindustry: [...new Set(companies.map(c => c.company_subindustry).filter(Boolean))] as string[],
-      employees_count_growth: [...new Set(companies.map(c => c.employees_count_growth).filter(Boolean))] as string[],
-      company_url: [...new Set(companies.map(c => c.company_url).filter(Boolean))] as string[],
-      linkedin_url: [...new Set(companies.map(c => c.linkedin_url).filter(Boolean))] as string[]
+      company_subindustry: [...new Set(companies.map(c => c.company_subindustry).filter(Boolean))] as string[]
     };
     
     setFilterOptions(options);
@@ -184,18 +166,6 @@ const CompaniesList = () => {
         
         filters.company_subindustry.length === 0 || filters.company_subindustry.some((subindustry: string) => 
           company.company_subindustry?.toLowerCase().includes(subindustry.toLowerCase())
-        ),
-        
-        filters.employees_count_growth.length === 0 || filters.employees_count_growth.some((growth: string) => 
-          company.employees_count_growth?.toString().includes(growth)
-        ),
-        
-        filters.company_url.length === 0 || filters.company_url.some((url: string) => 
-          company.company_url?.toLowerCase().includes(url.toLowerCase())
-        ),
-        
-        filters.linkedin_url.length === 0 || filters.linkedin_url.some((linkedin: string) => 
-          company.linkedin_url?.toLowerCase().includes(linkedin.toLowerCase())
         )
       ];
 
@@ -222,11 +192,6 @@ const CompaniesList = () => {
     setPage(0);
   };
 
-  const handleViewModeChange = (event: React.MouseEvent<HTMLElement>, newViewMode: 'table' | 'cards') => {
-    if (newViewMode !== null) {
-      setViewMode(newViewMode);
-    }
-  };
 
   // Gestion des filtres
   const handleFilterChange = (filterName: string, value: string[]) => {
@@ -241,10 +206,7 @@ const CompaniesList = () => {
       company_name: [],
       company_founded: [],
       company_industry: [],
-      company_subindustry: [],
-      employees_count_growth: [],
-      company_url: [],
-      linkedin_url: []
+      company_subindustry: []
     });
   };
 
@@ -373,22 +335,13 @@ const CompaniesList = () => {
       {/* Moteur de recherche avancé */}
       <Card sx={{ mb: 3, height: '400px' }}>
         <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FilterListIcon />
               Moteur de recherche
             </Typography>
-            <Button
-              size="small"
-              onClick={() => setShowFilters(!showFilters)}
-              startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            >
-              {showFilters ? 'Masquer' : 'Afficher'}
-            </Button>
           </Box>
-
-          <Collapse in={showFilters}>
-            <Box sx={{ flex: 1, overflow: 'auto' }}>
+            <Box sx={{ flex: 1 }}>
               {loadingOptions && (
                 <Box sx={{ mb: 2 }}>
                   <LinearProgress />
@@ -400,7 +353,7 @@ const CompaniesList = () => {
 
               <Box sx={{ display: 'flex', gap: 1.5, height: '100%' }}>
                 {/* Critères Entreprise */}
-                <Card sx={{ flex: 1, height: 'fit-content', maxHeight: '100%', overflow: 'auto' }}>
+                <Card sx={{ flex: 1, height: 'fit-content', maxHeight: '100%' }}>
                   <CardContent>
                     <Typography variant="subtitle2" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <BusinessIcon />
@@ -521,101 +474,6 @@ const CompaniesList = () => {
                         )}
                       />
 
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        size="small"
-                        options={filterOptions.employees_count_growth}
-                        value={filters.employees_count_growth}
-                        onChange={(event, newValue) => handleFilterChange('employees_count_growth', newValue)}
-                        sx={{ width: '15%' }}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              variant="outlined"
-                              label={option}
-                              size="small"
-                              {...getTagProps({ index })}
-                              onDelete={() => {
-                                const newFilters = [...filters.employees_count_growth];
-                                newFilters.splice(index, 1);
-                                handleFilterChange('employees_count_growth', newFilters);
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Croissance employés"
-                            placeholder="Tapez ou sélectionnez..."
-                          />
-                        )}
-                      />
-
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        size="small"
-                        options={filterOptions.company_url}
-                        value={filters.company_url}
-                        onChange={(event, newValue) => handleFilterChange('company_url', newValue)}
-                        sx={{ width: '15%' }}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              variant="outlined"
-                              label={option}
-                              size="small"
-                              {...getTagProps({ index })}
-                              onDelete={() => {
-                                const newFilters = [...filters.company_url];
-                                newFilters.splice(index, 1);
-                                handleFilterChange('company_url', newFilters);
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Site web"
-                            placeholder="Tapez ou sélectionnez..."
-                          />
-                        )}
-                      />
-
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        size="small"
-                        options={filterOptions.linkedin_url}
-                        value={filters.linkedin_url}
-                        onChange={(event, newValue) => handleFilterChange('linkedin_url', newValue)}
-                        sx={{ width: '15%' }}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              variant="outlined"
-                              label={option}
-                              size="small"
-                              {...getTagProps({ index })}
-                              onDelete={() => {
-                                const newFilters = [...filters.linkedin_url];
-                                newFilters.splice(index, 1);
-                                handleFilterChange('linkedin_url', newFilters);
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="LinkedIn"
-                            placeholder="Tapez ou sélectionnez..."
-                          />
-                        )}
-                      />
                     </Stack>
                   </CardContent>
                 </Card>
@@ -627,7 +485,6 @@ const CompaniesList = () => {
                 </Button>
               </Box>
             </Box>
-          </Collapse>
         </CardContent>
       </Card>
 
@@ -635,23 +492,6 @@ const CompaniesList = () => {
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={handleViewModeChange}
-            size="small"
-          >
-            <ToggleButton value="table">
-              <Tooltip title="Vue tableau">
-                <ViewListIcon />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="cards">
-              <Tooltip title="Vue cartes">
-                <ViewModuleIcon />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
         </Box>
       </Paper>
 
@@ -661,7 +501,6 @@ const CompaniesList = () => {
       </Typography>
 
       {/* Table View */}
-      {viewMode === 'table' && (
         <Paper sx={{ width: '100%', overflow: 'hidden' }}>
           <TableContainer>
             <Table stickyHeader>
@@ -776,122 +615,6 @@ const CompaniesList = () => {
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} sur ${count}`}
           />
         </Paper>
-      )}
-
-      {/* Cards View */}
-      {viewMode === 'cards' && (
-        <Grid container spacing={2}>
-          {paginatedCompanies.map((company) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={company.id}>
-              <Card 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    boxShadow: 4
-                  }
-                }}
-                onClick={() => navigate(`/companies/${company.id}`)}
-              >
-                <CardContent sx={{ flex: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <BusinessIcon color="primary" />
-                    <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold' }}>
-                      {company.company_name}
-                    </Typography>
-                  </Box>
-                  
-                  {company.company_description && (
-                    <Typography 
-                      variant="body2" 
-                      color="text.secondary" 
-                      sx={{ 
-                        mb: 2,
-                        wordBreak: 'break-word',
-                        lineHeight: 1.4,
-                        fontSize: '0.8rem'
-                      }}
-                      title={company.company_description}
-                    >
-                      {company.company_description.length > 150 
-                        ? `${company.company_description.substring(0, 150)}...`
-                        : company.company_description
-                      }
-                    </Typography>
-                  )}
-                  
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <LocationIcon fontSize="small" color="action" />
-                      <Typography variant="body2">
-                        {company.company_headquarters_city || company.headquarters_city}, {company.company_headquarters_country || company.headquarters_country}
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <PeopleIcon fontSize="small" color="action" />
-                      <Typography variant="body2">
-                        {formatEmployeeCount(company.company_employee_count || company.employee_count)} employés
-                      </Typography>
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <AttachMoneyIcon fontSize="small" color="action" />
-                      <Typography variant="body2">
-                        CA: {company.revenue_bucket || 'Non spécifié'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  
-                  <Box sx={{ mt: 2 }}>
-                    <Chip
-                      label={getCompanyTypeLabel(company.company_type || '')}
-                      color={getCompanyTypeColor(company.company_type || '') as any}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-                </CardContent>
-                
-                <CardActions sx={{ justifyContent: 'flex-end' }}>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/companies/${company.id}`);
-                    }}
-                    color="primary"
-                  >
-                    <ViewIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/companies/${company.id}/edit`);
-                    }}
-                    color="primary"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMenuOpen(e, company);
-                    }}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
 
       {/* Context Menu */}
       <Menu
@@ -922,7 +645,12 @@ const CompaniesList = () => {
       </Menu>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Confirmer la suppression</DialogTitle>
         <DialogContent>
           <Typography>
