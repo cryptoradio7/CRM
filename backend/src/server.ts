@@ -80,16 +80,19 @@ app.get('/api/contacts', async (req, res) => {
             }
           )
         ORDER BY c.id DESC
-        LIMIT 1000
-      `, hasAccents ? [searchPattern, originalSearchPattern] : [searchPattern]);
+        LIMIT $2 OFFSET $3
+      `, hasAccents ? [searchPattern, originalSearchPattern, parseInt(limit as string), offset] : [searchPattern, parseInt(limit as string), offset]);
+
+      // Estimation rapide du total (pas de comptage exact pour la performance)
+      const totalCount = result.rows.length < parseInt(limit as string) ? result.rows.length : 1000;
 
       res.json({
         contacts: result.rows,
         pagination: {
           page: parseInt(page as string),
           limit: parseInt(limit as string),
-          total: result.rows.length,
-          pages: 1
+          total: totalCount,
+          pages: Math.ceil(totalCount / parseInt(limit as string))
         }
       });
     } else {
