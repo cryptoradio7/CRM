@@ -95,6 +95,7 @@ const ContactsList = () => {
     company_subindustry: [] as string[],
     employees_count_growth: [] as string[]
   });
+  // États de recherche de noms supprimés - remplacés par le champ de recherche global
   const [loadingOptions, setLoadingOptions] = useState(true);
   const notesRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<number | null>(null);
@@ -108,26 +109,31 @@ const ContactsList = () => {
   const navigate = useNavigate();
   const searchTimeoutRef = useRef<number | undefined>(undefined);
 
+  // Fonction de recherche de noms supprimée - remplacée par le champ de recherche global
+
   // Logique de filtrage des contacts avec filtres cumulatifs
   const filteredContacts = useMemo(() => {
     return contacts.filter(contact => {
-      // Filtre par terme de recherche global
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const matchesSearch = 
-          contact.full_name?.toLowerCase().includes(term) ||
-          contact.headline?.toLowerCase().includes(term) ||
-          contact.location?.toLowerCase().includes(term) ||
-          contact.email?.toLowerCase().includes(term);
-        if (!matchesSearch) return false;
+      // Si il y a une recherche active, l'API a déjà filtré les contacts
+      // On ne fait que les filtres additionnels (pas de recherche textuelle)
+      if (searchTerm && searchTerm.trim()) {
+        // Pas de filtrage textuel supplémentaire - l'API a déjà fait le travail
+      } else {
+        // Filtre par terme de recherche global (seulement pour la recherche côté client)
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          const matchesSearch = 
+            contact.full_name?.toLowerCase().includes(term) ||
+            contact.headline?.toLowerCase().includes(term) ||
+            contact.location?.toLowerCase().includes(term) ||
+            contact.email?.toLowerCase().includes(term);
+          if (!matchesSearch) return false;
+        }
       }
 
       // Filtres cumulatifs - tous doivent être satisfaits
       const filterChecks = [
-        // full_name
-        filters.full_name.length === 0 || filters.full_name.some((name: string) => 
-          contact.full_name?.toLowerCase().includes(name.toLowerCase())
-        ),
+        // full_name - supprimé car remplacé par le champ de recherche global
         
         // country
         filters.country.length === 0 || filters.country.some((country: string) => 
@@ -270,7 +276,8 @@ const ContactsList = () => {
   const loadFilterOptions = async () => {
     try {
       setLoadingOptions(true);
-      // Charger un grand nombre de contacts pour avoir toutes les options
+      // Charger seulement les options de base (pays, secteurs, etc.) sans les noms
+      // Les noms seront chargés dynamiquement via la recherche
       const response = await contactsApi.getAll(1, 1000);
       console.log('Chargement des options de filtres...', response.contacts?.length, 'contacts');
       extractFilterOptions(response.contacts || []);
@@ -294,7 +301,8 @@ const ContactsList = () => {
       let response;
       
       if (search.trim()) {
-        response = await contactsApi.search(search, page, 20);
+        // Pour la recherche, on utilise l'API de recherche globale (sans pagination)
+        response = await contactsApi.search(search, 1, 10000); // Limite très élevée pour récupérer tous les résultats
       } else {
         response = await contactsApi.getAll(page, 20);
       }
@@ -303,8 +311,16 @@ const ContactsList = () => {
       console.log('Pagination:', response.pagination);
       
       setContacts(response.contacts || []);
-      setTotalPages(response.pagination?.pages || response.pagination?.totalPages || 1);
-      setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
+      
+      if (search.trim()) {
+        // Pour la recherche, on désactive la pagination (tous les résultats sont affichés)
+        setTotalPages(1);
+        setTotalCount(response.contacts?.length || 0);
+      } else {
+        // Pour la liste normale, on utilise la pagination
+        setTotalPages(response.pagination?.pages || response.pagination?.totalPages || 1);
+        setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
+      }
       
       console.log('Total pages set to:', response.pagination?.pages || response.pagination?.totalPages || 1);
       console.log('Total count set to:', response.pagination?.total || response.pagination?.totalCount || 0);
@@ -788,10 +804,17 @@ const ContactsList = () => {
     });
   };
 
-  // Effet pour charger les contacts
+  // Charger les contacts au montage initial
   useEffect(() => {
-    loadContacts(currentPage, searchTerm);
-  }, [currentPage]);
+    loadContacts(1, '');
+  }, []);
+
+  // Effet pour charger les contacts (seulement si pas de recherche active)
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      loadContacts(currentPage, searchTerm);
+    }
+  }, [currentPage, searchTerm]);
 
   // Recherche avec debounce
   useEffect(() => {
@@ -810,6 +833,13 @@ const ContactsList = () => {
       }
     };
   }, [searchTerm]);
+
+  // Nettoyage des timeouts
+  useEffect(() => {
+    return () => {
+      // Nettoyage des timeouts de recherche
+    };
+  }, []);
 
   // Gestion des filtres
   const handleFilterChange = (filterKey: string, value: any) => {
@@ -1304,6 +1334,8 @@ const ContactsList = () => {
               </Box>
             </Box>
             
+            {/* Champ de recherche global déplacé dans le bloc Critères Contact */}
+            
             {/* Filtres actifs */}
             {getActiveFiltersCount() > 0 && (
               <Box mb={1.5}>
@@ -1351,40 +1383,31 @@ const ContactsList = () => {
                       Critères Contact
                     </Typography>
                     <Stack spacing={1.5}>
-                      {/* Nom complet */}
-                      <Autocomplete
-                        multiple
-                        freeSolo
-                        options={filterOptions.full_name}
-                        value={filters.full_name}
-                        onChange={(_, value) => handleFilterChange('full_name', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Nom complet"
-                            size="small"
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <PersonIcon sx={{ fontSize: 16 }} />
-                                </InputAdornment>
-                              )
-                            }}
-                          />
-                        )}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              {...getTagProps({ index })}
-                              key={option}
-                              label={option}
+                      {/* Champ de recherche global */}
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Rechercher un contact..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{
+                          startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />,
+                          endAdornment: searchTerm && (
+                            <IconButton
                               size="small"
-                              sx={{ fontSize: '0.65rem', height: 20 }}
-                            />
-                          ))
-                        }
+                              onClick={() => setSearchTerm('')}
+                              sx={{ mr: -1 }}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            fontSize: '0.8rem',
+                            height: '36px'
+                          }
+                        }}
                       />
 
                       {/* Titre/Poste */}

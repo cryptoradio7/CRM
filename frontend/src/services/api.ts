@@ -45,7 +45,7 @@ export const contactsApi = {
 
   // Rechercher des contacts
   async search(query: string, page: number = 1, limit: number = 20) {
-    const response = await fetch(`${API_BASE_URL}/contacts/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+    const response = await fetch(`${API_BASE_URL}/contacts?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
     if (!response.ok) throw new Error('Erreur lors de la recherche');
     return response.json() as Promise<SearchResponse<any>>;
   },

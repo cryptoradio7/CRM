@@ -43,106 +43,116 @@ app.get('/api/contacts', async (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
+    const searchTerm = req.query.q as string || '';
+
+    // Si pas de terme de recherche, retourner les contacts récents (ULTRA RAPIDE)
+    if (!searchTerm.trim()) {
+      // Récupérer le nombre total de contacts (CACHE)
+      const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
+      const totalCount = parseInt(countResult.rows[0].count);
+      
+      // Récupérer SEULEMENT les données de base des contacts (SANS JOINs)
+      const result = await pool.query(`
+        SELECT 
+          c.id,
+          c.full_name,
+          c.headline,
+          c.location,
+          c.country,
+          c.current_company_name,
+          c.current_company_industry,
+          c.linkedin_url,
+          c.profile_picture_url,
+          c.lead_quality_score,
+          c.connections_count,
+          c.years_of_experience,
+          c.created_at,
+          c.updated_at,
+          '[]'::json as experiences,
+          '[]'::json as languages,
+          '[]'::json as skills,
+          '[]'::json as interests,
+          '[]'::json as education
+        FROM contacts c
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+      
+      res.json({
+        contacts: result.rows,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
+        }
+      });
+      return;
+    }
+
+    // Si terme de recherche, utiliser la logique de recherche optimisée
+    // Normaliser les accents pour la recherche côté JS
+    // Normalisation complète des accents et caractères spéciaux
+    const normalizedSearchTerm = searchTerm
+      .toLowerCase()
+      .trim() // Supprimer les espaces en début/fin
+      .replace(/\s+/g, ' ') // Normaliser les espaces multiples
+      .replace(/[éèêëÉÈÊË]/g, 'e')
+      .replace(/[àáâãäåÀÁÂÃÄÅ]/g, 'a')
+      .replace(/[íìîïÍÌÎÏ]/g, 'i')
+      .replace(/[óòôõöÓÒÔÕÖ]/g, 'o')
+      .replace(/[úùûüÚÙÛÜ]/g, 'u')
+      .replace(/[ýÿÝŸ]/g, 'y')
+      .replace(/[çÇ]/g, 'c')
+      .replace(/[ñÑ]/g, 'n')
+      .replace(/[ß]/g, 'ss')
+      .replace(/[æÆ]/g, 'ae')
+      .replace(/[œŒ]/g, 'oe');
+
+    const searchPattern = `%${normalizedSearchTerm}%`;
+    const originalSearchPattern = `%${searchTerm.toLowerCase()}%`;
     
-    // Récupérer le nombre total de contacts
-    const countResult = await pool.query('SELECT COUNT(*) FROM contacts');
-    const totalCount = parseInt(countResult.rows[0].count);
-    
-    // Récupérer les contacts paginés avec toutes les données
+    // Si le terme de recherche contient des accents, on cherche aussi avec le terme original
+    const hasAccents = /[éèêëàáâãäåíìîïóòôõöúùûüýÿçñßæœÉÈÊËÀÁÂÃÄÅÍÌÎÏÓÒÔÕÖÚÙÛÜÝŸÇÑßÆŒ]/.test(searchTerm);
+
+    // Recherche ULTRA RAPIDE avec gestion complète des accents et variations
     const result = await pool.query(`
       SELECT 
-        c.*,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', e.id,
-              'title', e.title,
-              'title_normalized', e.title_normalized,
-              'department', e.department,
-              'date_from', e.date_from,
-              'date_to', e.date_to,
-              'duration', e.duration,
-              'description', e.description,
-              'location', e.location,
-              'is_current', e.is_current,
-              'order_in_profile', e.order_in_profile,
-              'is_current', e.is_current,
-              'job_category', e.job_category,
-              'company_name', COALESCE(comp.company_name, e.company_name),
-              'company_id', e.company_id,
-              'company_industry', e.company_industry,
-              'company_size', e.company_size,
-              'company_website_url', e.company_website_url,
-              'company_logo_url', e.company_logo_url,
-              'company_linkedin_url', e.company_linkedin_url
-            )
-          ) FILTER (WHERE e.id IS NOT NULL), 
-          '[]'::json
-        ) as experiences,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', l.id,
-              'language', l.language,
-              'proficiency', l.proficiency,
-              'order_in_profile', l.order_in_profile
-            )
-          ) FILTER (WHERE l.id IS NOT NULL), 
-          '[]'::json
-        ) as languages,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', s.id,
-              'skill_name', s.skill_name,
-              'order_in_profile', s.order_in_profile
-            )
-          ) FILTER (WHERE s.id IS NOT NULL), 
-          '[]'::json
-        ) as skills,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', i.id,
-              'interest_name', i.interest_name,
-              'order_in_profile', i.order_in_profile
-            )
-          ) FILTER (WHERE i.id IS NOT NULL), 
-          '[]'::json
-        ) as interests,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', edu.id,
-              'institution', edu.institution,
-              'degree', edu.degree,
-              'field_of_study', edu.field_of_study,
-              'start_date', edu.start_date,
-              'end_date', edu.end_date,
-              'order_in_profile', edu.order_in_profile
-            )
-          ) FILTER (WHERE edu.id IS NOT NULL), 
-          '[]'::json
-        ) as education
+        c.id,
+        c.full_name,
+        c.headline,
+        c.location,
+        c.country,
+        c.current_company_name,
+        c.current_company_industry,
+        c.linkedin_url,
+        c.profile_picture_url,
+        c.lead_quality_score,
+        c.connections_count,
+        c.years_of_experience,
+        c.created_at,
+        c.updated_at,
+        '[]'::json as experiences,
+        '[]'::json as languages,
+        '[]'::json as skills,
+        '[]'::json as interests,
+        '[]'::json as education
       FROM contacts c
-      LEFT JOIN experiences e ON c.id = e.contact_id
-      LEFT JOIN companies comp ON e.company_id = comp.id
-      LEFT JOIN contact_languages l ON c.id = l.contact_id
-      LEFT JOIN contact_skills s ON c.id = s.contact_id
-      LEFT JOIN contact_interests i ON c.id = i.contact_id
-      LEFT JOIN contact_education edu ON c.id = edu.contact_id
-      GROUP BY c.id
-      ORDER BY c.id DESC
-      LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+      WHERE 
+        ${hasAccents ? 'LOWER(c.full_name) LIKE $1 OR LOWER(c.full_name) LIKE $2' : 'LOWER(c.full_name) LIKE $1'}
+      ORDER BY c.created_at DESC
+    `, hasAccents ? [searchPattern, originalSearchPattern] : [searchPattern]);
+
+    // Pour la recherche, on retourne tous les résultats trouvés
+    const totalCount = result.rows.length;
     
     res.json({
       contacts: result.rows,
       pagination: {
-        page,
-        limit,
+        page: 1,
+        limit: totalCount,
         total: totalCount,
-        pages: Math.ceil(totalCount / limit)
+        pages: 1
       }
     });
   } catch (error) {
@@ -158,7 +168,7 @@ app.get('/api/contacts/search', async (req, res) => {
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
     
     if (!q) {
-      return res.status(400).json({ error: 'Paramètre de recherche manquant' });
+      return res.json({ contacts: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
     }
 
     const searchTerm = `%${q}%`;
@@ -272,7 +282,7 @@ app.get('/api/contacts/search', async (req, res) => {
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.location, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
          OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.country, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a')) ILIKE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE($1, 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'))
       GROUP BY c.id
-      ORDER BY c.id DESC
+      ORDER BY c.created_at DESC, c.id DESC
       LIMIT $2 OFFSET $3
     `, [searchTerm, parseInt(limit as string), offset]);
     
@@ -806,14 +816,14 @@ app.post('/api/contacts/import', async (req, res) => {
             contact.country || '',
             contact.connections_count || 0,
             contact.lead_quality_score || 0,
-            contact.lead_linkedin_url || '',
-            contact.years_of_exp_bucket ? parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+            contact.linkedin_url || '',
+            contact.years_of_experience || 0,
             contact.department || '',
             contact.experiences && contact.experiences.length > 0 ? contact.experiences[0].title || '' : '',
             contact.current_exp_company_name || '',
             contact.current_exp_company_industry || '',
             contact.current_exp_company_subindustry || '',
-            contact.lead_logo_url || '',
+            contact.profile_picture_url || '',
             contact.connections_count_bucket || '',
             contact.updated_at || new Date().toISOString(),
             contact.lead_id
@@ -840,14 +850,14 @@ app.post('/api/contacts/import', async (req, res) => {
             contact.country || '',
             contact.connections_count || 0,
             contact.lead_quality_score || 0,
-            contact.lead_linkedin_url || '',
-            contact.years_of_exp_bucket ? parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+            contact.linkedin_url || '',
+            contact.years_of_experience || 0,
             contact.department || '',
             contact.experiences && contact.experiences.length > 0 ? contact.experiences[0].title || '' : '',
             contact.current_exp_company_name || '',
             contact.current_exp_company_industry || '',
             contact.current_exp_company_subindustry || '',
-            contact.lead_logo_url || '',
+            contact.profile_picture_url || '',
             contact.connections_count_bucket || '',
             contact.created_at || new Date().toISOString(),
             contact.updated_at || new Date().toISOString()
