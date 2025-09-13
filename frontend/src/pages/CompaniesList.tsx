@@ -408,35 +408,20 @@ const CompaniesList = () => {
                     </Typography>
                     
                     <Stack spacing={2}>
-                      <Autocomplete
-                        multiple
-                        freeSolo
+                      <TextField
+                        ref={searchInputRef}
                         size="small"
-                        options={filterOptions.company_name}
-                        value={filters.company_name}
-                        onChange={(event, newValue) => handleFilterChange('company_name', newValue)}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              variant="outlined"
-                              label={option}
-                              size="small"
-                              {...getTagProps({ index })}
-                              onDelete={() => {
-                                const newFilters = [...filters.company_name];
-                                newFilters.splice(index, 1);
-                                handleFilterChange('company_name', newFilters);
-                              }}
-                            />
-                          ))
-                        }
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Nom de l'entreprise"
-                            placeholder="Tapez ou sélectionnez..."
-                          />
-                        )}
+                        placeholder="Recherche textuelle rapide..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        sx={{ width: '15%' }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon />
+                            </InputAdornment>
+                          ),
+                        }}
                       />
 
                       <Autocomplete
@@ -446,6 +431,7 @@ const CompaniesList = () => {
                         options={filterOptions.company_founded}
                         value={filters.company_founded}
                         onChange={(event, newValue) => handleFilterChange('company_founded', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -478,6 +464,7 @@ const CompaniesList = () => {
                         options={filterOptions.company_industry}
                         value={filters.company_industry}
                         onChange={(event, newValue) => handleFilterChange('company_industry', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -509,6 +496,7 @@ const CompaniesList = () => {
                         options={filterOptions.company_subindustry}
                         value={filters.company_subindustry}
                         onChange={(event, newValue) => handleFilterChange('company_subindustry', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -540,6 +528,7 @@ const CompaniesList = () => {
                         options={filterOptions.employees_count_growth}
                         value={filters.employees_count_growth}
                         onChange={(event, newValue) => handleFilterChange('employees_count_growth', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -571,6 +560,7 @@ const CompaniesList = () => {
                         options={filterOptions.company_url}
                         value={filters.company_url}
                         onChange={(event, newValue) => handleFilterChange('company_url', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -602,6 +592,7 @@ const CompaniesList = () => {
                         options={filterOptions.linkedin_url}
                         value={filters.linkedin_url}
                         onChange={(event, newValue) => handleFilterChange('linkedin_url', newValue)}
+                        sx={{ width: '15%' }}
                         renderTags={(value, getTagProps) =>
                           value.map((option, index) => (
                             <Chip
@@ -643,21 +634,6 @@ const CompaniesList = () => {
       {/* Search and Controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TextField
-            ref={searchInputRef}
-            size="small"
-            placeholder="Recherche textuelle rapide..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ minWidth: 300, flex: 1 }}
-          />
           
           <ToggleButtonGroup
             value={viewMode}
