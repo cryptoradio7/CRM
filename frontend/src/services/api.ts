@@ -13,10 +13,10 @@ interface PaginatedResponse<T> {
   pagination: {
     page: number;
     limit: number;
-    totalCount: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
+    total: number;
+    pages: number;
+    hasNextPage?: boolean;
+    hasPrevPage?: boolean;
   };
 }
 
@@ -29,9 +29,29 @@ interface SearchResponse<T> extends PaginatedResponse<T> {
 // =====================================================
 
 export const contactsApi = {
-  // Récupérer tous les contacts avec pagination
-  async getAll(page: number = 1, limit: number = 20) {
-    const response = await fetch(`${API_BASE_URL}/contacts?page=${page}&limit=${limit}`);
+  // Récupérer tous les contacts avec pagination et filtres
+  async getAll(page: number = 1, limit: number = 20, filters?: {
+    q?: string; // recherche textuelle rapide (full_name)
+    title?: string; // titre/poste (current_title_normalized)
+    country?: string; // pays (country)
+    years_exp?: string; // années d'expérience (years_of_experience)
+    company_name?: string; // recherche d'entreprise (current_company_name)
+    industry?: string; // secteur d'activité (current_company_industry)
+    subindustry?: string; // sous secteur (current_company_subindustry)
+  }) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...(filters?.q && { q: filters.q }),
+      ...(filters?.title && { title: filters.title }),
+      ...(filters?.country && { country: filters.country }),
+      ...(filters?.years_exp && { years_exp: filters.years_exp }),
+      ...(filters?.company_name && { company_name: filters.company_name }),
+      ...(filters?.industry && { industry: filters.industry }),
+      ...(filters?.subindustry && { subindustry: filters.subindustry })
+    });
+    
+    const response = await fetch(`${API_BASE_URL}/contacts?${params}`);
     if (!response.ok) throw new Error('Erreur lors du chargement des contacts');
     return response.json() as Promise<PaginatedResponse<any>>;
   },

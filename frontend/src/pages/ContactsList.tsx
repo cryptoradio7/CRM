@@ -79,20 +79,16 @@ const ContactsList = () => {
     country: [] as string[],
     headline: [] as string[],
     years_of_experience: [] as string[],
-    company_domain: [] as string[],
     company_industry: [] as string[],
-    company_subindustry: [] as string[],
-    employees_count_growth: [] as string[]
+    company_subindustry: [] as string[]
   });
   const [filterOptions, setFilterOptions] = useState({
     full_name: [] as string[],
     country: [] as string[],
     headline: [] as string[],
     years_of_experience: [] as string[],
-    company_domain: [] as string[],
     company_industry: [] as string[],
-    company_subindustry: [] as string[],
-    employees_count_growth: [] as string[]
+    company_subindustry: [] as string[]
   });
   // États de recherche de noms supprimés - remplacés par le champ de recherche global
   const [loadingOptions, setLoadingOptions] = useState(true);
@@ -110,92 +106,9 @@ const ContactsList = () => {
 
   // Fonction de recherche de noms supprimée - remplacée par le champ de recherche global
 
-  // Logique de filtrage des contacts avec filtres cumulatifs
-  const filteredContacts = useMemo(() => {
-    return contacts.filter(contact => {
-      // Si il y a une recherche active (générale ou entreprise), l'API a déjà filtré les contacts
-      // On ne fait que les filtres additionnels (pas de recherche textuelle)
-      if ((searchTerm && searchTerm.trim()) || (companySearchTerm && companySearchTerm.trim())) {
-        // Pas de filtrage textuel supplémentaire - l'API a déjà fait le travail
-      } else {
-        // Filtre par terme de recherche global (seulement pour la recherche côté client)
-        if (searchTerm) {
-          const term = searchTerm.toLowerCase();
-          const matchesSearch = 
-            contact.full_name?.toLowerCase().includes(term) ||
-            contact.headline?.toLowerCase().includes(term) ||
-            contact.location?.toLowerCase().includes(term) ||
-            contact.email?.toLowerCase().includes(term);
-          if (!matchesSearch) return false;
-        }
-      }
-
-      // Filtres cumulatifs - tous doivent être satisfaits
-      const filterChecks = [
-        // full_name - supprimé car remplacé par le champ de recherche global
-        
-        // country
-        filters.country.length === 0 || filters.country.some((country: string) => 
-          contact.country?.toLowerCase().includes(country.toLowerCase())
-        ),
-        
-        // headline (champ texte simple)
-        filters.headline.length === 0 || (filters.headline[0] && 
-          contact.headline?.toLowerCase().includes(filters.headline[0].toLowerCase())
-        ),
-        
-        // years_of_experience (avec tranches)
-        filters.years_of_experience.length === 0 || filters.years_of_experience.some((expRange: string) => {
-          const contactExp = contact.years_of_experience;
-          if (!contactExp) return false;
-          
-          // Gestion des tranches
-          if (expRange === '0-2 ans') {
-            return contactExp >= 0 && contactExp <= 2;
-          } else if (expRange === '3-5 ans') {
-            return contactExp >= 3 && contactExp <= 5;
-          } else if (expRange === '6-10 ans') {
-            return contactExp >= 6 && contactExp <= 10;
-          } else if (expRange === '11-15 ans') {
-            return contactExp >= 11 && contactExp <= 15;
-          } else if (expRange === '16-20 ans') {
-            return contactExp >= 16 && contactExp <= 20;
-          } else if (expRange === '20+ ans') {
-            return contactExp > 20;
-          }
-          
-          return false;
-        }),
-        
-        // company_domain (utilise company_website_url)
-        filters.company_domain.length === 0 || filters.company_domain.some((domain: string) => 
-          contact.experiences?.some(exp => 
-            exp.company_website_url?.toLowerCase().includes(domain.toLowerCase())
-          )
-        ),
-        
-        // company_industry (basé sur current_company_industry ou experiences)
-        filters.company_industry.length === 0 || filters.company_industry.some((industry: string) => 
-          contact.current_company_industry?.toLowerCase().includes(industry.toLowerCase()) ||
-          contact.experiences?.some(exp => 
-            exp.company_industry?.toLowerCase().includes(industry.toLowerCase())
-          )
-        ),
-        
-        // company_subindustry (basé sur les expériences)
-        filters.company_subindustry.length === 0 || filters.company_subindustry.some((subindustry: string) => 
-          contact.experiences?.some(exp => 
-            exp.company_subindustry?.toLowerCase().includes(subindustry.toLowerCase())
-          )
-        ),
-        
-        // employees_count_growth (champ non disponible - filtre désactivé pour l'instant)
-        true // Toujours true car ce champ n'existe pas dans les données
-      ];
-
-      return filterChecks.every(check => check);
-    });
-  }, [contacts, searchTerm, companySearchTerm, filters]);
+  // Les contacts sont maintenant filtrés côté serveur via l'API
+  // Pas besoin de filtrage côté client
+  const filteredContacts = contacts;
 
   // Fonction pour formater les années d'expérience avec tranches
   const formatYearsOfExperience = (years: number | null | undefined) => {
@@ -241,21 +154,81 @@ const ContactsList = () => {
         
         return tranches as string[];
       })(),
-      company_domain: [...new Set(
-        contacts.flatMap(c => c.experiences?.map(e => e.company_website_url) || []).filter(Boolean)
+      company_industry: [...new Set(
+        contacts.map(c => c.current_company_industry).filter(Boolean)
       )] as string[],
-      company_industry: [...new Set([
-        ...contacts.map(c => c.current_company_industry).filter(Boolean),
-        ...contacts.flatMap(c => c.experiences?.map(e => e.company_industry) || []).filter(Boolean)
-      ])] as string[],
-      company_subindustry: [...new Set([
-        ...contacts.map(c => c.current_company_subindustry).filter(Boolean),
-        ...contacts.flatMap(c => c.experiences?.map(e => e.company_subindustry) || []).filter(Boolean)
-      ])] as string[],
-      employees_count_growth: ['Croissance rapide', 'Croissance modérée', 'Stable', 'En déclin'] as string[]
+      company_subindustry: [...new Set(
+        contacts.map(c => c.current_company_subindustry).filter(Boolean)
+      )] as string[],
     };
     console.log('Options de filtres extraites:', options);
     setFilterOptions(options);
+  };
+
+  // Mettre à jour les sous-secteurs en fonction du secteur sélectionné
+  const getFilteredSubindustries = () => {
+    if (filters.company_industry.length === 0) {
+      return filterOptions.company_subindustry;
+    }
+    
+    const selectedIndustry = filters.company_industry[0];
+    return filterOptions.company_subindustry.filter(subindustry => {
+      // Logique de dépendance : filtrer les sous-secteurs selon le secteur
+      const industrySubindustryMap: { [key: string]: string[] } = {
+        'Technology, Information and Media': [
+          'Media and Telecommunications',
+          'Technology, Information and Internet',
+          'IT Services and IT Consulting',
+          'Services for Renewable Energy'
+        ],
+        'Professional Services': [
+          'Accounting',
+          'Advertising Services',
+          'Architecture and Planning',
+          'Business Consulting and Services',
+          'Design Services',
+          'Engineering Services',
+          'Legal Services',
+          'Photography',
+          'Research Services',
+          'Veterinary Services'
+        ],
+        'Manufacturing': [
+          'Apparel Manufacturing',
+          'Appliances, Electrical, and Electronics Manufacturing',
+          'Chemical Manufacturing',
+          'Climate Technology Products Manufacturing',
+          'Computers and Electronics Manufacturing',
+          'Fabricated Metal Products',
+          'Food and Beverage Manufacturing',
+          'Furniture and Home Furnishings Manufacturing',
+          'Glass, Ceramics and Concrete Manufacturing',
+          'Leather Product Manufacturing',
+          'Machinery Manufacturing',
+          'Oil and Coal Product Manufacturing',
+          'Paper and Forest Product Manufacturing',
+          'Plastics and Rubber Product Manufacturing',
+          'Primary Metal Manufacturing',
+          'Printing Services',
+          'Sporting Goods Manufacturing',
+          'Textile Manufacturing',
+          'Tobacco Manufacturing',
+          'Transportation Equipment Manufacturing',
+          'Wood Product Manufacturing'
+        ],
+        'Hospitals and Health Care': [
+          'Community Services',
+          'Hospitals',
+          'Individual and Family Services',
+          'Medical Equipment Manufacturing',
+          'Medical Practices',
+          'Nursing Homes and Residential Care'
+        ]
+      };
+      
+      const allowedSubindustries = industrySubindustryMap[selectedIndustry] || [];
+      return allowedSubindustries.includes(subindustry);
+    });
   };
 
   // Charger toutes les options de filtres
@@ -271,8 +244,8 @@ const ContactsList = () => {
       // Mettre à jour le total de contacts
       console.log('Filter options response:', response);
       console.log('Filter options pagination:', response.pagination);
-      setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
-      console.log('Total count set from filter options:', response.pagination?.total || response.pagination?.totalCount || 0);
+      setTotalCount(response.pagination?.total || 0);
+      console.log('Total count set from filter options:', response.pagination?.total || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des options de filtres:', error);
     } finally {
@@ -281,41 +254,81 @@ const ContactsList = () => {
   };
 
   // Charger les contacts
-  const loadContacts = async (page: number = 1, search: string = '') => {
+  const loadContactsWithFilters = async (page: number = 1, search: string = '', companySearch: string = '', filtersToUse: any = filters) => {
     try {
       setLoading(true);
-      let response;
       
+      // Construction des filtres pour l'API
+      const apiFilters: any = {};
+      
+      // Recherche textuelle rapide (full_name)
       if (search.trim()) {
-        // Pour la recherche, on utilise l'API de recherche globale (sans pagination)
-        response = await contactsApi.search(search, 1, 10000); // Limite très élevée pour récupérer tous les résultats
-      } else {
-        response = await contactsApi.getAll(page, 20);
+        apiFilters.q = search.trim();
       }
+      
+      // Recherche d'entreprise (current_company_name)
+      if (companySearch.trim()) {
+        apiFilters.company_name = companySearch.trim();
+      }
+      
+      // Filtres additionnels depuis l'interface
+      if (filtersToUse.country.length > 0) {
+        apiFilters.country = filtersToUse.country[0]; // Prendre le premier filtre
+      }
+      
+      if (filtersToUse.headline.length > 0) {
+        apiFilters.title = filtersToUse.headline[0]; // headline -> title
+      }
+      
+      if (filtersToUse.years_of_experience.length > 0) {
+        // Extraire la valeur numérique des tranches
+        const expValue = filtersToUse.years_of_experience[0];
+        if (expValue.includes('-')) {
+          const [min, max] = expValue.split('-').map(x => parseInt(x.replace(/\D/g, '')));
+          apiFilters.years_exp = min.toString(); // Prendre la valeur minimale
+        } else if (expValue.includes('+')) {
+          const min = parseInt(expValue.replace(/\D/g, ''));
+          apiFilters.years_exp = min.toString();
+        } else {
+          apiFilters.years_exp = expValue.replace(/\D/g, '');
+        }
+      }
+      
+      if (filtersToUse.company_industry.length > 0) {
+        apiFilters.industry = filtersToUse.company_industry[0];
+      }
+      
+      if (filtersToUse.company_subindustry.length > 0) {
+        apiFilters.subindustry = filtersToUse.company_subindustry[0];
+      }
+      
+      // Appel à l'API avec tous les filtres
+      const response = await contactsApi.getAll(page, 20, apiFilters);
       
       console.log('Response from loadContacts:', response);
       console.log('Pagination:', response.pagination);
+      console.log('API Filters:', apiFilters);
       
+      // Les contacts sont déjà filtrés côté serveur
       setContacts(response.contacts || []);
       
-      if (search.trim()) {
-        // Pour la recherche, on désactive la pagination (tous les résultats sont affichés)
-        setTotalPages(1);
-        setTotalCount(response.contacts?.length || 0);
-      } else {
-        // Pour la liste normale, on utilise la pagination
-        setTotalPages(response.pagination?.pages || response.pagination?.totalPages || 1);
-        setTotalCount(response.pagination?.total || response.pagination?.totalCount || 0);
-      }
+      // Utiliser la pagination du serveur
+      setTotalPages(response.pagination?.pages || 1);
+      setTotalCount(response.pagination?.total || 0);
       
-      console.log('Total pages set to:', response.pagination?.pages || response.pagination?.totalPages || 1);
-      console.log('Total count set to:', response.pagination?.total || response.pagination?.totalCount || 0);
+      console.log('Total pages set to:', response.pagination?.pages || 1);
+      console.log('Total count set to:', response.pagination?.total || 0);
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
       setSnackbar({ open: true, message: 'Erreur lors du chargement des contacts', severity: 'error' });
     } finally {
       setLoading(false);
     }
+  };
+
+  // Alias pour la compatibilité
+  const loadContacts = (page: number = 1, search: string = '', companySearch: string = '') => {
+    return loadContactsWithFilters(page, search, companySearch, filters);
   };
 
   // Effet pour charger les options de filtres au montage
@@ -602,7 +615,7 @@ const ContactsList = () => {
 
       // Recharger les contacts si l'import a réussi
       if (result.success) {
-        loadContacts(currentPage, searchTerm);
+        loadContacts(currentPage, searchTerm, companySearchTerm);
         loadFilterOptions();
       }
     } catch (error) {
@@ -749,7 +762,7 @@ const ContactsList = () => {
 
       // Recharger les contacts si l'import a réussi
       if (result.success) {
-        loadContacts(currentPage, searchTerm);
+        loadContacts(currentPage, searchTerm, companySearchTerm);
         loadFilterOptions();
       }
 
@@ -792,15 +805,15 @@ const ContactsList = () => {
 
   // Charger les contacts au montage initial
   useEffect(() => {
-    loadContacts(1, '');
+    loadContacts(1, '', '');
   }, []);
 
   // Effet pour charger les contacts (seulement si pas de recherche active)
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      loadContacts(currentPage, searchTerm);
+    if (!searchTerm.trim() && !companySearchTerm.trim()) {
+      loadContacts(currentPage, '', '');
     }
-  }, [currentPage, searchTerm]);
+  }, [currentPage, searchTerm, companySearchTerm]);
 
   // Recherche avec debounce
   useEffect(() => {
@@ -810,7 +823,7 @@ const ContactsList = () => {
     
     searchTimeoutRef.current = window.setTimeout(() => {
       setCurrentPage(1);
-      loadContacts(1, searchTerm);
+      loadContacts(1, searchTerm, '');
     }, 500);
     
     return () => {
@@ -828,11 +841,11 @@ const ContactsList = () => {
     
     searchTimeoutRef.current = window.setTimeout(() => {
       if (companySearchTerm.trim()) {
-        // Recherche d'entreprises via l'API
-        loadContacts(1, companySearchTerm);
+        // Recherche d'entreprises via l'API - priorité à la recherche d'entreprise
+        loadContacts(1, '', companySearchTerm);
       } else if (!searchTerm.trim()) {
         // Si pas de recherche d'entreprises et pas de recherche générale, charger la page normale
-        loadContacts(1, '');
+        loadContacts(1, '', '');
       }
     }, 500);
     
@@ -852,10 +865,20 @@ const ContactsList = () => {
 
   // Gestion des filtres
   const handleFilterChange = (filterKey: string, value: any) => {
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [filterKey]: value
-    }));
+    };
+    
+    // Si on change le secteur d'activité, réinitialiser le sous-secteur
+    if (filterKey === 'company_industry') {
+      newFilters.company_subindustry = [];
+    }
+    
+    setFilters(newFilters);
+    
+    // Recharger les contacts avec les nouveaux filtres
+    loadContactsWithFilters(1, searchTerm, companySearchTerm, newFilters);
   };
 
   const removeFilter = (filterKey: string, valueToRemove: string) => {
@@ -871,10 +894,8 @@ const ContactsList = () => {
       country: [],
       headline: [],
       years_of_experience: [],
-      company_domain: [],
       company_industry: [],
       company_subindustry: [],
-      employees_count_growth: []
     });
   };
 
@@ -902,6 +923,7 @@ const ContactsList = () => {
   // Navigation
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    loadContactsWithFilters(newPage, searchTerm, companySearchTerm, filters);
   };
 
   // Affichage des contacts en cartes
@@ -1052,7 +1074,7 @@ const ContactsList = () => {
           <TableCell sx={{ width: '60px', height: '32px', padding: '4px 8px' }}></TableCell>
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Nom complet</TableCell>
           <TableCell sx={{ width: '12%', minWidth: '80px', height: '32px', padding: '4px 8px' }}>Années exp.</TableCell>
-          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Entreprise actuelle</TableCell>
+          <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Entreprise / Sous-secteur</TableCell>
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Poste actuel</TableCell>
           <TableCell sx={{ width: '20%', minWidth: '120px', height: '32px', padding: '4px 8px' }}>Email</TableCell>
           <TableCell sx={{ width: '15%', minWidth: '100px', height: '32px', padding: '4px 8px' }}>Téléphone</TableCell>
@@ -1144,28 +1166,76 @@ const ContactsList = () => {
                 </Tooltip>
               </TableCell>
               <TableCell 
-                sx={{ height: '32px', padding: '4px 8px', cursor: 'pointer' }}
+                sx={{ 
+                  height: '32px', 
+                  padding: '4px 8px', 
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderRadius: '4px'
+                  }
+                }}
                 onClick={() => {
-                  if (contact.current_company_name) {
-                    // Naviguer vers la liste des entreprises avec filtre sur le nom
-                    navigate(`/companies?search=${encodeURIComponent(contact.current_company_name)}`);
+                  if (contact.current_company_subindustry && contact.current_company_subindustry.trim() !== '') {
+                    // Utiliser le système de recherche existant au lieu de la navigation
+                    setSearchTerm(contact.current_company_subindustry);
+                    setCompanySearchTerm('');
+                    loadContacts(1, contact.current_company_subindustry, '');
                   }
                 }}
               >
-                <Tooltip title={contact.current_company_name ? `Voir fiche entreprise: ${contact.current_company_name}` : 'Non renseigné'} arrow>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: '0.75rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%',
-                      color: contact.current_company_name ? 'primary.main' : 'text.secondary'
-                    }}
-                  >
-                    {contact.current_company_name || 'Non renseigné'}
-                </Typography>
+                <Tooltip title={
+                  contact.current_company_subindustry ? 
+                    `Cliquer pour filtrer par: ${contact.current_company_subindustry}\nSecteur: ${contact.current_company_industry || 'Non renseigné'}\nDomaine: ${contact.current_company_name || 'Non renseigné'}` :
+                    `Secteur: ${contact.current_company_industry || 'Non renseigné'}\nDomaine: ${contact.current_company_name || 'Non renseigné'}\nSous-secteur: Non renseigné`
+                } arrow>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {/* Nom de l'entreprise */}
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontSize: '0.75rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%',
+                        color: contact.current_company_name ? 'text.primary' : 'text.secondary',
+                        fontWeight: contact.current_company_name ? 'bold' : 'normal'
+                      }}
+                    >
+                      {contact.current_company_name || 'Non renseigné'}
+                    </Typography>
+                    
+                    {/* Sous-secteur avec icône de recherche */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontSize: '0.7rem',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '100%',
+                          color: contact.current_company_subindustry ? 'primary.main' : 'text.secondary',
+                          fontWeight: contact.current_company_subindustry ? 'bold' : 'normal'
+                        }}
+                      >
+                        {contact.current_company_subindustry || 'Sous-secteur non renseigné'}
+                      </Typography>
+                      {contact.current_company_subindustry && (
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            color: 'primary.main',
+                            fontSize: '0.6rem',
+                            opacity: 0.7
+                          }}
+                        >
+                          🔍
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
                 </Tooltip>
               </TableCell>
               <TableCell 
@@ -1532,40 +1602,6 @@ const ContactsList = () => {
                         }}
                       />
 
-                      {/* Domaine de l'entreprise */}
-                      <Autocomplete
-                        multiple
-                        options={filterOptions.company_domain}
-                        value={filters.company_domain}
-                        onChange={(_, value) => handleFilterChange('company_domain', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Domaine de l'entreprise"
-                            size="small"
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                    <InputAdornment position="start">
-                                  <BusinessIcon sx={{ fontSize: 16 }} />
-                    </InputAdornment>
-                              )
-                            }}
-                          />
-                        )}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              {...getTagProps({ index })}
-                              key={option}
-                              label={option}
-                              size="small"
-                              sx={{ fontSize: '0.65rem', height: 20 }}
-                            />
-                          ))
-                        }
-                      />
 
                       {/* Secteur d'activité */}
                       <Autocomplete
@@ -1607,7 +1643,7 @@ const ContactsList = () => {
                       <Autocomplete
                         multiple
                         freeSolo
-                        options={filterOptions.company_subindustry}
+                        options={getFilteredSubindustries()}
                         value={filters.company_subindustry}
                         onChange={(_, value) => handleFilterChange('company_subindustry', value)}
                         renderInput={(params) => (
@@ -1639,40 +1675,6 @@ const ContactsList = () => {
                         }
                       />
 
-                      {/* Croissance employés */}
-                      <Autocomplete
-                        multiple
-                        options={filterOptions.employees_count_growth}
-                        value={filters.employees_count_growth}
-                        onChange={(_, value) => handleFilterChange('employees_count_growth', value)}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Croissance employés"
-                            size="small"
-                            sx={{ '& .MuiInputBase-root': { fontSize: '0.8rem' } }}
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <BarChartIcon sx={{ fontSize: 16 }} />
-                                </InputAdornment>
-                              )
-                            }}
-                          />
-                        )}
-                        renderTags={(value, getTagProps) =>
-                          value.map((option, index) => (
-                            <Chip
-                              {...getTagProps({ index })}
-                              key={option}
-                              label={option}
-                              size="small"
-                              sx={{ fontSize: '0.65rem', height: 20 }}
-                            />
-                          ))
-                        }
-                      />
             </Stack>
                   </Card>
                 </Box>
