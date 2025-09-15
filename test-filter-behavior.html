@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Comportement Filtres</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test du Comportement des Filtres</h1>
+    
+    <div class="test-section">
+        <h3>1. Test sans filtre (Liste complète)</h3>
+        <button onclick="testWithoutFilter()">Charger tous les contacts</button>
+        <div id="noFilterResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Test avec filtre de recherche</h3>
+        <input type="text" id="searchInput" placeholder="Rechercher (ex: Credit, Transportation)" value="Credit">
+        <button onclick="testWithFilter()">Rechercher</button>
+        <div id="withFilterResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Comparaison des comportements</h3>
+        <button onclick="compareBehaviors()">Comparer les comportements</button>
+        <div id="comparisonResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4. Statistiques de la base de données</h3>
+        <button onclick="getDatabaseStats()">Obtenir les statistiques</button>
+        <div id="statsResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testWithoutFilter() {
+            const resultDiv = document.getElementById('noFilterResult');
+            
+            try {
+                resultDiv.innerHTML = '⏳ Chargement de tous les contacts...';
+                
+                const response = await fetch('http://localhost:3003/api/contacts');
+                const data = await response.json();
+                
+                const totalContacts = data.contacts.length;
+                const withSubindustry = data.contacts.filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '').length;
+                const withoutSubindustry = totalContacts - withSubindustry;
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>✅ Test sans filtre</strong><br>
+                        <strong>Total contacts chargés:</strong> ${totalContacts}<br>
+                        <strong>Avec sous-secteur:</strong> ${withSubindustry}<br>
+                        <strong>Sans sous-secteur:</strong> ${withoutSubindustry}<br>
+                        <strong>Comportement attendu:</strong> Tous les contacts doivent être affichés (avec et sans sous-secteur)
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function testWithFilter() {
+            const searchTerm = document.getElementById('searchInput').value;
+            const resultDiv = document.getElementById('withFilterResult');
+            
+            try {
+                resultDiv.innerHTML = '⏳ Recherche en cours...';
+                
+                const response = await fetch(`http://localhost:3003/api/contacts?q=${encodeURIComponent(searchTerm)}`);
+                const data = await response.json();
+                
+                const totalFound = data.contacts.length;
+                const withSubindustry = data.contacts.filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '').length;
+                const withoutSubindustry = totalFound - withSubindustry;
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>✅ Test avec filtre: "${searchTerm}"</strong><br>
+                        <strong>Contacts trouvés par l'API:</strong> ${totalFound}<br>
+                        <strong>Avec sous-secteur:</strong> ${withSubindustry}<br>
+                        <strong>Sans sous-secteur:</strong> ${withoutSubindustry}<br>
+                        <strong>Comportement attendu:</strong> Seuls les contacts avec sous-secteur doivent être affichés après filtrage frontend
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function compareBehaviors() {
+            const resultDiv = document.getElementById('comparisonResult');
+            
+            try {
+                resultDiv.innerHTML = '⏳ Comparaison en cours...';
+                
+                // Test sans filtre
+                const noFilterResponse = await fetch('http://localhost:3003/api/contacts');
+                const noFilterData = await noFilterResponse.json();
+                
+                // Test avec filtre
+                const filterResponse = await fetch('http://localhost:3003/api/contacts?q=Credit');
+                const filterData = await filterResponse.json();
+                
+                const noFilterTotal = noFilterData.contacts.length;
+                const noFilterWithSub = noFilterData.contacts.filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '').length;
+                
+                const filterTotal = filterData.contacts.length;
+                const filterWithSub = filterData.contacts.filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '').length;
+                
+                resultDiv.innerHTML = `
+                    <div class="info">
+                        <strong>📊 Comparaison des comportements</strong><br><br>
+                        <div class="stats">
+                            <div class="stat-box">
+                                <strong>Sans filtre:</strong><br>
+                                Total: ${noFilterTotal}<br>
+                                Avec sous-secteur: ${noFilterWithSub}<br>
+                                Sans sous-secteur: ${noFilterTotal - noFilterWithSub}
+                            </div>
+                            <div class="stat-box">
+                                <strong>Avec filtre "Credit":</strong><br>
+                                Total trouvé: ${filterTotal}<br>
+                                Avec sous-secteur: ${filterWithSub}<br>
+                                Sans sous-secteur: ${filterTotal - filterWithSub}
+                            </div>
+                        </div>
+                        <br>
+                        <strong>✅ Comportement correct:</strong><br>
+                        • Sans filtre → Affiche TOUS les contacts (${noFilterTotal})<br>
+                        • Avec filtre → Affiche SEULEMENT les contacts avec sous-secteur (${filterWithSub})
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function getDatabaseStats() {
+            const resultDiv = document.getElementById('statsResult');
+            
+            try {
+                resultDiv.innerHTML = '⏳ Récupération des statistiques...';
+                
+                const response = await fetch('http://localhost:3003/api/contacts');
+                const data = await response.json();
+                
+                const totalContacts = data.pagination.total;
+                const loadedContacts = data.contacts.length;
+                const withSubindustry = data.contacts.filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '').length;
+                const withoutSubindustry = loadedContacts - withSubindustry;
+                
+                resultDiv.innerHTML = `
+                    <div class="info">
+                        <strong>📊 Statistiques de la base de données</strong><br>
+                        <strong>Total contacts en base:</strong> ${totalContacts}<br>
+                        <strong>Contacts chargés (page 1):</strong> ${loadedContacts}<br>
+                        <strong>Avec sous-secteur (page 1):</strong> ${withSubindustry}<br>
+                        <strong>Sans sous-secteur (page 1):</strong> ${withoutSubindustry}<br>
+                        <strong>Pourcentage avec sous-secteur:</strong> ${((withSubindustry/loadedContacts)*100).toFixed(1)}%
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        // Test automatique au chargement
+        window.onload = function() {
+            testWithoutFilter();
+        };
+    </script>
+</body>
+</html>

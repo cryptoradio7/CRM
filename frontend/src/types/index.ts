@@ -13,7 +13,7 @@ export interface Contact {
   connections_count?: number;
   lead_quality_score?: number;
   linkedin_url?: string;
-  years_of_experience?: number;
+  years_of_experience?: string;
   department?: string;
   current_title_normalized?: string;
   profile_picture_url?: string;

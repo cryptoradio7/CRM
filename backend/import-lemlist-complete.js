@@ -87,8 +87,7 @@ function extractContactData(contact) {
     connections_count: contact.connections_count || 0,
     lead_quality_score: contact.lead_quality_score || 0,
     linkedin_url: contact.lead_linkedin_url || '',
-    years_of_experience: contact.years_of_exp_bucket ? 
-      parseInt(contact.years_of_exp_bucket.replace(/\D/g, '')) || 0 : 0,
+    years_of_experience: contact.years_of_exp_bucket || '',
     department: contact.department || '',
     current_title_normalized: contact.experiences && contact.experiences.length > 0 ? 
       contact.experiences[0].title_normalized || '' : '',

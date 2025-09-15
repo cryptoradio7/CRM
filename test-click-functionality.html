@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fonctionnalité Clic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .clickable { 
+            padding: 10px; 
+            margin: 5px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer;
+            display: inline-block;
+        }
+        .clickable:hover { background: #0056b3; }
+        .subindustry-item {
+            padding: 8px 12px;
+            margin: 4px;
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .subindustry-item:hover {
+            background: rgba(33, 150, 243, 0.1);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de la Fonctionnalité de Clic</h1>
+    
+    <div class="test-section">
+        <h3>1. Test de l'API avec différents sous-secteurs</h3>
+        <button class="clickable" onclick="testSubindustry('Credit Intermediation')">Test "Credit Intermediation"</button>
+        <button class="clickable" onclick="testSubindustry('Transportation Equipment Manufacturing')">Test "Transportation Equipment"</button>
+        <button class="clickable" onclick="testSubindustry('Airlines and Aviation')">Test "Airlines and Aviation"</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>2. Simulation de clic sur sous-secteur</h3>
+        <p>Cliquez sur un sous-secteur ci-dessous pour simuler le comportement :</p>
+        <div id="subindustryList"></div>
+        <div id="clickResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>3. Test de la recherche filtrée</h3>
+        <input type="text" id="searchInput" placeholder="Tapez un sous-secteur..." style="padding: 8px; margin: 5px; width: 300px;">
+        <button class="clickable" onclick="testSearch()">Rechercher</button>
+        <div id="searchResult" class="result"></div>
+    </div>
+
+    <script>
+        let availableSubindustries = [];
+
+        async function testSubindustry(subindustry) {
+            const resultDiv = document.getElementById('apiResult');
+            
+            try {
+                resultDiv.innerHTML = '⏳ Test en cours...';
+                
+                const response = await fetch(`http://localhost:3003/api/contacts?q=${encodeURIComponent(subindustry)}`);
+                const data = await response.json();
+                
+                const filteredContacts = data.contacts.filter(contact => 
+                    contact.current_company_subindustry && 
+                    contact.current_company_subindustry.trim() !== ''
+                );
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>✅ Test "${subindustry}"</strong><br>
+                        <strong>Contacts trouvés:</strong> ${filteredContacts.length}<br>
+                        <strong>Exemples:</strong><br>
+                        ${filteredContacts.slice(0, 3).map(c => 
+                            `• ${c.full_name} - ${c.current_company_name}`
+                        ).join('<br>')}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSubindustries() {
+            try {
+                const response = await fetch('http://localhost:3003/api/contacts');
+                const data = await response.json();
+                
+                const subindustries = [...new Set(
+                    data.contacts
+                        .filter(c => c.current_company_subindustry && c.current_company_subindustry.trim() !== '')
+                        .map(c => c.current_company_subindustry)
+                )].slice(0, 10);
+                
+                availableSubindustries = subindustries;
+                
+                const listDiv = document.getElementById('subindustryList');
+                listDiv.innerHTML = subindustries.map(sub => 
+                    `<div class="subindustry-item" onclick="simulateClick('${sub}')">${sub} 🔍</div>`
+                ).join('');
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des sous-secteurs:', error);
+            }
+        }
+
+        function simulateClick(subindustry) {
+            const resultDiv = document.getElementById('clickResult');
+            
+            resultDiv.innerHTML = `
+                <div class="success">
+                    <strong>🖱️ Clic simulé sur: "${subindustry}"</strong><br>
+                    <strong>Action:</strong> setSearchTerm("${subindustry}")<br>
+                    <strong>Action:</strong> loadContacts(1, "${subindustry}", "")<br>
+                    <strong>Résultat attendu:</strong> La liste devrait se filtrer pour montrer seulement les contacts avec ce sous-secteur
+                </div>
+            `;
+            
+            // Simuler la recherche
+            testSubindustry(subindustry);
+        }
+
+        async function testSearch() {
+            const searchTerm = document.getElementById('searchInput').value;
+            const resultDiv = document.getElementById('searchResult');
+            
+            if (!searchTerm.trim()) {
+                resultDiv.innerHTML = '<div class="error">❌ Veuillez entrer un terme de recherche</div>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '⏳ Recherche en cours...';
+                
+                const response = await fetch(`http://localhost:3003/api/contacts?q=${encodeURIComponent(searchTerm)}`);
+                const data = await response.json();
+                
+                const filteredContacts = data.contacts.filter(contact => 
+                    contact.current_company_subindustry && 
+                    contact.current_company_subindustry.trim() !== ''
+                );
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>🔍 Recherche: "${searchTerm}"</strong><br>
+                        <strong>Contacts trouvés:</strong> ${filteredContacts.length}<br>
+                        <strong>Sous-secteurs correspondants:</strong><br>
+                        ${[...new Set(filteredContacts.map(c => c.current_company_subindustry))]
+                            .map(sub => `• ${sub}`).join('<br>')}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Erreur: ${error.message}</div>`;
+            }
+        }
+
+        // Charger les sous-secteurs au démarrage
+        window.onload = function() {
+            loadSubindustries();
+        };
+    </script>
+</body>
+</html>
